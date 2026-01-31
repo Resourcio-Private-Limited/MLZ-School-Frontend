@@ -1,28 +1,34 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LayoutDashboard, Users, GraduationCap, Calendar, Settings, LogOut } from "lucide-react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
-export default async function PrincipalLayout({
+export default function PrincipalLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== "PRINCIPAL") {
-        redirect("/login");
-    }
+    // TODO: Connect to new backend API for authentication
+    // For now, layout is accessible without authentication
+    const mockUser = {
+        name: "Principal User",
+        email: "principal@school.com"
+    };
 
     return (
         <div className="flex h-screen bg-gray-100">
             {/* Sidebar */}
             <aside className="w-64 bg-white shadow-md flex flex-col">
-                <div className="p-6 border-b">
-                    <h1 className="text-xl font-bold text-blue-900">School Admin</h1>
-                    <p className="text-sm text-gray-500">Principal Portal</p>
+                <div className="p-4 border-b">
+                    <Image
+                        src="/MLZS_contents/Horizontal MLZS Logo.png"
+                        alt="Mount Litera Zee School"
+                        width={180}
+                        height={56}
+                        className="h-auto mb-2"
+                    />
+                    <p className="text-sm text-gray-500 font-medium">Principal Portal</p>
                 </div>
+
 
                 <nav className="flex-1 p-4 space-y-2">
                     <NavLink href="/principal" icon={<LayoutDashboard size={20} />} label="Dashboard" />
@@ -35,15 +41,14 @@ export default async function PrincipalLayout({
                 <div className="p-4 border-t">
                     <div className="flex items-center space-x-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                            {session.user.name?.[0] || "P"}
+                            {mockUser.name?.[0] || "P"}
                         </div>
                         <div>
-                            <p className="font-medium text-sm">{session.user.name}</p>
-                            <p className="text-xs text-gray-500">{session.user.email}</p>
+                            <p className="font-medium text-sm">{mockUser.name}</p>
+                            <p className="text-xs text-gray-500">{mockUser.email}</p>
                         </div>
                     </div>
-                    {/* Logout handled by client component usually, but for now just link */}
-                    <Link href="/api/auth/signout" className="flex items-center space-x-3 text-red-600 p-2 hover:bg-red-50 rounded">
+                    <Link href="/" className="flex items-center space-x-3 text-red-600 p-2 hover:bg-red-50 rounded">
                         <LogOut size={20} />
                         <span>Logout</span>
                     </Link>

@@ -1,71 +1,159 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import Link from "next/link";
-import { BookOpen, GraduationCap, Users, Shield } from "lucide-react";
+import Image from "next/image";
+import { GraduationCap, Users, Shield, Banknote, ShieldCheck, Phone, ArrowRight, ChevronRight, LayoutGrid } from "lucide-react";
 
-export default async function Home() {
-  const session = await getServerSession(authOptions);
-
-  if (session && session.user) {
-    const role = session.user.role;
-    if (role === "PRINCIPAL") {
-      redirect("/principal");
-    } else if (role === "TEACHER") {
-      redirect("/teacher");
-    } else if (role === "STUDENT") {
-      redirect("/student");
-    }
-  }
-
+export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="text-center mb-12">
-        <div className="flex justify-center mb-4 text-blue-900">
-          <BookOpen size={64} />
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Hero Section */}
+      <div className="bg-slate-900 pb-32">
+        <header className="max-w-7xl mx-auto px-6 py-6 border-b border-white/10 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            {/* White Logo for Dark Background - If not available, use filter or text */}
+            <Image
+              src="/MLZS_contents/Zee Learn White.png"
+              alt="Mount Litera Zee School"
+              width={120}
+              height={40}
+              className="h-8 w-auto opacity-90"
+              priority
+            />
+            <div className="h-6 w-px bg-white/20"></div>
+            <span className="text-white/90 text-sm font-medium tracking-wide">PORTAL ACCESS</span>
+          </div>
+          <div className="text-white/60 text-xs tracking-wider uppercase hidden sm:block">
+            Session 2025-2026
+          </div>
+        </header>
+
+        <div className="max-w-7xl mx-auto px-6 pt-16 pb-12 text-center sm:text-left">
+          <h1 className="text-3xl sm:text-4xl font-light text-white mb-2">
+            Welcome to <span className="font-bold text-blue-400">Mount Litera Zee School</span>
+          </h1>
+          <p className="text-slate-400 text-lg max-w-2xl font-light">
+            Select your role to access the integrated management system.
+            Secure, efficient, and comprehensive.
+          </p>
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">School Management System</h1>
-        <p className="text-lg text-gray-600">Please select your role to continue</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-        {/* Student Card */}
-        <Link href="/login/student" className="group">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col items-center text-center">
-            <div className="bg-blue-100 p-4 rounded-full mb-6 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-              <GraduationCap size={40} />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Student</h2>
-            <p className="text-gray-500">Access your dashboard, view grades, and check attendance.</p>
-          </div>
-        </Link>
+      {/* Main Content - Floating Cards */}
+      <main className="flex-grow -mt-24 px-6 pb-12">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
 
-        {/* Teacher Card */}
-        <Link href="/login/teacher" className="group">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col items-center text-center">
-            <div className="bg-green-100 p-4 rounded-full mb-6 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
-              <Users size={40} />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Teacher</h2>
-            <p className="text-gray-500">Manage classes, mark attendance, and upload result.</p>
-          </div>
-        </Link>
+            <CorporateCard
+              href="/login/student"
+              icon={<GraduationCap className="w-6 h-6" />}
+              title="Student"
+              subtitle="My Learning"
+              color="border-blue-500"
+            />
 
-        {/* Admin Card */}
-        <Link href="/login/admin" className="group">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col items-center text-center">
-            <div className="bg-purple-100 p-4 rounded-full mb-6 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-              <Shield size={40} />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Admin</h2>
-            <p className="text-gray-500">System configuration, user management, and reports.</p>
-          </div>
-        </Link>
-      </div>
+            <CorporateCard
+              href="/login/teacher"
+              icon={<Users className="w-6 h-6" />}
+              title="Teacher"
+              subtitle="Classroom Ops"
+              color="border-emerald-500"
+            />
 
-      <footer className="mt-16 text-gray-400 text-sm">
-        © {new Date().getFullYear()} School Management System. All rights reserved.
+            <CorporateCard
+              href="/login/admin"
+              icon={<Shield className="w-6 h-6" />}
+              title="Principal"
+              subtitle="Administration"
+              color="border-purple-600"
+            />
+
+            <CorporateCard
+              href="/login/accounts"
+              icon={<Banknote className="w-6 h-6" />}
+              title="Accounts"
+              subtitle="Finance & Payroll"
+              color="border-amber-500"
+            />
+
+            <CorporateCard
+              href="/login/super-admin"
+              icon={<ShieldCheck className="w-6 h-6" />}
+              title="Super Admin"
+              subtitle="System Control"
+              color="border-rose-600"
+            />
+
+          </div>
+
+          {/* Quick Links / Info Section under cards */}
+          <div className="mt-16 grid md:grid-cols-3 gap-8 py-8 border-t border-gray-200">
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <LayoutGrid size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Integrated Platform</h3>
+                <p className="text-sm text-gray-500 mt-1">One unified system for all school operations and management needs.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Secure Access</h3>
+                <p className="text-sm text-gray-500 mt-1">Enterprise-grade security ensuring your data remains protected.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <Phone size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">24/7 Support</h3>
+                <p className="text-sm text-gray-500 mt-1">Need help? Contact our dedicated support team anytime.</p>
+                <p className="text-sm font-medium text-blue-600 mt-1">+91 1800-123-4567</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-8">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center opacity-70">
+          <Image
+            src="/MLZS_contents/write Zee Learn Original Blue.png"
+            alt="Zee Learn"
+            width={100}
+            height={30}
+            className="h-6 w-auto mb-4 md:mb-0"
+          />
+          <div className="text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} Mount Litera Zee School. All rights reserved.
+          </div>
+        </div>
       </footer>
     </div>
+  );
+}
+
+function CorporateCard({ href, icon, title, subtitle, color }: { href: string; icon: React.ReactNode; title: string; subtitle: string; color: string }) {
+  return (
+    <Link href={href} className="group block h-full">
+      <div className={`bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 h-full overflow-hidden border-t-4 ${color} relative group-hover:-translate-y-1`}>
+        <div className="p-6">
+          <div className={`w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center text-gray-700 mb-4 group-hover:bg-gray-100 transition-colors`}>
+            {icon}
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-blue-900 transition-colors">{title}</h3>
+          <p className="text-sm text-gray-500 mb-4 font-medium">{subtitle}</p>
+
+          <div className="flex items-center text-blue-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            Login <ArrowRight size={16} className="ml-2" />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }

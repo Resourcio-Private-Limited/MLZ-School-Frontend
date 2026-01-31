@@ -46,9 +46,9 @@ export default async function TeacherExamsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {exams.map(exam => (
                     <Link key={exam.id} href={`/teacher/exams/${exam.id}`} className="group">
-                        <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-all">
+                        <div className="bg-white p-6 rounded-xl shadow-md border-t-4 border-emerald-500 hover:shadow-lg transition-all duration-300 h-full">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                                     <FileText size={24} />
                                 </div>
                                 <span className={`text-xs px-2 py-1 rounded font-bold ${exam.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
