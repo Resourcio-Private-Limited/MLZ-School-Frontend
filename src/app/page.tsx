@@ -59,7 +59,7 @@ export default function Home() {
             />
 
             <CorporateCard
-              href="/login/admin"
+              href="/login/principal"
               icon={<Shield className="w-6 h-6" />}
               title="Principal"
               subtitle="Administration"

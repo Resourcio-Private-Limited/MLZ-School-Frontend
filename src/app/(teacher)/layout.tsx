@@ -33,22 +33,29 @@ export default function TeacherLayout({
 
                 <div className="p-4 border-b border-slate-800">
                     {!isCollapsed ? (
-                        <>
-                            {/* Using White Logo for Dark Background */}
-                            <Image
-                                src="/MLZS_contents/Zee Learn White.png"
-                                alt="Mount Litera Zee School"
-                                width={140}
-                                height={40}
-                                className="h-auto opacity-90 mb-2"
-                            />
-                            <p className="text-xs text-slate-400 font-medium tracking-wider uppercase ml-1">Teacher Portal</p>
-                        </>
-                    ) : (
-                        <div className="flex justify-center">
-                            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-900/20">
-                                M
+                        <div className="flex flex-col items-center">
+                            {/* Expanded Logo */}
+                            <div className="relative w-32 h-auto mb-2">
+                                <Image
+                                    src="/sidebar_logo_expanded.png"
+                                    alt="Mount Litera Zee School"
+                                    width={128}
+                                    height={40}
+                                    className="object-contain rounded-lg"
+                                />
                             </div>
+                            <p className="text-xs text-slate-400 font-medium tracking-wider uppercase">Teacher Portal</p>
+                        </div>
+                    ) : (
+                        /* Collapsed Logo (Favicon) */
+                        <div className="flex justify-center">
+                            <Image
+                                src="/favicon.png"
+                                alt="MLZS"
+                                width={40}
+                                height={40}
+                                className="h-10 w-10 object-contain rounded-lg"
+                            />
                         </div>
                     )}
                 </div>

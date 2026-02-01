@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, use } from "react";
-import { MessageSquare, Calendar, Users, ArrowLeft, BookOpen, Clock } from "lucide-react";
+import { MessageSquare, Calendar, Users, ArrowLeft, BookOpen, Clock, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -173,7 +173,29 @@ export default function TeacherClassroomPage({ params }: { params: Promise<{ id:
                         </div>
                     </div>
                 </Link>
+
+                {/* Generate Marks Card - Only for Class Teachers */}
+                {classroomDetails.isClassTeacher && (
+                    <Link href={`/teacher/classroom/${id}/exams`}>
+                        <div className="bg-white rounded-xl shadow-md border-t-4 border-amber-500 hover:shadow-lg transition-all duration-300 h-full">
+                            <div className="p-6 flex flex-col h-full justify-between">
+                                <div>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="bg-amber-50 p-3 rounded-lg text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                                            <FileSpreadsheet size={24} />
+                                        </div>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-800 mb-2">Final Exam Marks</h2>
+                                    <p className="text-gray-500 text-sm">Generate and manage student marks for final exams.</p>
+                                </div>
+                                <div className="mt-6 flex items-center text-amber-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
+                                    Generate Marks <ArrowLeft className="ml-1 rotate-180" size={16} />
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
+                )}
             </div>
-        </div>
+        </div >
     );
 }
