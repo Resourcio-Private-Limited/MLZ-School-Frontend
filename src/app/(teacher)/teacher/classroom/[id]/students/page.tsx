@@ -34,7 +34,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <Link href={`/teacher/classroom/${id}`}>
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-[#2BB9E5] transition-colors">
+                        <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back</span>
                         </button>
@@ -51,7 +51,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                     <input
                         type="text"
                         placeholder="Search by name or roll no..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2BB9E5] text-sm"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-gray-800"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -61,7 +61,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                         <Filter size={16} />
                         <span>Filter</span>
                     </button>
-                    <button className="flex items-center space-x-2 px-4 py-2 bg-[#2BB9E5] text-white rounded-lg hover:bg-[#25a0c7] transition-colors text-sm font-medium shadow-md shadow-blue-100">
+                    <button className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium shadow-md shadow-emerald-100">
                         <FileText size={16} />
                         <span>Export Report</span>
                     </button>
@@ -99,8 +99,8 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${parseInt(student.attendance) > 90 ? 'bg-green-100 text-green-800' :
-                                                    parseInt(student.attendance) > 75 ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-red-100 text-red-800'
+                                                parseInt(student.attendance) > 75 ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
                                                 }`}>
                                                 {student.attendance}
                                             </span>
@@ -115,7 +115,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button className="text-gray-400 hover:text-[#2BB9E5] transition-colors">
+                                            <button className="text-gray-400 hover:text-emerald-500 transition-colors">
                                                 <MoreVertical size={18} />
                                             </button>
                                         </td>

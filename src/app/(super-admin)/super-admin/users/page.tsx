@@ -327,7 +327,7 @@ export default function UserManagementPage() {
                                             value={newUser.name}
                                             onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                                             placeholder="Enter full name"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                     <div>
@@ -339,7 +339,7 @@ export default function UserManagementPage() {
                                             value={newUser.email}
                                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                                             placeholder="user@mlzs.edu"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                     <div>
@@ -351,7 +351,7 @@ export default function UserManagementPage() {
                                             value={newUser.phone}
                                             onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
                                             placeholder="+91 98765 43210"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                     <div>
@@ -362,7 +362,7 @@ export default function UserManagementPage() {
                                             type="date"
                                             value={newUser.dob}
                                             onChange={(e) => setNewUser({ ...newUser, dob: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                     <div>
@@ -372,7 +372,7 @@ export default function UserManagementPage() {
                                         <select
                                             value={newUser.gender}
                                             onChange={(e) => setNewUser({ ...newUser, gender: e.target.value as any })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         >
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
@@ -388,7 +388,7 @@ export default function UserManagementPage() {
                                             value={newUser.bloodGroup}
                                             onChange={(e) => setNewUser({ ...newUser, bloodGroup: e.target.value })}
                                             placeholder="e.g., O+, A+, B+"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
@@ -400,7 +400,7 @@ export default function UserManagementPage() {
                                             onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
                                             placeholder="Enter complete address"
                                             rows={2}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
                                 </div>
@@ -421,10 +421,9 @@ export default function UserManagementPage() {
                                         <select
                                             value={newUser.role}
                                             onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         >
                                             <option value="Teacher">Teacher</option>
-                                            <option value="Student">Student</option>
                                             <option value="Principal">Principal</option>
                                             <option value="Accountant">Accountant</option>
                                         </select>
@@ -438,7 +437,7 @@ export default function UserManagementPage() {
                                             value={newUser.employeeId}
                                             onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })}
                                             placeholder="e.g., TCH-2024-001"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                         />
                                     </div>
 
@@ -453,7 +452,7 @@ export default function UserManagementPage() {
                                                     value={newUser.designation}
                                                     onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
                                                     placeholder="e.g., Senior Teacher, HOD"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div>
@@ -465,7 +464,7 @@ export default function UserManagementPage() {
                                                     value={newUser.department}
                                                     onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
                                                     placeholder="e.g., Science & Mathematics"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div>
@@ -477,7 +476,7 @@ export default function UserManagementPage() {
                                                     value={newUser.subject}
                                                     onChange={(e) => setNewUser({ ...newUser, subject: e.target.value })}
                                                     placeholder="e.g., Mathematics, Physics"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div>
@@ -489,7 +488,7 @@ export default function UserManagementPage() {
                                                     value={newUser.classTeacherOf}
                                                     onChange={(e) => setNewUser({ ...newUser, classTeacherOf: e.target.value })}
                                                     placeholder="e.g., 10-A (optional)"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div>
@@ -500,7 +499,7 @@ export default function UserManagementPage() {
                                                     type="date"
                                                     value={newUser.joiningDate}
                                                     onChange={(e) => setNewUser({ ...newUser, joiningDate: e.target.value })}
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div>
@@ -512,7 +511,7 @@ export default function UserManagementPage() {
                                                     value={newUser.currentSalary}
                                                     onChange={(e) => setNewUser({ ...newUser, currentSalary: e.target.value })}
                                                     placeholder="e.g., 55,000"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                             <div className="md:col-span-2">
@@ -524,7 +523,7 @@ export default function UserManagementPage() {
                                                     value={newUser.qualification}
                                                     onChange={(e) => setNewUser({ ...newUser, qualification: e.target.value })}
                                                     placeholder="B.Ed, M.Sc Physics, PhD (comma separated)"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                                 <p className="text-xs text-gray-500 mt-1">Separate multiple qualifications with commas</p>
                                             </div>
@@ -537,7 +536,7 @@ export default function UserManagementPage() {
                                                     value={newUser.officialDocumentNumber}
                                                     onChange={(e) => setNewUser({ ...newUser, officialDocumentNumber: e.target.value })}
                                                     placeholder="e.g., PAN: ABCDE1234F, Aadhaar, etc."
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                                 />
                                             </div>
                                         </>
@@ -560,7 +559,7 @@ export default function UserManagementPage() {
                                         value={newUser.password}
                                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                                         placeholder="Enter initial password"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none text-gray-800"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">User will be required to change this on first login</p>
                                 </div>

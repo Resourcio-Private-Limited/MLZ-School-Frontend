@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, Calendar, Download, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Download, FileText } from "lucide-react";
 
 export default function FinancialOverviewPage() {
     const [selectedMonth, setSelectedMonth] = useState("2024-01");
@@ -45,12 +45,6 @@ export default function FinancialOverviewPage() {
     const incomeChange = ((currentData.totalIncome - previousData.totalIncome) / previousData.totalIncome * 100).toFixed(1);
     const expenseChange = ((currentData.totalExpenses - previousData.totalExpenses) / previousData.totalExpenses * 100).toFixed(1);
     const netChange = ((currentData.netBalance - previousData.netBalance) / previousData.netBalance * 100).toFixed(1);
-
-    const expenseCategories = Object.entries(currentData.expenses).map(([category, amount]) => ({
-        category: category.charAt(0).toUpperCase() + category.slice(1),
-        amount,
-        percentage: (amount / currentData.totalExpenses * 100).toFixed(1)
-    }));
 
     return (
         <div className="space-y-8">
@@ -137,129 +131,6 @@ export default function FinancialOverviewPage() {
                     <p className="text-gray-500 text-xs mt-2">
                         {currentData.netBalance >= 0 ? 'Profit' : 'Loss'}
                     </p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Income Breakdown */}
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-green-500">
-                    <div className="p-6 border-b border-gray-100 bg-green-50">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <TrendingUp className="text-green-600" size={24} />
-                            Income Report
-                        </h2>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <div className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 transition-colors">
-                            <div>
-                                <p className="text-sm text-gray-700 font-medium">Student Fees Collected</p>
-                                <p className="text-xs text-gray-500 mt-1">Monthly tuition fees</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold text-gray-800">₹{currentData.studentFees.toLocaleString()}</p>
-                                <p className="text-xs text-gray-500">{(currentData.studentFees / currentData.totalIncome * 100).toFixed(1)}%</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 transition-colors">
-                            <div>
-                                <p className="text-sm text-gray-700 font-medium">Other Income</p>
-                                <p className="text-xs text-gray-500 mt-1">Events, donations, etc.</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-lg font-bold text-gray-800">₹{currentData.otherIncome.toLocaleString()}</p>
-                                <p className="text-xs text-gray-500">{(currentData.otherIncome / currentData.totalIncome * 100).toFixed(1)}%</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border-2 border-green-500">
-                            <p className="text-sm font-bold text-gray-800">Grand Total Income</p>
-                            <p className="text-xl font-bold text-green-600">₹{currentData.totalIncome.toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Expense Breakdown */}
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-red-500">
-                    <div className="p-6 border-b border-gray-100 bg-red-50">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                            <TrendingDown className="text-red-600" size={24} />
-                            Expense Report
-                        </h2>
-                    </div>
-                    <div className="p-6 space-y-3">
-                        {expenseCategories.map((category, index) => (
-                            <div key={index} className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <p className="text-sm font-medium text-gray-700">{category.category}</p>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-red-600">₹{category.amount.toLocaleString()}</p>
-                                        <p className="text-xs text-gray-500">{category.percentage}%</p>
-                                    </div>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                                        style={{ width: `${category.percentage}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        ))}
-                        <div className="flex justify-between items-center p-4 bg-gray-100 rounded-lg border-2 border-red-200 mt-4">
-                            <p className="text-sm font-bold text-gray-800">Grand Total Expenses</p>
-                            <p className="text-xl font-bold text-red-600">₹{currentData.totalExpenses.toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Visual Balance Indicator */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-rose-600">
-                <div className="p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <BarChart3 className="text-rose-600" size={24} />
-                        Financial Overview
-                    </h2>
-                </div>
-                <div className="p-6">
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-medium text-gray-700">Income</span>
-                                <span className="text-sm font-bold text-green-600">₹{currentData.totalIncome.toLocaleString()}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-4">
-                                <div
-                                    className="bg-green-500 h-4 rounded-full transition-all duration-300"
-                                    style={{ width: '100%' }}
-                                ></div>
-                            </div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-medium text-gray-700">Expenses</span>
-                                <span className="text-sm font-bold text-red-600">₹{currentData.totalExpenses.toLocaleString()}</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-4">
-                                <div
-                                    className="bg-red-500 h-4 rounded-full transition-all duration-300"
-                                    style={{ width: `${(currentData.totalExpenses / currentData.totalIncome * 100)}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-gray-200">
-                            <div className="flex justify-between items-center">
-                                <span className="text-lg font-bold text-gray-800">Net Balance (Profit & Loss)</span>
-                                <span className={`text-2xl font-bold ${currentData.netBalance >= 0 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                    ₹{currentData.netBalance.toLocaleString()}
-                                </span>
-                            </div>
-                            <p className="text-sm text-gray-500 mt-2">
-                                {currentData.netBalance >= 0
-                                    ? `Profit margin: ${(currentData.netBalance / currentData.totalIncome * 100).toFixed(1)}%`
-                                    : `Loss: ${Math.abs(currentData.netBalance / currentData.totalIncome * 100).toFixed(1)}%`
-                                }
-                            </p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

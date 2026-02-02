@@ -64,7 +64,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
             {/* Header */}
             <div className="flex items-center space-x-4 mb-4 flex-shrink-0">
                 <Link href={`/teacher/classroom/${id}`}>
-                    <button className="flex items-center space-x-2 text-gray-600 hover:text-[#2BB9E5] transition-colors">
+                    <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
                         <ArrowLeft size={20} />
                         <span className="font-medium">Back to Classroom</span>
                     </button>
@@ -81,7 +81,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                             <input
                                 type="text"
                                 placeholder="Search students..."
-                                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2BB9E5] text-sm"
+                                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-gray-800"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -93,7 +93,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                             <div
                                 key={student.id}
                                 onClick={() => setSelectedStudentId(student.id)}
-                                className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${selectedStudentId === student.id ? 'bg-white border-l-4 border-l-[#2BB9E5] shadow-sm' : 'border-gray-50'}`}
+                                className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${selectedStudentId === student.id ? 'bg-white border-l-4 border-l-emerald-500 shadow-sm' : 'border-gray-50'}`}
                             >
                                 <div className="relative">
                                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
@@ -105,7 +105,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-baseline mb-1">
-                                        <h3 className={`text-sm font-semibold truncate ${selectedStudentId === student.id ? 'text-[#2BB9E5]' : 'text-gray-800'}`}>
+                                        <h3 className={`text-sm font-semibold truncate ${selectedStudentId === student.id ? 'text-emerald-500' : 'text-gray-800'}`}>
                                             {student.name}
                                         </h3>
                                         <span className="text-xs text-gray-400">{student.time}</span>
@@ -115,7 +115,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                                     </p>
                                 </div>
                                 {student.unread > 0 && (
-                                    <div className="w-5 h-5 bg-[#2BB9E5] text-white rounded-full flex items-center justify-center text-[10px] font-bold">
+                                    <div className="w-5 h-5 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
                                         {student.unread}
                                     </div>
                                 )}
@@ -150,7 +150,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                                     activeMessages.map((msg) => (
                                         <div key={msg.id} className="border-b border-gray-100 pb-4 last:border-0">
                                             <div className="flex items-baseline justify-between mb-2">
-                                                <h4 className={`text-sm font-bold ${msg.sender === 'teacher' ? 'text-[#2BB9E5]' : 'text-gray-800'}`}>
+                                                <h4 className={`text-sm font-bold ${msg.sender === 'teacher' ? 'text-emerald-500' : 'text-gray-800'}`}>
                                                     {msg.sender === 'teacher' ? 'You (Teacher)' : activeStudent.name}
                                                 </h4>
                                                 <span className="text-xs text-gray-400">{msg.time}</span>
@@ -175,7 +175,7 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                                         <textarea
                                             rows={3}
                                             placeholder="Type your formal reply here..."
-                                            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#2BB9E5] focus:outline-none text-sm resize-none"
+                                            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm resize-none text-gray-800"
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
                                         ></textarea>
@@ -185,8 +185,8 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                                             type="submit"
                                             disabled={!newMessage.trim()}
                                             className={`px-6 py-2 rounded-lg font-semibold text-sm transition-colors ${newMessage.trim()
-                                                    ? 'bg-[#2BB9E5] text-white hover:bg-[#25a0c7]'
-                                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                                 }`}
                                         >
                                             Send Reply

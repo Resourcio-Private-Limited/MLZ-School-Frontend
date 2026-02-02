@@ -124,7 +124,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                 </span>
                                 <button
                                     onClick={handleInitialSubmit}
-                                    className="bg-[#2BB9E5] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#25a0c7] transition-colors"
+                                    className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-600 transition-colors"
                                 >
                                     Save Attendance
                                 </button>
@@ -208,7 +208,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <Link href={`/teacher/classroom/${id}`}>
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-[#2BB9E5] transition-colors">
+                        <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back</span>
                         </button>
@@ -223,7 +223,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                         disabled={isAttendanceSubmittedToday}
                         className={`px-5 py-2.5 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 ${isAttendanceSubmittedToday
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                            : 'bg-[#2BB9E5] text-white shadow-blue-200 hover:bg-[#25a0c7]'
+                            : 'bg-emerald-500 text-white shadow-emerald-200 hover:bg-emerald-600'
                             }`}
                     >
                         {isAttendanceSubmittedToday ? (
@@ -280,13 +280,13 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                         <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-[#2BB9E5] focus:border-[#2BB9E5] block p-2"
+                            className="bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2"
                         >
                             <option>October 2024</option>
                             <option>September 2024</option>
                             <option>August 2024</option>
                         </select>
-                        <button className="p-2 text-gray-500 hover:text-[#2BB9E5] transition-colors">
+                        <button className="p-2 text-gray-500 hover:text-emerald-500 transition-colors">
                             <Download size={20} />
                         </button>
                     </div>
@@ -336,7 +336,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                         <div className="flex justify-end space-x-2">
                                             <button
                                                 onClick={() => setViewingRecord(record)}
-                                                className="text-[#2BB9E5] hover:text-[#25a0c7] font-medium text-xs"
+                                                className="text-emerald-500 hover:text-emerald-600 font-medium text-xs"
                                             >
                                                 View
                                             </button>

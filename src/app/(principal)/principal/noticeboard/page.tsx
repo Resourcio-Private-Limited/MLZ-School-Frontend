@@ -152,7 +152,7 @@ export default function PrincipalNoticeBoardPage() {
                                     value={newNotice.title}
                                     onChange={(e) => setNewNotice({ ...newNotice, title: e.target.value })}
                                     placeholder="Enter notice title..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                 />
                             </div>
                             <div>
@@ -162,7 +162,7 @@ export default function PrincipalNoticeBoardPage() {
                                 <select
                                     value={newNotice.category}
                                     onChange={(e) => setNewNotice({ ...newNotice, category: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                 >
                                     {categories.filter(c => c !== "All Notices").map((cat, idx) => (
                                         <option key={idx} value={cat}>{cat}</option>
@@ -178,7 +178,7 @@ export default function PrincipalNoticeBoardPage() {
                             <select
                                 value={newNotice.targetAudience}
                                 onChange={(e) => setNewNotice({ ...newNotice, targetAudience: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                             >
                                 {targetAudiences.map((audience, idx) => (
                                     <option key={idx} value={audience}>{audience}</option>
@@ -195,7 +195,7 @@ export default function PrincipalNoticeBoardPage() {
                                 onChange={(e) => setNewNotice({ ...newNotice, message: e.target.value })}
                                 placeholder="Enter notice message..."
                                 rows={4}
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none"
+                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none text-gray-800"
                             />
                         </div>
 
@@ -221,8 +221,8 @@ export default function PrincipalNoticeBoardPage() {
                                 onClick={handleCreateNotice}
                                 disabled={!newNotice.title || !newNotice.message}
                                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${newNotice.title && newNotice.message
-                                        ? "bg-purple-600 text-white hover:bg-purple-700"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                     }`}
                             >
                                 Publish Notice

@@ -227,4 +227,4 @@ CREATE TABLE "Income" (
 -- 2. Index on StudentProfile(admissionNo)
 -- 3. Composite Index on Attendance(studentId, date)
 -- 4. Index on ExamResult(examId)
--- 5. Foreign Key Constraints are critical for data integrity.
+-- 5. Foreign Key Constraints are critical for data integrity.  

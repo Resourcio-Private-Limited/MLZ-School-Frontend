@@ -8,10 +8,20 @@ interface LoginFormProps {
     title: string;
     description?: string;
     redirectTo?: string;
+    identifierLabel?: string;
+    identifierPlaceholder?: string;
+    identifierType?: string;
 }
 
-export default function LoginForm({ title, description, redirectTo = "/student" }: LoginFormProps) {
-    const [email, setEmail] = useState("");
+export default function LoginForm({
+    title,
+    description,
+    redirectTo = "/student",
+    identifierLabel = "Email Address",
+    identifierPlaceholder = "name@school.com",
+    identifierType = "email"
+}: LoginFormProps) {
+    const [identifier, setIdentifier] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -99,13 +109,13 @@ export default function LoginForm({ title, description, redirectTo = "/student" 
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-1.5">
-                            <label className="block text-sm font-bold text-slate-700">Email Address</label>
+                            <label className="block text-sm font-bold text-slate-700">{identifierLabel}</label>
                             <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                type={identifierType}
+                                value={identifier}
+                                onChange={(e) => setIdentifier(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400 hover:bg-white hover:border-slate-300"
-                                placeholder="name@school.com"
+                                placeholder={identifierPlaceholder}
                                 required
                             />
                         </div>

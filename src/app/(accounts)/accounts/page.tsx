@@ -221,7 +221,7 @@ export default function AccountantHomePage() {
                                         type="number"
                                         value={editedClassroom.standardFees}
                                         onChange={(e) => setEditedClassroom({ ...editedClassroom, standardFees: Number(e.target.value) })}
-                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                                         placeholder="Enter standard fees"
                                     />
                                 </div>
@@ -240,7 +240,7 @@ export default function AccountantHomePage() {
                                         type="number"
                                         value={editedClassroom.lateFees}
                                         onChange={(e) => setEditedClassroom({ ...editedClassroom, lateFees: Number(e.target.value) })}
-                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                                         placeholder="Enter late fees"
                                     />
                                 </div>

@@ -6,6 +6,9 @@ export default function AccountsLoginPage() {
             title="Accounts Login"
             description="Access the financial management portal"
             redirectTo="/accounts"
+            identifierLabel="User ID"
+            identifierPlaceholder="Enter User ID"
+            identifierType="text"
         />
     );
 }

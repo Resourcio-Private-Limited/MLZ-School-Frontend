@@ -465,6 +465,10 @@ export default function ClassroomStudentsClient({
                 <StudentDetailModal
                     student={selectedStudent}
                     onClose={() => setSelectedStudent(null)}
+                    onStudentUpdate={() => {
+                        // Refresh page to show updated student data
+                        window.location.reload();
+                    }}
                 />
             )}
 

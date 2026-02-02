@@ -1,11 +1,11 @@
 import LoginForm from "@/components/LoginForm";
 
-export default function SuperAdminLoginPage() {
+export default function PrincipalLoginPage() {
     return (
         <LoginForm
-            title="Super Admin Login"
-            description="Complete system administration and control"
-            redirectTo="/super-admin"
+            title="Principal Login"
+            description="School administration and oversight"
+            redirectTo="/principal"
             identifierLabel="User ID"
             identifierPlaceholder="Enter User ID"
             identifierType="text"

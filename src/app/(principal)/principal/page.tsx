@@ -300,7 +300,7 @@ export default function PrincipalHomePage() {
                                 <select
                                     value={editedClassroom.classTeacher}
                                     onChange={(e) => setEditedClassroom({ ...editedClassroom, classTeacher: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                 >
                                     <option value="">Select a teacher...</option>
                                     {getAvailableTeachers().map((teacher, idx) => (
@@ -363,14 +363,14 @@ export default function PrincipalHomePage() {
                                                         value={subject.name}
                                                         onChange={(e) => handleSubjectChange(subject.id, 'name', e.target.value)}
                                                         placeholder="Subject name"
-                                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                                     />
                                                     <input
                                                         type="text"
                                                         value={subject.teacher}
                                                         onChange={(e) => handleSubjectChange(subject.id, 'teacher', e.target.value)}
                                                         placeholder="Teacher name"
-                                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                                     />
                                                 </div>
                                                 <button

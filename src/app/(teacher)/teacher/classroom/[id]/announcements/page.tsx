@@ -94,7 +94,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <Link href={`/teacher/classroom/${id}`}>
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-[#2BB9E5] transition-colors">
+                        <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back</span>
                         </button>
@@ -106,7 +106,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                 {!isCreating && (
                     <button
                         onClick={() => setIsCreating(true)}
-                        className="bg-[#2BB9E5] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#25a0c7] transition-all flex items-center space-x-2 shadow-md hover:shadow-lg"
+                        className="bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all flex items-center space-x-2 shadow-md hover:shadow-lg"
                     >
                         <Bell size={20} />
                         <span>New Announcement</span>
@@ -119,7 +119,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                         <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                            <Send size={18} className="text-[#2BB9E5]" />
+                            <Send size={18} className="text-emerald-500" />
                             Compose Announcement
                         </h2>
                         <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-600">
@@ -137,7 +137,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="e.g., Assignment Due Date Change"
-                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2BB9E5] focus:border-transparent outline-none transition-all"
+                                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-800"
                                 />
                             </div>
 
@@ -147,7 +147,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                     <select
                                         value={category}
                                         onChange={(e) => setCategory(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2BB9E5] outline-none"
+                                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800"
                                     >
                                         <option>General</option>
                                         <option>Exam</option>
@@ -161,7 +161,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                     <select
                                         value={priority}
                                         onChange={(e) => setPriority(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2BB9E5] outline-none"
+                                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800"
                                     >
                                         <option>Normal</option>
                                         <option>High</option>
@@ -179,7 +179,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                 onChange={(e) => setMessage(e.target.value)}
                                 rows={4}
                                 placeholder="Type your announcement content here..."
-                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2BB9E5] focus:border-transparent outline-none transition-all resize-none"
+                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none text-gray-800"
                             ></textarea>
                             <p className="text-xs text-gray-500 text-right">Visible to all students in this classroom.</p>
                         </div>
@@ -187,7 +187,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                         {/* Attachments Area */}
                         <div>
                             <div className="flex items-center space-x-2 mb-2">
-                                <label htmlFor="file-upload" className="cursor-pointer text-sm font-medium text-[#2BB9E5] hover:text-[#25a0c7] flex items-center space-x-1">
+                                <label htmlFor="file-upload" className="cursor-pointer text-sm font-medium text-emerald-500 hover:text-emerald-600 flex items-center space-x-1">
                                     <Paperclip size={16} />
                                     <span>Attach Files</span>
                                 </label>
@@ -220,7 +220,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                 </button>
                                 <button
                                     type="submit"
-                                    className="bg-[#2BB9E5] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#25a0c7] transition-colors shadow-sm"
+                                    className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-600 transition-colors shadow-sm"
                                 >
                                     Post Announcement
                                 </button>
@@ -264,7 +264,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                 <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{announcement.message}</p>
 
                                 {announcement.attachments > 0 && (
-                                    <div className="mt-4 flex items-center space-x-2 text-sm text-[#2BB9E5] bg-blue-50 w-fit px-3 py-1.5 rounded-md">
+                                    <div className="mt-4 flex items-center space-x-2 text-sm text-emerald-600 bg-emerald-50 w-fit px-3 py-1.5 rounded-md">
                                         <Paperclip size={14} />
                                         <span className="font-medium">{announcement.attachments} Attachment{announcement.attachments !== 1 && 's'}</span>
                                     </div>
@@ -275,7 +275,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                         <div className="p-10 text-center text-gray-500">
                             <Bell size={48} className="mx-auto text-gray-300 mb-4" />
                             <p>No announcements posted yet.</p>
-                            <button onClick={() => setIsCreating(true)} className="text-[#2BB9E5] font-medium hover:underline mt-2">
+                            <button onClick={() => setIsCreating(true)} className="text-emerald-500 font-medium hover:underline mt-2">
                                 Create your first post
                             </button>
                         </div>
