@@ -1,43 +1,23 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMockSession, MOCK_EXAM_RESULTS } from "@/lib/mocks";
 import Link from "next/link";
 import { FileText, Calendar } from "lucide-react";
 
 export default async function TeacherExamsPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
-    // Fetch exams for the current active academic year
-    // To filter relevant exams: can filter by subjects taught by this teacher?
-    // Or just show all exams and let them choose?
-    // Better: Show exams where subject.teacherId == currentTeacherId OR classTeacherOf
-
-    // First get teacher profile
-    const teacher = await prisma.teacherProfile.findUnique({
-        where: { id: session.user.id },
-        include: { subjectsTaught: true }
-    });
-
-    if (!teacher) return <div>Teacher profile not found</div>;
-
-    const subjectIds = teacher.subjectsTaught.map(s => s.id);
-
-    // Fetch exams for these subjects
-    const exams = await prisma.exam.findMany({
-        where: {
-            subjectId: { in: subjectIds }
+    // Use mock data for exams. 
+    // MOCK_EXAM_RESULTS contains exam details inside 'exam' property.
+    // We can extract unique exams from there.
+    const exams = Array.from(new Map(MOCK_EXAM_RESULTS.map(r => [r.exam.id, r.exam])).values()).map(e => ({
+        ...e,
+        isPublished: true, // Mock value
+        subject: { // Mock subject structure to match usage
+            name: e.subject.name,
+            classroom: { name: 'Class 10-A' }
         },
-        include: {
-            subject: {
-                include: { classroom: true }
-            },
-            _count: {
-                select: { results: true }
-            }
-        },
-        orderBy: { date: 'desc' }
-    });
+        _count: { results: 25 } // Mock count
+    }));
 
     return (
         <div>

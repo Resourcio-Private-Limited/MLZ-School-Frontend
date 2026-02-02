@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X, Users, AlertCircle } from "lucide-react";
-import { createStudentAction } from "@/actions/user-actions";
+import { mockAction } from "@/lib/mocks";
 
 type Section = {
     id: string;
@@ -52,7 +52,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
             sectionId: formData.get("sectionId") as string,
         };
 
-        const res = await createStudentAction(data);
+        const res = await mockAction("createStudent", data);
 
         if (res.success) {
             setIsOpen(false);
@@ -60,7 +60,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
             setSelectedClassId("");
             setSelectedSectionId("");
         } else {
-            setError(res.error || "Failed to create student");
+            setError("Failed to create student (Mock)");
         }
         setLoading(false);
     };
@@ -182,10 +182,10 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                         {/* Capacity Indicator */}
                         {selectedSection && (
                             <div className={`mt-3 p-3 rounded-lg border ${availableCapacity > 20
-                                    ? 'bg-green-50 border-green-200'
-                                    : availableCapacity > 0
-                                        ? 'bg-yellow-50 border-yellow-200'
-                                        : 'bg-red-50 border-red-200'
+                                ? 'bg-green-50 border-green-200'
+                                : availableCapacity > 0
+                                    ? 'bg-yellow-50 border-yellow-200'
+                                    : 'bg-red-50 border-red-200'
                                 }`}>
                                 <div className="flex items-center space-x-2 text-sm">
                                     <Users size={16} className={
@@ -196,10 +196,10 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                                                 : 'text-red-600'
                                     } />
                                     <span className={`font-medium ${availableCapacity > 20
-                                            ? 'text-green-700'
-                                            : availableCapacity > 0
-                                                ? 'text-yellow-700'
-                                                : 'text-red-700'
+                                        ? 'text-green-700'
+                                        : availableCapacity > 0
+                                            ? 'text-yellow-700'
+                                            : 'text-red-700'
                                         }`}>
                                         {availableCapacity > 0
                                             ? `${availableCapacity} seat${availableCapacity !== 1 ? 's' : ''} available`

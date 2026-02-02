@@ -1,32 +1,15 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMockSession, MOCK_ATTENDANCE, MOCK_EXAM_RESULTS } from "@/lib/mocks";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 
 async function getStudentAcademics(studentId: string) {
-    const attendance = await prisma.attendance.findMany({
-        where: { studentId },
-        orderBy: { date: 'desc' },
-        take: 30 // Last 30 records
-    });
-
-    const examResults = await prisma.examResult.findMany({
-        where: { studentId },
-        include: {
-            exam: {
-                include: { subject: true }
-            }
-        },
-        orderBy: { exam: { date: 'desc' } }
-    });
-
-    return { attendance, examResults };
+    // Return mock data directly
+    return { attendance: MOCK_ATTENDANCE, examResults: MOCK_EXAM_RESULTS };
 }
 
 export default async function StudentAcademicsPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
     const { attendance, examResults } = await getStudentAcademics(session.user.id);

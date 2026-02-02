@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { mockAction } from "@/lib/mocks";
 
 export default function ChangePasswordPage() {
     const [password, setPassword] = useState("");
@@ -10,7 +10,9 @@ export default function ChangePasswordPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const { update } = useSession();
+
+    // Mock session update
+    const update = async (data: any) => { return null; };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,15 +31,11 @@ export default function ChangePasswordPage() {
         setLoading(true);
 
         try {
-            const res = await fetch("/api/auth/change-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password }),
-            });
+            // Use mock action
+            const res = await mockAction("changePassword", { password });
 
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg);
+            if (!res.success) {
+                throw new Error(res.message);
             }
 
             // Update session locally to reflect change (isFirstLogin: false)
@@ -93,7 +91,7 @@ export default function ChangePasswordPage() {
                     </button>
 
                     <div className="text-center mt-4">
-                        <button type="button" onClick={() => signOut()} className="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" onClick={() => router.push('/login')} className="text-sm text-gray-500 hover:text-gray-700">
                             Back to Login
                         </button>
                     </div>

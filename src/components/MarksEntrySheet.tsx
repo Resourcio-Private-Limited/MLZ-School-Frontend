@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { publishExamResultsAction } from "@/actions/teacher-actions";
+import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
 
 // Types
@@ -68,7 +68,7 @@ export default function MarksEntrySheet({ exam, students, existingResults }: Pro
             };
         });
 
-        const res = await publishExamResultsAction({
+        const res = await mockAction("publishResults", {
             examId: exam.id,
             results
         });
@@ -77,7 +77,7 @@ export default function MarksEntrySheet({ exam, students, existingResults }: Pro
             alert("Results published successfully!");
             router.refresh();
         } else {
-            alert(res.error || "Failed");
+            alert("Failed (Mock)");
         }
         setLoading(false);
     };

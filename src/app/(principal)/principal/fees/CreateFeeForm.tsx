@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { createFeeStructureAction } from "@/actions/admin-actions";
+import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
 
 export default function CreateFeeForm({ academicYearId }: { academicYearId: string }) {
@@ -20,7 +20,7 @@ export default function CreateFeeForm({ academicYearId }: { academicYearId: stri
         e.preventDefault();
         setLoading(true);
 
-        const res = await createFeeStructureAction({
+        const res = await mockAction("createFeeStructure", {
             name,
             amount: parseFloat(amount),
             frequency,
@@ -33,7 +33,7 @@ export default function CreateFeeForm({ academicYearId }: { academicYearId: stri
             setAmount("");
             router.refresh();
         } else {
-            alert(res.error);
+            alert("Failed (Mock)");
         }
         setLoading(false);
     };

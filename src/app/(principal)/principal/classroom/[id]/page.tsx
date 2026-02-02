@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+
 import ClassroomStudentsClient from "./ClassroomStudentsClient";
 
 // Mock student data generator
@@ -57,10 +57,10 @@ function generateMockStudents(classroomId: string, classroomName: string, sectio
             fatherName: `Mr. ${lastName}`,
             motherName: `Mrs. ${lastName}`,
             emergencyContact: `+91 ${Math.floor(7000000000 + Math.random() * 2999999999)}`,
-            guardianName: Math.random() > 0.8 ? `Guardian ${lastName}` : null,
-            guardianContact: Math.random() > 0.8 ? `+91 ${Math.floor(7000000000 + Math.random() * 2999999999)}` : null,
+            guardianName: Math.random() > 0.8 ? `Guardian ${lastName}` : undefined,
+            guardianContact: Math.random() > 0.8 ? `+91 ${Math.floor(7000000000 + Math.random() * 2999999999)}` : undefined,
             address: `${Math.floor(Math.random() * 999) + 1}, ${["MG Road", "Park Street", "Gandhi Nagar", "Nehru Place", "Rajpath"][Math.floor(Math.random() * 5)]}, Mumbai, Maharashtra - 400001`,
-            previousSchool: Math.random() > 0.5 ? ["St. Mary's School", "Delhi Public School", "Kendriya Vidyalaya", "DAV Public School"][Math.floor(Math.random() * 4)] : null,
+            previousSchool: Math.random() > 0.5 ? ["St. Mary's School", "Delhi Public School", "Kendriya Vidyalaya", "DAV Public School"][Math.floor(Math.random() * 4)] : undefined,
             admissionYear: currentYear,
             passingYear: currentYear + (12 - parseInt(classroomName.match(/\d+/)?.[0] || "1")),
             academicYear: `${currentYear}-${currentYear + 1}`,
@@ -99,8 +99,8 @@ function generateMockStudents(classroomId: string, classroomName: string, sectio
     return students;
 }
 
-export default async function ClassroomDetailPage({ params }: { params: { id: string } }) {
-    const classroomId = params.id;
+export default async function ClassroomDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: classroomId } = await params;
 
     // Mock classroom data based on ID
     const classroomMap: Record<string, any> = {

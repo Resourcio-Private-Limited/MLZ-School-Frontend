@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createExamAction } from "@/actions/exam-actions";
+import { mockAction } from "@/lib/mocks";
 
 type Subject = {
     id: string;
@@ -29,11 +29,11 @@ export default function CreateExamForm({ subjects }: { subjects: any[] }) {
             date: new Date(formData.get("date") as string)
         };
 
-        const res = await createExamAction(data);
+        const res = await mockAction("createExam", data);
         if (res.success) {
             router.push("/teacher/exams");
         } else {
-            setError(res.error || "Failed to create exam");
+            setError("Failed to create exam (Mock)");
         }
         setLoading(false);
     };

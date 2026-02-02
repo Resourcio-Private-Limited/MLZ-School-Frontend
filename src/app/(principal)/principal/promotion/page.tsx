@@ -1,18 +1,20 @@
-import { AcademicYearService } from "@/services/academic-year";
-import { promoteStudentsAction } from "@/actions/promotion-actions";
+import { MockAcademicYearService } from "@/lib/mocks";
 import { redirect } from "next/navigation";
 import PromotionButton from "./PromotionButton"; // Client component
 import { AlertCircle, CheckCircle } from "lucide-react";
 
 export default async function PromotionPage() {
-    const activeYear = await AcademicYearService.getActive();
+    // const activeYear = await MockAcademicYearService.getActive(); 
 
-    // If no active year, maybe we are in "between" state or "ended" state of the *previous* active one?
-    // Actually, if status is ENDED, getActive() returns null.
-    // We need to fetch the LATEST year regardless of status to check if we can promote.
+    // For mocks, just get active or list. 
+    // MockAcademicYearService doesn't have getAll() in my previous implementation in mocks.ts
+    // Let's add simple mock logic here or update update mocks.ts.
+    // I'll assume getActive returns the main one.
+    const activeYear = await MockAcademicYearService.getActive();
 
-    const allYears = await AcademicYearService.getAll();
-    const latestYear = allYears[0]; // Ordered by start date desc
+    // Simulating list
+    const allYears = [activeYear];
+    const latestYear = allYears[0];
 
     if (!latestYear) {
         return <div>No academic years found. Seed the database.</div>;

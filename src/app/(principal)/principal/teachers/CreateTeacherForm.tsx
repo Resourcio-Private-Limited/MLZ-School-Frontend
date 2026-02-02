@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
-import { createTeacherAction } from "@/actions/user-actions";
+import { mockAction } from "@/lib/mocks";
 
 export default function CreateTeacherForm() {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,12 +23,12 @@ export default function CreateTeacherForm() {
             qualification: (formData.get("qualification") as string).split(",").map(s => s.trim()),
         };
 
-        const res = await createTeacherAction(data);
+        const res = await mockAction("createTeacher", data);
 
         if (res.success) {
             setIsOpen(false);
         } else {
-            setError(res.error || "Failed to create teacher");
+            setError("Failed to create teacher (Mock)");
         }
         setLoading(false);
     };

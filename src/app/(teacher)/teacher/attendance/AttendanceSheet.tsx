@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { markAttendanceAction } from "@/actions/teacher-actions";
+import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
 
 type StudentShort = {
@@ -47,17 +47,17 @@ export default function AttendanceSheet({ classroomId, students }: Props) {
             status: (attendance[s.id] || "PRESENT") as "PRESENT" | "ABSENT" | "LATE" | "EXCUSED"
         }));
 
-        const res = await markAttendanceAction({
+        const res = await mockAction("markAttendance", {
             classroomId,
             date: new Date(date),
             records
         });
 
         if (res.success) {
-            alert("Attendance marked successfully!");
+            alert("Attendance marked successfully (Mock)!");
             router.refresh();
         } else {
-            alert(res.error || "Failed");
+            alert("Failed (Mock)");
         }
         setLoading(false);
     };

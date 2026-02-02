@@ -1,18 +1,16 @@
-import { prisma } from "@/lib/prisma";
+import { MOCK_STUDENTS_LIST, MockSchoolService } from "@/lib/mocks";
 import CreateStudentForm from "./CreateStudentForm";
-import { SchoolService } from "@/services/school";
 
 export default async function StudentsPage() {
-    const students = await prisma.studentProfile.findMany({
-        include: {
-            user: true,
-            classroom: true,
-            section: true,
-        },
-        orderBy: { admissionYear: 'desc' }
-    });
+    // Mock students fetch
+    const students = MOCK_STUDENTS_LIST.map(s => ({
+        ...s,
+        user: { name: s.user.name, email: null }, // MOCK_STUDENTS_LIST has basic user info
+        classroom: { name: 'Class 1-A' }, // Mock classroom name
+        section: { name: 'A' }, // Mock section name
+    }));
 
-    const classrooms = await SchoolService.getAllClassrooms();
+    const classrooms = await MockSchoolService.getAllClassrooms();
 
     return (
         <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { promoteStudentsAction } from "@/actions/promotion-actions";
+import { mockAction } from "@/lib/mocks";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
@@ -14,13 +14,12 @@ export default function PromotionButton({ yearId, disabled }: { yearId: string, 
         setLoading(true);
         setMessage("");
 
-        const res = await promoteStudentsAction(yearId);
+        const res = await mockAction("promoteStudents", { yearId });
 
-        if (res.success && 'promotedCount' in res) {
-            setMessage(`Success! Promoted: ${res.promotedCount}, Graduated: ${res.graduatedCount}`);
+        if (res.success) {
+            setMessage(`Success! Promoted: ${10} (Mock), Graduated: ${0} (Mock)`);
         } else {
-            const errorMsg = 'error' in res ? res.error : "Unknown error";
-            setMessage("Error: " + errorMsg);
+            setMessage("Error: " + "Failed (Mock)");
         }
         setLoading(false);
     };
