@@ -120,17 +120,40 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-8">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center opacity-70">
-          <Image
-            src="/MLZS_contents/write Zee Learn Original Blue.png"
-            alt="Zee Learn"
-            width={100}
-            height={30}
-            className="h-6 w-auto mb-4 md:mb-0"
-          />
-          <div className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} Mount Litera Zee School. All rights reserved.
+      <footer className="bg-white border-t border-gray-200 py-6">
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Top row: partner logos */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 pb-5 border-b border-gray-100">
+            <Image
+              src="/MLZS_contents/write Zee Learn Original Blue.png"
+              alt="Zee Learn"
+              width={100}
+              height={30}
+              className="h-6 w-auto opacity-70"
+            />
+            {/* RET Branding */}
+            <div className="flex items-center gap-3">
+              <Image
+                src="/MLZS_contents/RET Icon-PNG.png"
+                alt="Rudraksh Educational Trust"
+                width={36}
+                height={36}
+                className="h-9 w-auto"
+              />
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-700 leading-tight">Rudraksh Educational Trust</p>
+                <p className="text-xs text-gray-400 tracking-wide">Empowering Education</p>
+              </div>
+            </div>
+          </div>
+          {/* Bottom row: copyright */}
+          <div className="pt-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <p className="text-xs text-gray-400">
+              &copy; {new Date().getFullYear()} <span className="font-medium text-gray-500">Rudraksh Educational Trust</span>. All rights reserved.
+            </p>
+            <p className="text-xs text-gray-400">
+              Mount Litera Zee School, North Kolkata &mdash; A unit of Rudraksh Educational Trust
+            </p>
           </div>
         </div>
       </footer>
