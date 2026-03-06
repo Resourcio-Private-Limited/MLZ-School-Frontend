@@ -1,17 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { MOCK_TEACHERS } from "@/lib/mocks";
 import { Plus } from "lucide-react";
 import CreateTeacherForm from "./CreateTeacherForm";
 // We will make a client component for the form dialog/sheet
 
 export default async function TeachersPage() {
-    const teachers = await prisma.teacherProfile.findMany({
-        include: {
-            user: true,
-            classTeacherOf: true,
-            subjectsTaught: true,
-        },
-        orderBy: { joiningDate: 'desc' }
-    });
+    const teachers = MOCK_TEACHERS;
 
     return (
         <div>

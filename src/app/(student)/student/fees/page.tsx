@@ -1,33 +1,15 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { AcademicYearService } from "@/services/academic-year";
+import { getMockSession, MOCK_FEE_STRUCTURES, MOCK_PAYMENTS, MockAcademicYearService } from "@/lib/mocks";
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
 
 async function getStudentFees(studentId: string) {
-    const activeYear = await AcademicYearService.getActive();
+    const activeYear = await MockAcademicYearService.getActive();
     if (!activeYear) return { feeStructures: [], payments: [] };
 
-    // Get all fee structures for this year
-    const feeStructures = await prisma.feeStructure.findMany({
-        where: { academicYearId: activeYear.id }
-    });
-
-    // Get student payments
-    const payments = await prisma.payment.findMany({
-        where: {
-            studentId,
-            fee: { academicYearId: activeYear.id }
-        },
-        include: { fee: true },
-        orderBy: { date: 'desc' }
-    });
-
-    return { feeStructures, payments };
+    return { feeStructures: MOCK_FEE_STRUCTURES, payments: MOCK_PAYMENTS };
 }
 
 export default async function StudentFeesPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
     const { feeStructures, payments } = await getStudentFees(session.user.id);
@@ -48,7 +30,7 @@ export default async function StudentFeesPage() {
                     <div className="space-y-3">
                         {feeStructures.map(fee => (
                             <div key={fee.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                                <span className="text-gray-900">{fee.name} <span className="text-xs text-gray-400">({fee.frequency})</span></span>
+                                <span className="text-gray-900">{fee.name} <span className="text-xs text-gray-400">({fee.description})</span></span>
                                 <span className="font-bold text-gray-900">₹{fee.amount}</span>
                             </div>
                         ))}
@@ -79,9 +61,9 @@ export default async function StudentFeesPage() {
                     <tbody className="divide-y">
                         {payments.map(payment => (
                             <tr key={payment.id} className="hover:bg-gray-50">
-                                <td className="p-4 font-mono text-xs text-gray-500">{payment.receiptNo}</td>
-                                <td className="p-4 text-sm text-gray-900">{new Date(payment.date).toLocaleDateString()}</td>
-                                <td className="p-4 font-medium text-gray-900">{payment.fee.name}</td>
+                                <td className="p-4 font-mono text-xs text-gray-500">{payment.transactionId}</td>
+                                <td className="p-4 text-sm text-gray-900">{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                                <td className="p-4 font-medium text-gray-900">{payment.feeStructure.name}</td>
                                 <td className="p-4 font-bold text-gray-900">₹{payment.amountPaid}</td>
                                 <td className="p-4">
                                     {payment.status === 'PAID' && <span className="flex items-center text-green-600 text-xs font-bold"><CheckCircle size={14} className="mr-1" /> Paid</span>}

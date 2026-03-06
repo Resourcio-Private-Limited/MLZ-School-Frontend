@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { markAttendanceAction, getAttendanceAction } from "@/actions/attendance-actions"; // Need to create these
-import { AttendanceStatus } from "@prisma/client";
+import { mockAction } from "@/lib/mocks";
 import { Save, Loader2, CheckCircle } from "lucide-react";
+
+type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
 type Student = {
     id: string;
@@ -29,14 +30,10 @@ export default function AttendanceClient({
     useEffect(() => {
         async function load() {
             setLoading(true);
-            const res = await getAttendanceAction(classroomId, new Date(date));
-            if (res.success && res.data) {
-                const map: Record<string, AttendanceStatus> = {};
-                res.data.forEach((r: any) => map[r.studentId] = r.status);
-                setAttendance(map);
-            } else {
-                setAttendance({});
-            }
+            // Simulate fetch
+            await new Promise(r => setTimeout(r, 500));
+            // Mock empty attendance or some random data if needed
+            setAttendance({});
             setLoading(false);
         }
         load();
@@ -50,26 +47,18 @@ export default function AttendanceClient({
         setSaving(true);
         setMsg("");
 
-        // Prepare data
-        // Default to PRESENT if not set? Or explicit checking.
-        // Let's force explicit marking or default visual.
-        // If not in map, assume PRESENT? Or leave undefined?
-        // Let's assume user MUST see what is submitted.
-        // Auto-fill PRESENT for UI if missing, but for submission only submit explicitly set
-        // OR: Fill all missing as PRESENT on save.
-
         const records = students.map(s => ({
             studentId: s.id,
             status: attendance[s.id] || "PRESENT"
         }));
 
-        const res = await markAttendanceAction(classroomId, new Date(date), records);
+        const res = await mockAction("markAttendance", { classroomId, date: new Date(date), records });
 
         if (res.success) {
-            setMsg("Attendance saved successfully!");
+            setMsg("Attendance saved successfully (Mock)!");
             setTimeout(() => setMsg(""), 3000);
         } else {
-            setMsg("Error: " + res.error);
+            setMsg("Error: " + "Failed (Mock)");
         }
         setSaving(false);
     };

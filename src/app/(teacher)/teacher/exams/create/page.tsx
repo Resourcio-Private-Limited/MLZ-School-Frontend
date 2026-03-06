@@ -1,20 +1,18 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMockSession, MOCK_TEACHERS } from "@/lib/mocks";
 import CreateExamForm from "./CreateExamForm";
 
 export default async function CreateExamPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
-    const teacherProfile = await prisma.teacherProfile.findUnique({
-        where: { id: session.user.id },
-        include: {
-            subjectsTaught: {
-                include: { classroom: true }
-            }
-        }
-    });
+    // Mock teacher details - getting the first mock teacher for demo
+    const teacherProfile = {
+        ...MOCK_TEACHERS[0],
+        subjectsTaught: MOCK_TEACHERS[0].subjectsTaught.map(s => ({
+            ...s,
+            classroom: { name: 'Class 10-A', section: 'A' } // Mock details
+        }))
+    };
 
     if (!teacherProfile) return <div>Access Denied</div>;
 

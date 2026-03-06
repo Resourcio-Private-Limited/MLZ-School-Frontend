@@ -1,22 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
-import { createStudentAction } from "@/actions/user-actions";
+import { Plus, X, Users, AlertCircle } from "lucide-react";
+import { mockAction } from "@/lib/mocks";
+
+type Section = {
+    id: string;
+    name: string;
+    _count?: { students: number };
+};
 
 type Classroom = {
     id: string;
     name: string;
-    sections: { id: string; name: string }[];
+    sections: Section[];
 };
+
+const MAX_STUDENTS_PER_SECTION = 100;
 
 export default function CreateStudentForm({ classrooms }: { classrooms: Classroom[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [selectedClassId, setSelectedClassId] = useState("");
+    const [selectedSectionId, setSelectedSectionId] = useState("");
 
     const selectedClass = classrooms.find(c => c.id === selectedClassId);
+    const selectedSection = selectedClass?.sections.find(s => s.id === selectedSectionId);
+    const currentStudentCount = selectedSection?._count?.students || 0;
+    const availableCapacity = MAX_STUDENTS_PER_SECTION - currentStudentCount;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -40,13 +52,15 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
             sectionId: formData.get("sectionId") as string,
         };
 
-        const res = await createStudentAction(data);
+        const res = await mockAction("createStudent", data);
 
         if (res.success) {
             setIsOpen(false);
-            // Reset form? Ideally yes or close logic does it
+            // Reset form
+            setSelectedClassId("");
+            setSelectedSectionId("");
         } else {
-            setError(res.error || "Failed to create student");
+            setError("Failed to create student (Mock)");
         }
         setLoading(false);
     };
@@ -55,7 +69,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="flex items-center space-x-2 bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition"
+                className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition shadow-md hover:shadow-lg"
             >
                 <Plus size={20} />
                 <span>Admit Student</span>
@@ -74,7 +88,12 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {error && <div className="bg-red-50 text-red-600 p-3 rounded text-sm">{error}</div>}
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm flex items-start space-x-2">
+                            <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                            <span>{error}</span>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -122,7 +141,11 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                                     name="classroomId"
                                     required
                                     className="input"
-                                    onChange={(e) => setSelectedClassId(e.target.value)}
+                                    value={selectedClassId}
+                                    onChange={(e) => {
+                                        setSelectedClassId(e.target.value);
+                                        setSelectedSectionId("");
+                                    }}
                                 >
                                     <option value="">Select Class</option>
                                     {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -130,12 +153,64 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                             </div>
                             <div>
                                 <label className="label">Section</label>
-                                <select name="sectionId" required className="input" disabled={!selectedClass}>
+                                <select
+                                    name="sectionId"
+                                    required
+                                    className="input"
+                                    disabled={!selectedClass}
+                                    value={selectedSectionId}
+                                    onChange={(e) => setSelectedSectionId(e.target.value)}
+                                >
                                     <option value="">Select Section</option>
-                                    {selectedClass?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    {selectedClass?.sections.map(s => {
+                                        const studentCount = s._count?.students || 0;
+                                        const isFull = studentCount >= MAX_STUDENTS_PER_SECTION;
+                                        return (
+                                            <option
+                                                key={s.id}
+                                                value={s.id}
+                                                disabled={isFull}
+                                            >
+                                                {s.name} ({studentCount}/{MAX_STUDENTS_PER_SECTION}) {isFull ? '- FULL' : ''}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                         </div>
+
+                        {/* Capacity Indicator */}
+                        {selectedSection && (
+                            <div className={`mt-3 p-3 rounded-lg border ${availableCapacity > 20
+                                ? 'bg-green-50 border-green-200'
+                                : availableCapacity > 0
+                                    ? 'bg-yellow-50 border-yellow-200'
+                                    : 'bg-red-50 border-red-200'
+                                }`}>
+                                <div className="flex items-center space-x-2 text-sm">
+                                    <Users size={16} className={
+                                        availableCapacity > 20
+                                            ? 'text-green-600'
+                                            : availableCapacity > 0
+                                                ? 'text-yellow-600'
+                                                : 'text-red-600'
+                                    } />
+                                    <span className={`font-medium ${availableCapacity > 20
+                                        ? 'text-green-700'
+                                        : availableCapacity > 0
+                                            ? 'text-yellow-700'
+                                            : 'text-red-700'
+                                        }`}>
+                                        {availableCapacity > 0
+                                            ? `${availableCapacity} seat${availableCapacity !== 1 ? 's' : ''} available`
+                                            : 'Section is full'}
+                                    </span>
+                                    <span className="text-gray-500">
+                                        ({currentStudentCount}/{MAX_STUDENTS_PER_SECTION} students)
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t pt-4 mt-4">
@@ -176,8 +251,8 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                         </button>
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="px-6 py-2 bg-blue-900 text-white rounded hover:bg-blue-800 disabled:opacity-50"
+                            disabled={loading || availableCapacity <= 0}
+                            className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? "Admitting..." : "Admit Student"}
                         </button>
@@ -187,7 +262,9 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
             <style jsx>{`
         .label { display: block; font-size: 0.875rem; font-weight: 700; color: #374151; margin-bottom: 0.25rem; }
         .input { width: 100%; border: 1px solid #d1d5db; border-radius: 0.375rem; padding: 0.5rem; color: #111827; }
+        .input:disabled { background-color: #f3f4f6; cursor: not-allowed; }
       `}</style>
         </div>
     );
 }
+

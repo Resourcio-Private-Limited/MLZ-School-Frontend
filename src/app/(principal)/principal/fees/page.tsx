@@ -1,16 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { MOCK_FEE_STRUCTURES, MockAcademicYearService } from "@/lib/mocks";
 // Import form component
 import CreateFeeForm from "./CreateFeeForm";
 
 export default async function FeesPage() {
-    const activeYear = await prisma.academicYear.findFirst({
-        where: { status: "ACTIVE" }
-    });
+    const activeYear = await MockAcademicYearService.getActive();
 
-    const feeStructures = await prisma.feeStructure.findMany({
-        where: { academicYearId: activeYear?.id },
-        orderBy: { name: 'asc' }
-    });
+    const feeStructures = MOCK_FEE_STRUCTURES;
 
     return (
         <div>

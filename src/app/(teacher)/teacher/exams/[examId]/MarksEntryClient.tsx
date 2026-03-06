@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateMarksAction, toggleExamPublishAction, lockExamAction } from "@/actions/exam-actions";
+import { mockAction } from "@/lib/mocks";
 import { Save, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -43,13 +43,13 @@ export default function MarksEntryClient({ exam, students, locked }: { exam: any
             remarks: remarks[s.id]
         }));
 
-        const res = await updateMarksAction(exam.id, payload);
+        const res = await mockAction("updateMarks", { examId: exam.id, payload });
         if (res.success) {
-            setMsg("Marks saved successfully.");
+            setMsg("Marks saved successfully (Mock).");
             setTimeout(() => setMsg(""), 3000);
             router.refresh();
         } else {
-            setMsg("Error: " + res.error);
+            setMsg("Error: " + "Failed (Mock)");
         }
         setSaving(false);
     };
@@ -57,7 +57,7 @@ export default function MarksEntryClient({ exam, students, locked }: { exam: any
     const handlePublish = async () => {
         if (!confirm(exam.isPublished ? "Unpublish results?" : "Publish results to students?")) return;
         setSaving(true);
-        await toggleExamPublishAction(exam.id, !exam.isPublished);
+        await mockAction("toggleExamPublish", { examId: exam.id, isPublished: !exam.isPublished });
         setSaving(false);
         router.refresh();
     };
@@ -65,7 +65,7 @@ export default function MarksEntryClient({ exam, students, locked }: { exam: any
     const handleLock = async () => {
         if (!confirm("Are you sure? Once locked, you cannot edit marks.")) return;
         setSaving(true);
-        await lockExamAction(exam.id);
+        await mockAction("lockExam", { examId: exam.id });
         setSaving(false);
         router.refresh();
     };

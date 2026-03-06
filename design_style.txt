@@ -1,0 +1,89 @@
+DESIGN STYLE DOCUMENT - MLZS PORTAL
+=====================================
+
+1. COLORS
+---------
+Primary Backgrounds:
+- Page Background: bg-gray-50 (#F9FAFB)
+- Hero Background: bg-slate-900 (#0F172A)
+- Card Background: bg-white (#FFFFFF)
+
+Text Colors:
+- Headings (Hero): text-white (#FFFFFF)
+- Subheadings (Hero): text-slate-400 (#94A3B8)
+- Headings (Body): text-gray-800 (#1F2937)
+- Subtext (Body): text-gray-500 (#6B7280)
+- Accents: text-blue-400 (#60A5FA), text-blue-600 (#2563EB)
+
+Portal Accents (Border-Top & Icons):
+- Student:     Blue (border-blue-500, text-blue-500)
+- Teacher:     Emerald (border-emerald-500, text-emerald-500)
+- Principal:   Purple (border-purple-600, text-purple-600)
+- Accounts:    Amber (border-amber-500, text-amber-500)
+- Super Admin: Rose (border-rose-600, text-rose-600)
+
+2. TYPOGRAPHY
+-------------
+Font Family:
+- Default Tailwind Sans Stack (Inter, System UI, Segoe UI, Roboto, etc.)
+
+Font Weights:
+- font-light: Hero Description, Welcome Text
+- font-medium: Eyebrow text, Subtitles, Buttons
+- font-semibold: Card Subtitles, Section Headings
+- font-bold: Main Headings, Card Titles
+
+Sizes:
+- Hero Heading: text-3xl sm:text-4xl
+- Eyebrow Text: text-xs, text-sm tracking-wide/wider uppercase
+- Card Title: text-xl
+- Body Text: text-sm, text-lg
+
+3. LAYOUT & STYLE
+-----------------
+Visual Hierarchy:
+- Split-Vertical Layout:
+  1. Dark Hero Section (Top 40% visual weight)
+  2. Floating Cards (Overlap -mt-24)
+  3. Info/Trust Section
+  4. Minimal Footer
+
+Effects:
+- Shadows:
+  - Default: shadow-md
+  - Hover: shadow-xl (Deep elevation)
+- Transitions:
+  - duration-300
+  - Hover transform: -translate-y-1
+
+Card Design (Component: CorporateCard):
+- Structure:
+  - Top Border Accent (border-t-4)
+  - Icon Container (Rounded square, bg-gray-50)
+  - Title & Subtitle
+  - Hidden "Login ->" link that appears/slides up on hover.
+
+4. COMPONENTS
+-------------
+Header:
+- Transparent/Dark background (on Hero)
+- White Logo (opacity-90)
+- Session Info (uppercase, tracking-wider)
+
+Card:
+- Floating white box
+- Overflow hidden
+- Relative positioning for hover effects
+
+Footer:
+- Simple white background
+- Gray text with low opacity (opacity-70)
+- Blue Logo (for white background)
+
+5. ICONOGRAPHY
+--------------
+Library: Lucide React
+Size:
+- Card Icons: w-6 h-6 (24px) inside w-12 h-12 container
+- Feature Icons: size=20
+- Alignment: Left aligned in cards, Left aligned in feature list.

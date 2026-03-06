@@ -1,19 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMockSession, MOCK_TEACHERS, MOCK_STUDENTS_LIST } from "@/lib/mocks";
 import AttendanceSheet from "./AttendanceSheet";
 
 export default async function TeacherAttendancePage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
-    // fetch teacher profile to get class
-    const teacher = await prisma.teacherProfile.findUnique({
-        where: { id: session.user.id },
-        include: {
-            classTeacherOf: true
-        }
-    });
+    // Mock teacher fetch
+    const teacher = MOCK_TEACHERS[0]; // Assume first mock teacher is logged in and is a class teacher
 
     if (!teacher || !teacher.classTeacherOf) {
         return (
@@ -24,14 +17,10 @@ export default async function TeacherAttendancePage() {
         );
     }
 
-    const classroomId = teacher.classTeacherOf.id;
+    const classroomId = 'class-1'; // Mock classroom ID
 
-    // Fetch students of this class
-    const students = await prisma.studentProfile.findMany({
-        where: { classroomId: classroomId },
-        include: { user: true },
-        orderBy: { admissionNo: 'asc' }
-    });
+    // Mock students fetch
+    const students = MOCK_STUDENTS_LIST.filter(s => s.classroomId === classroomId);
 
     return (
         <div>

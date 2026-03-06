@@ -1,68 +1,119 @@
-import Link from "next/link";
-import { LayoutDashboard, GraduationCap, CreditCard, LogOut } from "lucide-react";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
+"use client";
 
-export default async function StudentLayout({
+import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Home, Bell, CreditCard, User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+
+export default function StudentLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const session = await getServerSession(authOptions);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
-    if (!session || session.user.role !== "STUDENT") {
-        redirect("/login");
-    }
+    // TODO: Connect to new backend API for authentication
+    // For now, layout is accessible without authentication
+    const mockUser = {
+        name: "Student User",
+        email: "student@school.com"
+    };
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <aside className="w-64 bg-white shadow-md flex flex-col">
-                <div className="p-6 border-b">
-                    <h1 className="text-xl font-bold text-green-700">School Portal</h1>
-                    <p className="text-sm text-gray-500">Student Access</p>
+            <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex flex-col transition-all duration-300 relative border-r border-slate-800`}>
+                {/* Toggle Button */}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-3 top-8 bg-blue-600 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-500 transition-colors z-10 border-2 border-slate-900"
+                >
+                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                </button>
+
+                <div className="p-4 border-b border-slate-800">
+                    {!isCollapsed ? (
+                        <div className="flex flex-col items-center">
+                            {/* Expanded Logo */}
+                            <div className="relative w-32 h-auto mb-2">
+                                <Image
+                                    src="/sidebar_logo_expanded.png"
+                                    alt="Mount Litera Zee School"
+                                    width={128}
+                                    height={40}
+                                    className="object-contain rounded-lg"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 font-medium tracking-wider uppercase">Student Portal</p>
+                        </div>
+                    ) : (
+                        /* Collapsed Logo (Favicon) */
+                        <div className="flex justify-center">
+                            <Image
+                                src="/favicon.png"
+                                alt="MLZS"
+                                width={40}
+                                height={40}
+                                className="h-10 w-10 object-contain rounded-lg"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
-                    <NavLink href="/student" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-                    <NavLink href="/student/academics" icon={<GraduationCap size={20} />} label="Academics" />
-                    <NavLink href="/student/fees" icon={<CreditCard size={20} />} label="Fees & Payments" />
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                    <NavLink href="/student" icon={<Home size={20} />} label="Home" isCollapsed={isCollapsed} />
+                    <NavLink href="/student/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
+                    <NavLink href="/student/payment" icon={<CreditCard size={20} />} label="Payment Area" isCollapsed={isCollapsed} />
+                    <NavLink href="/student/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} />
                 </nav>
 
-                <div className="p-4 border-t">
-                    <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold">
-                            {session.user.name?.[0] || "S"}
+                <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+                    {!isCollapsed ? (
+                        <>
+                            <div className="flex items-center space-x-3 mb-4">
+                                <div className="w-10 h-10 rounded-full bg-blue-900/50 border border-blue-700/50 flex items-center justify-center text-blue-400 font-bold">
+                                    {mockUser.name?.[0] || "S"}
+                                </div>
+                                <div>
+                                    <p className="font-medium text-sm text-slate-200">{mockUser.name}</p>
+                                    <p className="text-xs text-slate-500">{mockUser.email}</p>
+                                </div>
+                            </div>
+                            <Link href="/" className="flex items-center space-x-3 text-red-400 p-2 hover:bg-red-950/30 rounded-lg transition-colors text-sm font-medium">
+                                <LogOut size={18} />
+                                <span>Logout</span>
+                            </Link>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center space-y-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-900/50 border border-blue-700/50 flex items-center justify-center text-blue-400 font-bold">
+                                {mockUser.name?.[0] || "S"}
+                            </div>
+                            <Link href="/" className="text-red-400 p-2 hover:bg-red-950/30 rounded-lg transition-colors">
+                                <LogOut size={18} />
+                            </Link>
                         </div>
-                        <div>
-                            <p className="font-medium text-sm text-gray-800">{session.user.name}</p>
-                            <p className="text-xs text-gray-500">{session.user.email}</p>
-                        </div>
-                    </div>
-                    <Link href="/api/auth/signout" className="flex items-center space-x-3 text-red-600 p-2 hover:bg-red-50 rounded">
-                        <LogOut size={20} />
-                        <span>Logout</span>
-                    </Link>
+                    )}
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-8">
+            <main className="flex-1 overflow-y-auto p-6 lg:p-10">
                 {children}
             </main>
         </div>
     );
 }
 
-function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React.ReactNode; label: string; isCollapsed: boolean }) {
     return (
         <Link
             href={href}
-            className="flex items-center space-x-3 p-3 rounded-lg text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+            className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} p-3 rounded-lg text-slate-400 hover:bg-blue-600 hover:text-white transition-all duration-200 group`}
+            title={isCollapsed ? label : undefined}
         >
-            {icon}
-            <span className="font-medium">{label}</span>
+            <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
+            {!isCollapsed && <span className="font-medium">{label}</span>}
         </Link>
     );
 }

@@ -1,43 +1,23 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getMockSession, MOCK_EXAM_RESULTS } from "@/lib/mocks";
 import Link from "next/link";
 import { FileText, Calendar } from "lucide-react";
 
 export default async function TeacherExamsPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getMockSession();
     if (!session) return null;
 
-    // Fetch exams for the current active academic year
-    // To filter relevant exams: can filter by subjects taught by this teacher?
-    // Or just show all exams and let them choose?
-    // Better: Show exams where subject.teacherId == currentTeacherId OR classTeacherOf
-
-    // First get teacher profile
-    const teacher = await prisma.teacherProfile.findUnique({
-        where: { id: session.user.id },
-        include: { subjectsTaught: true }
-    });
-
-    if (!teacher) return <div>Teacher profile not found</div>;
-
-    const subjectIds = teacher.subjectsTaught.map(s => s.id);
-
-    // Fetch exams for these subjects
-    const exams = await prisma.exam.findMany({
-        where: {
-            subjectId: { in: subjectIds }
+    // Use mock data for exams. 
+    // MOCK_EXAM_RESULTS contains exam details inside 'exam' property.
+    // We can extract unique exams from there.
+    const exams = Array.from(new Map(MOCK_EXAM_RESULTS.map(r => [r.exam.id, r.exam])).values()).map(e => ({
+        ...e,
+        isPublished: true, // Mock value
+        subject: { // Mock subject structure to match usage
+            name: e.subject.name,
+            classroom: { name: 'Class 10-A' }
         },
-        include: {
-            subject: {
-                include: { classroom: true }
-            },
-            _count: {
-                select: { results: true }
-            }
-        },
-        orderBy: { date: 'desc' }
-    });
+        _count: { results: 25 } // Mock count
+    }));
 
     return (
         <div>
@@ -46,9 +26,9 @@ export default async function TeacherExamsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {exams.map(exam => (
                     <Link key={exam.id} href={`/teacher/exams/${exam.id}`} className="group">
-                        <div className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-all">
+                        <div className="bg-white p-6 rounded-xl shadow-md border-t-4 border-emerald-500 hover:shadow-lg transition-all duration-300 h-full">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                                     <FileText size={24} />
                                 </div>
                                 <span className={`text-xs px-2 py-1 rounded font-bold ${exam.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
