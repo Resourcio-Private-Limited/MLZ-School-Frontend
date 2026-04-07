@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { LayoutDashboard, Bell, User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { useGetTeacherProfileQuery } from "@/redux/api/teacherApi";
 
 export default function TeacherLayout({
     children,
@@ -11,12 +13,16 @@ export default function TeacherLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const router = useRouter();
+    const { data: teacherProfile } = useGetTeacherProfileQuery();
 
-    // TODO: Connect to new backend API for authentication
-    // For now, layout is accessible without authentication
-    const mockUser = {
-        name: "Teacher User",
-        email: "teacher@school.com"
+    const teacherName = teacherProfile?.personal?.fullName ?? "Teacher";
+    const teacherEmail = teacherProfile?.userEmail ?? "";
+
+    const handleLogout = () => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("authUser");
+        router.push("/login/teacher");
     };
 
     return (
@@ -71,26 +77,33 @@ export default function TeacherLayout({
                         <>
                             <div className="flex items-center space-x-3 mb-3">
                                 <div className="w-10 h-10 rounded-full bg-emerald-900/50 border border-emerald-700/50 flex items-center justify-center text-emerald-400 font-bold">
-                                    {mockUser.name?.[0] || "T"}
+                                    {teacherName?.[0] ?? "T"}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-sm text-slate-200">{mockUser.name}</p>
-                                    <p className="text-xs text-slate-500">{mockUser.email}</p>
+                                    <p className="font-medium text-sm text-slate-200">{teacherName}</p>
+                                    <p className="text-xs text-slate-500">{teacherEmail}</p>
                                 </div>
                             </div>
-                            <Link href="/" className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full">
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full"
+                            >
                                 <LogOut size={18} />
                                 <span>Logout</span>
-                            </Link>
+                            </button>
                         </>
                     ) : (
                         <div className="flex flex-col items-center space-y-3">
                             <div className="w-10 h-10 rounded-full bg-emerald-900/50 border border-emerald-700/50 flex items-center justify-center text-emerald-400 font-bold">
-                                {mockUser.name?.[0] || "T"}
+                                {teacherName?.[0] ?? "T"}
                             </div>
-                            <Link href="/" className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50" title="Logout">
+                            <button
+                                onClick={handleLogout}
+                                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
+                                title="Logout"
+                            >
                                 <LogOut size={18} />
-                            </Link>
+                            </button>
                         </div>
                     )}
                 </div>

@@ -1,8 +1,22 @@
 "use client";
 
-// Providers component - currently empty since backend authentication is removed
-// This can be used for future client-side providers (theme, state management, etc.)
+import { Provider } from 'react-redux';
+import { store } from '@/redux';
+import { useEffect } from 'react';
+import { hydrateAuth } from '@/redux/slices/authSlice';
+
+function HydrateAuth() {
+  useEffect(() => {
+    store.dispatch(hydrateAuth());
+  }, []);
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
-    return <>{children}</>;
+  return (
+    <Provider store={store}>
+      <HydrateAuth />
+      {children}
+    </Provider>
+  );
 }
