@@ -3,7 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Home, FileText, Bell, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { logout } from "@/redux/slices/authSlice";
+import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 
 export default function PrincipalLayout({
     children,
@@ -11,13 +15,17 @@ export default function PrincipalLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const dispatch = useDispatch();
+    const router = useRouter();
+    const { data: profile } = useGetPrincipalProfileQuery();
 
-    // TODO: Connect to new backend API for authentication
-    // For now, layout is accessible without authentication
-    const mockUser = {
-        name: "Principal User",
-        email: "principal@school.com"
+    const handleLogout = () => {
+        dispatch(logout());
+        router.push("/login");
     };
+
+    const displayName = profile?.fullName ?? "Principal";
+    const displayEmail = profile?.userEmail ?? profile?.email ?? "principal@school.com";
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -64,6 +72,7 @@ export default function PrincipalLayout({
                     <NavLink href="/principal" icon={<Home size={20} />} label="Home" isCollapsed={isCollapsed} />
                     <NavLink href="/principal/admit-card" icon={<FileText size={20} />} label="Create Admit Card" isCollapsed={isCollapsed} />
                     <NavLink href="/principal/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
+                    <NavLink href="/principal/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} />
                 </nav>
 
                 <div className="p-4 border-t border-slate-800 bg-slate-900/50 space-y-3">
@@ -71,26 +80,33 @@ export default function PrincipalLayout({
                         <>
                             <div className="flex items-center space-x-3 mb-3">
                                 <div className="w-10 h-10 rounded-full bg-purple-900/50 border border-purple-700/50 flex items-center justify-center text-purple-400 font-bold">
-                                    {mockUser.name?.[0] || "P"}
+                                    {displayName?.[0] ?? "P"}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-sm text-slate-200">{mockUser.name}</p>
-                                    <p className="text-xs text-slate-500">{mockUser.email}</p>
+                                    <p className="font-medium text-sm text-slate-200 truncate max-w-35">{displayName}</p>
+                                    <p className="text-xs text-slate-500 truncate max-w-35">{displayEmail}</p>
                                 </div>
                             </div>
-                            <Link href="/" className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full">
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full"
+                            >
                                 <LogOut size={18} />
                                 <span>Logout</span>
-                            </Link>
+                            </button>
                         </>
                     ) : (
                         <div className="flex flex-col items-center space-y-3">
                             <div className="w-10 h-10 rounded-full bg-purple-900/50 border border-purple-700/50 flex items-center justify-center text-purple-400 font-bold">
-                                {mockUser.name?.[0] || "P"}
+                                {displayName?.[0] ?? "P"}
                             </div>
-                            <Link href="/" className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50" title="Logout">
+                            <button
+                                onClick={handleLogout}
+                                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
+                                title="Logout"
+                            >
                                 <LogOut size={18} />
-                            </Link>
+                            </button>
                         </div>
                     )}
                 </div>

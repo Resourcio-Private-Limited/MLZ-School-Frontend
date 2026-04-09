@@ -148,7 +148,11 @@ export const studentApi = baseApi.injectEndpoints({
     updateProfile: builder.mutation<StudentProfileResponse, UpdateProfilePayload>({
       query: (body) => ({ url: '/student/update-profile', method: 'PATCH', body }),
     }),
+
+    getMessageRecipients: builder.query<Array<{ id: string; name: string; role: string }>, void>({
+      query: () => ({ url: '/student/message-recipients', method: 'GET' }),
+    }),
   }),
 });
 
-export const { useGetProfileQuery, useGetDashboardQuery, useGetExamsQuery, useUpdateProfileMutation } = studentApi;
+export const { useGetProfileQuery, useGetDashboardQuery, useGetExamsQuery, useUpdateProfileMutation, useGetMessageRecipientsQuery } = studentApi;

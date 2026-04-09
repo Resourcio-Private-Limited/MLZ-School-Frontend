@@ -1,31 +1,19 @@
 "use client";
 
 import { use, useState } from "react";
-import { ArrowLeft, Search, Filter, MoreVertical, FileText, TrendingUp, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, Filter, MoreVertical, TrendingUp, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
 export default function StudentListPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+    const { id: classroomId } = use(params);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Mock Student Data
-    const students = [
-        { id: 101, name: "Aarav Patel", rollNo: "10-A-01", attendance: "92%", grade: "A", lastExam: "95%" },
-        { id: 102, name: "Aditi Sharma", rollNo: "10-A-02", attendance: "88%", grade: "A-", lastExam: "89%" },
-        { id: 103, name: "Arjun Singh", rollNo: "10-A-03", attendance: "76%", grade: "B+", lastExam: "78%" },
-        { id: 104, name: "Diya Gupta", rollNo: "10-A-04", attendance: "98%", grade: "A+", lastExam: "98%" },
-        { id: 105, name: "Ishaan Kumar", rollNo: "10-A-05", attendance: "65%", grade: "C", lastExam: "60%" },
-        { id: 106, name: "Kavya Reddy", rollNo: "10-A-06", attendance: "90%", grade: "A", lastExam: "92%" },
-        { id: 107, name: "Mira Nair", rollNo: "10-A-07", attendance: "85%", grade: "B", lastExam: "82%" },
-        { id: 108, name: "Rohan Verma", rollNo: "10-A-08", attendance: "94%", grade: "A", lastExam: "90%" },
-        { id: 109, name: "Sanya Malhotra", rollNo: "10-A-09", attendance: "78%", grade: "B+", lastExam: "75%" },
-        { id: 110, name: "Vihaan Joshi", rollNo: "10-A-10", attendance: "96%", grade: "A+", lastExam: "97%" },
-    ];
+    const { data: students = [], isLoading } = useGetClassStudentsQuery(classroomId);
 
     const filteredStudents = students.filter(student =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
+        student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.rollNumber ?? "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -33,7 +21,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Link href={`/teacher/classroom/${id}`}>
+                    <Link href={`/teacher/classroom/${classroomId}`}>
                         <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back</span>
@@ -79,36 +67,51 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredStudents.length > 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                                        <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                        <p>Loading students...</p>
+                                    </td>
+                                </tr>
+                            ) : filteredStudents.length > 0 ? (
                                 filteredStudents.map((student) => (
                                     <tr key={student.id} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
                                                 <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm mr-3">
-                                                    {student.name.charAt(0)}
+                                                    {student.fullName.charAt(0)}
                                                 </div>
-                                                <div className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{student.name}</div>
+                                                <div className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{student.fullName}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {student.rollNo}
+                                            {student.rollNumber ?? "—"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${parseInt(student.attendance) > 90 ? 'bg-green-100 text-green-800' :
-                                                parseInt(student.attendance) > 75 ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                {student.attendance}
-                                            </span>
+                                            {student.attendance ? (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${student.attendance === 'PRESENT' ? 'bg-green-100 text-green-800' :
+                                                    student.attendance === 'ABSENT' ? 'bg-red-100 text-red-800' :
+                                                        'bg-yellow-100 text-yellow-800'
+                                                    }`}>
+                                                    {student.attendance}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 text-sm">—</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-gray-700">
-                                            {student.grade}
+                                            {student.overallGrade ?? "—"}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <div className="flex items-center justify-center space-x-1">
-                                                <TrendingUp size={14} className="text-green-500" />
-                                                <span className="text-sm text-gray-600">{student.lastExam}</span>
-                                            </div>
+                                            {student.lastExam ? (
+                                                <div className="flex items-center justify-center space-x-1">
+                                                    <TrendingUp size={14} className="text-green-500" />
+                                                    <span className="text-sm text-gray-600">{student.lastExam.name}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400 text-sm">—</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button className="text-gray-400 hover:text-emerald-500 transition-colors">

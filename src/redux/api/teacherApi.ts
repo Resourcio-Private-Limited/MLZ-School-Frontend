@@ -64,12 +64,20 @@ export interface TeacherClass {
   isClassTeacher: boolean;
 }
 
-export interface TeacherFullProfile {
-  personal: TeacherPersonal;
-  official: TeacherOfficial;
-  classTeacherOf: ClassTeacherOf | null;
-  assignedClassrooms: AssignedClassroom[];
-  userEmail: string;
+export interface ClassroomDetails {
+  className: string;
+  classTeacherName: string | null;
+  section: string;
+  totalStudents: number;
+}
+
+export interface ClassStudent {
+  id: string;
+  fullName: string;
+  rollNumber: string | null;
+  attendance: string | null;
+  overallGrade: string | null;
+  lastExam: { name: string; examDate: string } | null;
 }
 
 export interface UpdateTeacherProfilePayload {
@@ -100,7 +108,21 @@ export const teacherApi = baseApi.injectEndpoints({
     getTeacherClasses: builder.query<TeacherClass[], void>({
       query: () => ({ url: '/teacher/my-classes', method: 'GET' }),
     }),
+
+    getClassDetails: builder.query<ClassroomDetails, string>({
+      query: (classroomId) => ({ url: `/teacher/class/${classroomId}/details`, method: 'GET' }),
+    }),
+
+    getClassStudents: builder.query<ClassStudent[], string>({
+      query: (classroomId) => ({ url: `/teacher/class/${classroomId}/students`, method: 'GET' }),
+    }),
   }),
 });
 
-export const { useGetTeacherProfileQuery, useUpdateTeacherProfileMutation, useGetTeacherClassesQuery } = teacherApi;
+export const {
+  useGetTeacherProfileQuery,
+  useUpdateTeacherProfileMutation,
+  useGetTeacherClassesQuery,
+  useGetClassDetailsQuery,
+  useGetClassStudentsQuery,
+} = teacherApi;
