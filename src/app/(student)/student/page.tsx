@@ -1,21 +1,19 @@
 "use client";
 
-import { Download, BookOpen, Users, Calendar, ArrowRight, Bell } from "lucide-react";
+import { Download, BookOpen, ArrowRight, Video, ExternalLink, Clock } from "lucide-react";
 import Link from "next/link";
+import { useGetDashboardQuery } from "@/redux/api/studentApi";
 
 export default function StudentHomePage() {
-    // Mock data - replace with actual data from backend
-    const classroomData = {
-        className: "Class 10 - Section A",
-        classTeacher: "Mrs. Sharma",
-        totalStudents: 35,
-        subjects: [
-            { name: "Mathematics", teacher: "Mr. Kumar", schedule: "Mon, Wed, Fri - 9:00 AM" },
-            { name: "Science", teacher: "Dr. Patel", schedule: "Tue, Thu - 10:00 AM" },
-            { name: "English", teacher: "Ms. Reddy", schedule: "Mon, Wed, Fri - 11:00 AM" },
-            { name: "Social Studies", teacher: "Mr. Singh", schedule: "Tue, Thu - 2:00 PM" },
-            { name: "Hindi", teacher: "Mrs. Gupta", schedule: "Mon, Wed - 1:00 PM" }
-        ]
+    const { data: dashboard } = useGetDashboardQuery();
+
+    const classroom = dashboard?.classroom;
+    const latestExam = dashboard?.latestExams?.[0];
+    const onlineClasses = dashboard?.upcomingOnlineClasses ?? [];
+
+    const formatClassDate = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     };
 
     return (
@@ -40,7 +38,7 @@ export default function StudentHomePage() {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-800 group-hover:text-blue-700 transition-colors">My Classroom</h2>
-                                        <p className="text-slate-500 text-sm font-medium">{classroomData.className}</p>
+                                        <p className="text-slate-500 text-sm font-medium">{classroom?.name ?? "—"}</p>
                                     </div>
                                 </div>
                                 <div className="text-slate-300 group-hover:text-blue-500 transform group-hover:translate-x-1 transition-all duration-300">
@@ -49,10 +47,10 @@ export default function StudentHomePage() {
                             </div>
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                <StatBox label="Teacher" value={classroomData.classTeacher} />
-                                <StatBox label="Students" value={classroomData.totalStudents} isNumber />
-                                <StatBox label="Subjects" value={classroomData.subjects.length} isNumber />
-                                <StatBox label="Notices" value={4} isNumber />
+                                <StatBox label="Teacher" value={classroom?.classTeacher ?? "—"} />
+                                <StatBox label="Students" value={classroom?.studentCount ?? "—"} isNumber />
+                                <StatBox label="Subjects" value={classroom?.subjectCount ?? "—"} isNumber />
+                                <StatBox label="Notices" value={classroom?.noticeCount ?? "—"} isNumber />
                             </div>
 
                             <div className="mt-4 pt-4 border-t border-gray-100 flex items-center text-sm font-medium text-blue-600">
@@ -85,8 +83,8 @@ export default function StudentHomePage() {
                                 <p className="text-slate-500 text-sm mb-4">Access your examination schedules, download admit cards, and view your performance reports.</p>
                                 <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-600">Latest Result</span>
-                                        <span className="font-semibold text-purple-700">First Term Exam 2024</span>
+                                        <span className="text-slate-600">Latest Exam</span>
+                                        <span className="font-semibold text-purple-700">{latestExam?.name ?? "—"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -98,6 +96,44 @@ export default function StudentHomePage() {
                     </div>
                 </Link>
             </div>
+
+            {/* Online Classes Section */}
+            {onlineClasses.length > 0 && (
+                <div className="bg-white rounded-xl shadow-md border-t-4 border-orange-500 overflow-hidden">
+                    <div className="p-6">
+                        <div className="flex items-center space-x-3 mb-5">
+                            <div className="bg-orange-50 p-2 rounded-lg text-orange-600">
+                                <Video size={22} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800">Upcoming Online Classes</h2>
+                                <p className="text-slate-500 text-sm">Scheduled live sessions for your classroom</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {onlineClasses.map((cls) => (
+                                <a
+                                    key={cls.id}
+                                    href={cls.meetingLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg p-4 transition-colors group"
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <p className="font-semibold text-gray-800 text-sm leading-tight group-hover:text-orange-700 transition-colors">{cls.topic}</p>
+                                        <ExternalLink size={14} className="text-orange-400 group-hover:text-orange-600 shrink-0 ml-2 mt-0.5" />
+                                    </div>
+                                    <div className="flex items-center space-x-1 text-xs text-slate-500 mt-2">
+                                        <Clock size={12} />
+                                        <span>{formatClassDate(cls.date)}</span>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -11,17 +11,12 @@ import {
     Phone,
     Mail,
     Shield,
-    IndianRupee,
-    FileText,
-    Activity,
-    GraduationCap,
-    Book,
     Lock,
-    ArrowLeft,
     Save,
+    ArrowLeft,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGetTeacherProfileQuery, useUpdateTeacherProfileMutation } from "@/redux/api/teacherApi";
+import { useGetPrincipalProfileQuery, useUpdatePrincipalProfileMutation } from "@/redux/api/principalApi";
 
 function formatDate(dateStr: string | null | undefined) {
     if (!dateStr) return "—";
@@ -36,9 +31,9 @@ function formatDate(dateStr: string | null | undefined) {
     }
 }
 
-export default function TeacherProfilePage() {
-    const { data: profile, isLoading } = useGetTeacherProfileQuery();
-    const [updateProfile, { isLoading: isUpdating }] = useUpdateTeacherProfileMutation();
+export default function PrincipalProfilePage() {
+    const { data: profile, isLoading } = useGetPrincipalProfileQuery();
+    const [updateProfile, { isLoading: isUpdating }] = useUpdatePrincipalProfileMutation();
 
     const [form, setForm] = useState({
         fullName: "",
@@ -48,20 +43,24 @@ export default function TeacherProfilePage() {
         primaryContact: "",
         secondaryContact: "",
         email: "",
+        designation: "",
+        department: "",
     });
 
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        if (profile && profile.personal) {
+        if (profile) {
             setForm({
-                fullName: profile.personal.fullName ?? "",
-                dob: profile.personal.dob ? String(profile.personal.dob).split("T")[0] : "",
-                gender: profile.personal.gender ?? "",
-                residentialAddress: profile.personal.residentialAddress ?? "",
-                primaryContact: profile.personal.primaryContact ?? "",
-                secondaryContact: profile.personal.secondaryContact ?? "",
+                fullName: profile.fullName ?? "",
+                dob: profile.dob ? String(profile.dob).split("T")[0] : "",
+                gender: profile.gender ?? "",
+                residentialAddress: profile.residentialAddress ?? "",
+                primaryContact: profile.primaryContact ?? "",
+                secondaryContact: profile.secondaryContact ?? "",
                 email: profile.userEmail ?? "",
+                designation: profile.designation ?? "",
+                department: profile.department ?? "",
             });
         }
     }, [profile]);
@@ -84,7 +83,7 @@ export default function TeacherProfilePage() {
         );
     }
 
-    if (!profile || !profile.personal) {
+    if (!profile) {
         return (
             <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
                 <p className="text-slate-500">Failed to load profile. Please refresh.</p>
@@ -92,15 +91,13 @@ export default function TeacherProfilePage() {
         );
     }
 
-    const { personal, official, classTeacherOf } = profile;
-
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             {/* Hero Section */}
             <div className="bg-slate-900 pt-12 pb-32 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center space-x-4 mb-6">
-                        <Link href="/teacher" className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors">
+                        <Link href="/principal" className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back</span>
                         </Link>
@@ -109,31 +106,23 @@ export default function TeacherProfilePage() {
                         <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
                             <Image
                                 src="/MLZS_contents/Students Stage 1.png"
-                                alt="Teacher Photo"
+                                alt="Principal Photo"
                                 width={160}
                                 height={160}
                                 className="object-cover w-full h-full"
                             />
                         </div>
                         <div className="text-center md:text-left text-white">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{personal.fullName}</h1>
+                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{profile.fullName}</h1>
                             <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
                                 <span className="flex items-center gap-1">
                                     <Briefcase size={18} className="text-blue-400" />
-                                    {official.designation ?? "Teacher"}
+                                    {profile.designation ?? "Principal"}
                                 </span>
-                                <span className="flex items-center gap-1">
-                                    <IdCard size={18} className="text-blue-400" />
-                                    ID: {official.employeeId}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <Calendar size={18} className="text-blue-400" />
-                                    Joined: {official.joiningDate ? new Date(official.joiningDate).getFullYear() : "—"}
-                                </span>
-                                {classTeacherOf && (
+                                {profile.department && (
                                     <span className="flex items-center gap-1">
-                                        <User size={18} className="text-emerald-400" />
-                                        Class Teacher: {classTeacherOf.name}
+                                        <IdCard size={18} className="text-blue-400" />
+                                        {profile.department}
                                     </span>
                                 )}
                             </div>
@@ -153,23 +142,23 @@ export default function TeacherProfilePage() {
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                <p className="text-sm text-gray-500">Manage your personal information</p>
+                                <p className="text-sm text-gray-500">Your personal information</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <InfoField label="Full Name" value={personal.fullName} icon={<User size={16} />} />
-                            <InfoField label="Date of Birth" value={formatDate(personal.dob)} icon={<Calendar size={16} />} />
-                            <InfoField label="Gender" value={personal.gender} icon={<User size={16} />} />
-                            <InfoField label="Email ID" value={personal.email ?? "—"} icon={<Mail size={16} />} />
-                            <InfoField label="Blood Group" value={personal.bloodGroup ?? "—"} icon={<Shield size={16} />} />
-                            <InfoField label="Contact No." value={personal.primaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-3" />
+                            <InfoField label="Full Name" value={profile.fullName} icon={<User size={16} />} />
+                            <InfoField label="Date of Birth" value={formatDate(profile.dob)} icon={<Calendar size={16} />} />
+                            <InfoField label="Gender" value={profile.gender} icon={<User size={16} />} />
+                            <InfoField label="Email ID" value={profile.email ?? "—"} icon={<Mail size={16} />} />
+                            {/* <InfoField label="Blood Group" value={profile.bloodGroup ?? "—"} icon={<Shield size={16} />} /> */}
+                            <InfoField label="Contact No." value={profile.primaryContact} icon={<Phone size={16} />} />
+                            <InfoField label="Residential Address" value={profile.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-3" />
                         </div>
                     </div>
                 </div>
 
-                {/* Professional Details Section */}
+                {/* Official Details */}
                 <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
                     <div className="p-6 md:p-8">
                         <div className="flex items-center gap-4 mb-8">
@@ -177,51 +166,19 @@ export default function TeacherProfilePage() {
                                 <Briefcase size={24} />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800">Professional Details</h2>
-                                <p className="text-sm text-gray-500">Official records and information</p>
+                                <h2 className="text-xl font-bold text-gray-800">Official Details</h2>
+                                <p className="text-sm text-gray-500">Your official records and information</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <InfoField label="Employee ID" value={official.employeeId} icon={<IdCard size={16} />} />
-                            <InfoField label="Designation" value={official.designation ?? "—"} icon={<Briefcase size={16} />} />
-                            <InfoField label="Department" value={official.department} icon={<Book size={16} />} />
-
-                            <div className="group md:col-span-2 lg:col-span-3">
-                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                    <GraduationCap size={14} /> Education Qualifications
-                                </label>
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    {official.qualifications?.length ? official.qualifications.map((qual, idx) => (
-                                        <span key={idx} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                                            {qual}
-                                        </span>
-                                    )) : <span className="text-gray-400 text-sm">—</span>}
-                                </div>
-                            </div>
-
-                            <InfoField label="Date of Joining" value={formatDate(official.joiningDate)} icon={<Calendar size={16} />} />
-                            <InfoField
-                                label="Current Salary"
-                                value={official.currentSalary ? `₹ ${official.currentSalary.toLocaleString("en-IN")}` : "—"}
-                                icon={<IndianRupee size={16} />}
-                            />
-
-                            <div className="group">
-                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                    <Activity size={14} /> Status
-                                </label>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${official.status === "Active" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-red-100 text-red-800"}`}>
-                                    {official.status ?? "—"}
-                                </span>
-                            </div>
-
-                            <InfoField label="Official Document No." value={official.officialDocumentNumber ?? "—"} icon={<FileText size={16} />} />
+                            <InfoField label="Designation" value={profile.designation ?? "—"} icon={<Briefcase size={16} />} />
+                            <InfoField label="Department" value={profile.department ?? "—"} icon={<IdCard size={16} />} />
                         </div>
                     </div>
                 </div>
 
-                {/* Edit Personal Details Card */}
+                {/* Edit Profile Card */}
                 <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-emerald-500">
                     <div className="p-6 md:p-8">
                         <div className="flex items-center justify-between mb-6">
@@ -230,8 +187,8 @@ export default function TeacherProfilePage() {
                                     <Save size={24} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-gray-800">Update Personal Details</h2>
-                                    <p className="text-sm text-gray-500">Edit and save your personal information</p>
+                                    <h2 className="text-xl font-bold text-gray-800">Update Profile</h2>
+                                    <p className="text-sm text-gray-500">Edit and save your information</p>
                                 </div>
                             </div>
                             <button
@@ -283,6 +240,18 @@ export default function TeacherProfilePage() {
                                 onChange={(v) => setForm({ ...form, secondaryContact: v })}
                                 icon={<Phone size={14} />}
                             />
+                            <FormField
+                                label="Designation"
+                                value={form.designation}
+                                onChange={(v) => setForm({ ...form, designation: v })}
+                                icon={<Briefcase size={14} />}
+                            />
+                            <FormField
+                                label="Department"
+                                value={form.department}
+                                onChange={(v) => setForm({ ...form, department: v })}
+                                icon={<IdCard size={14} />}
+                            />
                             <div className="md:col-span-3">
                                 <FormField
                                     label="Residential Address"
@@ -307,7 +276,7 @@ export default function TeacherProfilePage() {
                                 <p className="text-sm text-gray-500">Update your password to keep your account secure</p>
                             </div>
                         </div>
-                        <Link href="/teacher/profile/reset-password">
+                        <Link href="/principal/profile/reset-password">
                             <button className="flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-lg hover:bg-slate-900 transition-all shadow-lg hover:shadow-slate-500/30">
                                 <Lock size={18} />
                                 <span>Reset Password</span>

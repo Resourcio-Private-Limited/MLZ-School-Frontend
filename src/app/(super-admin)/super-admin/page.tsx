@@ -1,18 +1,11 @@
 "use client";
 
+import { useGetDashboardKpisQuery } from "@/redux/api/superAdminApi";
 import { Users, GraduationCap, UserCog, Shield, TrendingUp, Bell, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 export default function SuperAdminDashboard() {
-    // Mock statistics
-    const stats = {
-        totalStudents: 1847,
-        totalTeachers: 57,
-        totalStaff: 3, // Principal + Accountant + Super Admin
-        activeNotices: 12,
-        monthlyRevenue: 2740000,
-        pendingAdmissions: 5
-    };
+    const { data: kpis, isLoading } = useGetDashboardKpisQuery();
 
     return (
         <div className="space-y-8">
@@ -37,7 +30,9 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Total Students</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">{stats.totalStudents.toLocaleString()}</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : (kpis?.totalStudents ?? 0).toLocaleString()}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Across all classes</p>
                 </div>
 
@@ -49,11 +44,13 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Total Teachers</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">{stats.totalTeachers}</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : kpis?.totalTeachers ?? 0}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Active faculty members</p>
                 </div>
 
-                {/* Total Staff */}
+                {/* Administrative Staff */}
                 <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-3 rounded-lg bg-purple-50">
@@ -61,7 +58,9 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Administrative Staff</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">{stats.totalStaff}</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : kpis?.administrativeStaff ?? 0}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Principal, Accountant, Admin</p>
                 </div>
 
@@ -73,7 +72,9 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Active Notices</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">{stats.activeNotices}</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : kpis?.activeNotices ?? 0}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Published announcements</p>
                 </div>
 
@@ -85,7 +86,9 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Monthly Revenue</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">₹{(stats.monthlyRevenue / 100000).toFixed(1)}L</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : `₹${((kpis?.monthlyRevenue ?? 0) / 100000).toFixed(1)}L`}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Current month income</p>
                 </div>
 
@@ -97,7 +100,9 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <p className="text-gray-600 text-sm font-medium">Pending Admissions</p>
-                    <h2 className="text-3xl font-bold mt-2 text-gray-800">{stats.pendingAdmissions}</h2>
+                    <h2 className="text-3xl font-bold mt-2 text-gray-800">
+                        {isLoading ? "—" : kpis?.pendingAdmissions ?? 0}
+                    </h2>
                     <p className="text-gray-500 text-xs mt-2">Awaiting approval</p>
                 </div>
             </div>

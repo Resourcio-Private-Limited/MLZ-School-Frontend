@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useResetPasswordMutation } from "@/redux/api/authApi";
+import { useAppSelector } from "@/redux/hooks";
 
 export default function ResetPasswordPage() {
-    const [email, setEmail] = useState("");
+    const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
@@ -15,12 +17,21 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
+    const [resetPassword] = useResetPasswordMutation();
+
+    // For a logged-in user we use their session token.
+    // The backend auth guard attaches the user to the request.
+    // Since the backend /auth/reset-password requires a token from the email link,
+    // we fall back to the user's JWT session token if no ?token= query param is present.
+    const sessionToken = typeof window !== "undefined"
+        ? localStorage.getItem("accessToken")
+        : null;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setSuccess("");
 
-        // Validation
         if (newPassword !== confirmPassword) {
             setError("Passwords do not match");
             return;
@@ -31,16 +42,35 @@ export default function ResetPasswordPage() {
             return;
         }
 
+        // If the student arrived here via email link, use that token.
+        // Otherwise use the session token from localStorage.
+        const urlToken = new URLSearchParams(window.location.search).get("token");
+        const token = urlToken ?? sessionToken;
+
+        if (!token) {
+            setError("Session expired. Please log in again.");
+            return;
+        }
+
         setLoading(true);
 
-        // TODO: Connect to backend API for password reset
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            await resetPassword({ token, newPassword }).unwrap();
             setSuccess("Password reset successful! Redirecting to profile...");
+
             setTimeout(() => {
                 router.push("/student/profile");
             }, 2000);
-        }, 1000);
+        } catch (err: unknown) {
+            const e2 = err as { data?: { message?: string }; message?: string };
+            const msg =
+                typeof e2?.data?.message === "string"
+                    ? e2.data.message
+                    : e2?.message ?? "Failed to reset password.";
+            setError(msg);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -80,18 +110,6 @@ export default function ResetPasswordPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Email ID</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:outline-none transition-all"
-                                placeholder="student@school.com"
-                                required
-                            />
-                        </div>
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
                             <input
