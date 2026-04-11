@@ -75,8 +75,7 @@ export default function ChangePasswordPage() {
             await resetPassword({ token, newPassword: password }).unwrap();
 
             // Clear the stored reset email
-            const { default: store2 } = await import("@/redux");
-            store2.dispatch(setResetEmail(""));
+            store.dispatch(setResetEmail(""));
 
             router.push("/login");
         } catch (err: unknown) {
