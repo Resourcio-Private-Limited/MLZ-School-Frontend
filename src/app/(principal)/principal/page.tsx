@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Users, ArrowRight, Settings, X, Save, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Users, ArrowRight, Settings, X, Save, Plus } from "lucide-react";
 import Link from "next/link";
 import {
     useGetAllClassroomsQuery,
@@ -11,8 +11,6 @@ import {
     useAssignClassTeacherMutation,
     useAddSubjectWithTeacherMutation,
     ClassroomSummary,
-    TeacherSummary,
-    SubjectSummary,
 } from "@/redux/api/principalApi";
 
 function getLevel(grade: string): string {
@@ -125,7 +123,7 @@ export default function PrincipalHomePage() {
 
     // Filter teachers: exclude teachers already assigned as class teacher to OTHER classrooms
     const availableTeachers = allTeachers.filter(
-        (t) => !t.classTeacherOf || t.classTeacherOf.id === selectedClassroom?.id
+        (t) => !t.classTeacherOf || t.classTeacherOf.name === selectedClassroom?.name
     );
 
     return (
