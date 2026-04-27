@@ -75,6 +75,18 @@ export default function PaymentPage() {
                     email: "student@mlz.com",
                     contact: "9999999999",
                 },
+                // Disable saved cards, wallets, and bank suggestions to prevent
+                // Razorpay from loading card/wallet images from localhost addresses
+                // (localhost:37857, localhost:7070) which cause CORS/connection failures
+                // and cascade into validate/account 500 errors
+                disable: {
+                    debitCards: false,
+                    creditCards: false,
+                    netBanking: false,
+                    wallets: ['all'],
+                    emi: false,
+                    cards: ['saved'],
+                },
                 config: {
                     display: {
                         readonly: {
