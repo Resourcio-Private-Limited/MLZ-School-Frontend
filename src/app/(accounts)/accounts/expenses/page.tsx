@@ -1,48 +1,82 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingDown, Edit2, Trash2, X, Save, IndianRupee, Calendar, Download, Search } from "lucide-react";
-import * as XLSX from "xlsx";
+import { TrendingDown, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2 } from "lucide-react";
+import {
+    useGetExpensesQuery,
+    useCreateExpenseMutation,
+    useUpdateExpenseMutation,
+    useDeleteExpenseMutation,
+    type ExpenseCategory,
+    type PaymentMode,
+} from "@/redux/api/accountsApi";
 
-interface Expense {
-    id: number;
+const UI_EXPENSE_CATEGORIES = ['Salaries', 'Utilities', 'Maintenance', 'Supplies', 'Other'] as const;
+const UI_PAYMENT_MODES = ['Cash', 'NEFT', 'Cheque'] as const;
+
+const API_EXPENSE_CATEGORY: Record<string, ExpenseCategory> = {
+    'Salaries': 'SALARIES', 'Utilities': 'UTILITIES', 'Maintenance': 'MAINTENANCE',
+    'Supplies': 'SUPPLIES', 'Other': 'OTHER',
+};
+const UI_EXPENSE_CATEGORY: Record<string, string> = {
+    'SALARIES': 'Salaries', 'UTILITIES': 'Utilities', 'MAINTENANCE': 'Maintenance',
+    'SUPPLIES': 'Supplies', 'OTHER': 'Other',
+};
+const API_PAYMENT_MODE: Record<string, PaymentMode> = {
+    'Cash': 'CASH', 'NEFT': 'NEFT', 'Cheque': 'CHEQUE',
+};
+
+function toApiCategory(v: string) { return API_EXPENSE_CATEGORY[v] ?? 'OTHER'; }
+function toUiCategory(v: string) { return UI_EXPENSE_CATEGORY[v] ?? v; }
+function toApiPaymentMode(v: string) { return API_PAYMENT_MODE[v] ?? 'CASH'; }
+
+interface ExpenseUI {
+    id: string;
     date: string;
     reason: string;
     amount: number;
     category: string;
     addedBy: string;
     partyName: string;
-    paymentMode: "Cash" | "NEFT" | "Cheque";
+    paymentMode: string;
     chequeNumber?: string;
 }
 
-const paymentModes = ["Cash", "Cheque", "NEFT"] as const;
-type PaymentMode = typeof paymentModes[number];
-
 export default function ExpensesPage() {
+    const { data: apiExpenses = [], isLoading, refetch } = useGetExpensesQuery();
+    const [createExpense] = useCreateExpenseMutation();
+    const [updateExpense] = useUpdateExpenseMutation();
+    const [deleteExpense] = useDeleteExpenseMutation();
+
     const [showModal, setShowModal] = useState(false);
-    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [editingExpense, setEditingExpense] = useState<ExpenseUI | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortBy, setSortBy] = useState<"all" | "day" | "month">("all");
+    const [saving, setSaving] = useState(false);
+
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         reason: "",
         amount: 0,
-        category: "Other",
+        category: "Salaries",
         partyName: "",
-        paymentMode: "Cash" as PaymentMode,
-        chequeNumber: ""
+        paymentMode: "Cash",
+        chequeNumber: "",
     });
 
-    const [expenses, setExpenses] = useState<Expense[]>([
-        { id: 1, date: "2024-01-10", reason: "Teacher Salaries - January", amount: 500000, category: "Salaries", addedBy: "Accountant User", partyName: "Staff Payroll", paymentMode: "NEFT" },
-        { id: 2, date: "2024-01-15", reason: "Electricity Bill", amount: 25000, category: "Utilities", addedBy: "Accountant User", partyName: "Power Company", paymentMode: "Cash" },
-        { id: 3, date: "2024-01-18", reason: "Classroom Furniture Repair", amount: 15000, category: "Maintenance", addedBy: "Accountant User", partyName: "ABC Furniture Co.", paymentMode: "Cheque", chequeNumber: "CHQ789012" },
-        { id: 4, date: "2024-01-22", reason: "Stationery Supplies", amount: 12000, category: "Supplies", addedBy: "Accountant User", partyName: "Office Supplies Ltd", paymentMode: "Cash" },
-        { id: 5, date: "2024-01-28", reason: "Water Bill", amount: 8000, category: "Utilities", addedBy: "Accountant User", partyName: "Water Authority", paymentMode: "NEFT" },
-    ]);
+    // Map API records to UI format
+    const expenses: ExpenseUI[] = apiExpenses.map(e => ({
+        id: e.id,
+        date: new Date(e.date).toISOString().split('T')[0],
+        reason: e.reason,
+        amount: e.amount,
+        category: toUiCategory(e.category),
+        addedBy: e.addedBy,
+        partyName: e.partyName ?? '',
+        paymentMode: e.paymentMode === 'CARD' ? 'Card' : e.paymentMode === 'ONLINE' ? 'Online' : e.paymentMode === 'CASH' ? 'Cash' : e.paymentMode === 'NEFT' ? 'NEFT' : e.paymentMode === 'CHEQUE' ? 'Cheque' : e.paymentMode,
+    }));
 
-    const handleOpenModal = (expense?: Expense) => {
+    const handleOpenModal = (expense?: ExpenseUI) => {
         if (expense) {
             setEditingExpense(expense);
             setFormData({
@@ -52,7 +86,7 @@ export default function ExpensesPage() {
                 category: expense.category,
                 partyName: expense.partyName,
                 paymentMode: expense.paymentMode,
-                chequeNumber: expense.chequeNumber || ""
+                chequeNumber: expense.chequeNumber ?? '',
             });
         } else {
             setEditingExpense(null);
@@ -60,10 +94,10 @@ export default function ExpensesPage() {
                 date: new Date().toISOString().split('T')[0],
                 reason: "",
                 amount: 0,
-                category: "Other",
+                category: "Salaries",
                 partyName: "",
                 paymentMode: "Cash",
-                chequeNumber: ""
+                chequeNumber: "",
             });
         }
         setShowModal(true);
@@ -72,51 +106,42 @@ export default function ExpensesPage() {
     const handleCloseModal = () => {
         setShowModal(false);
         setEditingExpense(null);
-        setFormData({
-            date: new Date().toISOString().split('T')[0],
-            reason: "",
-            amount: 0,
-            category: "Other",
-            partyName: "",
-            paymentMode: "Cash",
-            chequeNumber: ""
-        });
     };
 
-    const handleSave = () => {
-        if (editingExpense) {
-            setExpenses(expenses.map(exp =>
-                exp.id === editingExpense.id
-                    ? { ...exp, ...formData }
-                    : exp
-            ));
-        } else {
-            const newExpense: Expense = {
-                id: Date.now(),
-                ...formData,
-                addedBy: "Accountant User"
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const payload = {
+                date: formData.date,
+                reason: formData.reason,
+                amount: formData.amount,
+                category: toApiCategory(formData.category) as ExpenseCategory,
+                partyName: formData.partyName || undefined,
+                paymentMode: toApiPaymentMode(formData.paymentMode) as PaymentMode,
+                addedBy: "Mr. Rakesh Kapoor",
             };
-            setExpenses([newExpense, ...expenses]);
+            if (editingExpense) {
+                await updateExpense({ id: editingExpense.id, body: payload }).unwrap();
+            } else {
+                await createExpense(payload).unwrap();
+            }
+            refetch();
+            handleCloseModal();
+        } catch {
+            // silent fail
+        } finally {
+            setSaving(false);
         }
-        handleCloseModal();
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: string) => {
         if (confirm("Are you sure you want to delete this expense entry?")) {
-            setExpenses(expenses.filter(exp => exp.id !== id));
-        }
-    };
-
-    const handleExport = (format: "csv" | "xlsx") => {
-        const data = filteredExpenses.map(({ id, ...rest }) => rest);
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
-
-        if (format === "csv") {
-            XLSX.writeFile(workbook, "expense_data.csv", { bookType: "csv" });
-        } else {
-            XLSX.writeFile(workbook, "expense_data.xlsx", { bookType: "xlsx" });
+            try {
+                await deleteExpense(id).unwrap();
+                refetch();
+            } catch {
+                // silent fail
+            }
         }
     };
 
@@ -145,29 +170,13 @@ export default function ExpensesPage() {
                     <h1 className="text-3xl font-bold text-gray-800">Expense Management</h1>
                     <p className="text-gray-500 mt-1">Track and manage all school expenses</p>
                 </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => handleExport("csv")}
-                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg"
-                    >
-                        <Download size={20} />
-                        <span>Export CSV</span>
-                    </button>
-                    <button
-                        onClick={() => handleExport("xlsx")}
-                        className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-md hover:shadow-lg"
-                    >
-                        <Download size={20} />
-                        <span>Export XLSX</span>
-                    </button>
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
-                    >
-                        <TrendingDown size={20} />
-                        <span>Add Expense</span>
-                    </button>
-                </div>
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
+                >
+                    <TrendingDown size={20} />
+                    <span>Add Expense</span>
+                </button>
             </div>
 
             {/* Search and Sort */}
@@ -224,7 +233,13 @@ export default function ExpensesPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredExpenses.length === 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={8} className="p-8 text-center">
+                                        <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto" />
+                                    </td>
+                                </tr>
+                            ) : filteredExpenses.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="p-8 text-center text-gray-500">
                                         No expense entries yet. Click "Add Expense" to create one.
@@ -244,9 +259,7 @@ export default function ExpensesPage() {
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm font-bold text-red-600">₹{expense.amount.toLocaleString()}</td>
-                                        <td className="p-4 text-sm text-gray-600">
-                                            {expense.chequeNumber && expense.paymentMode === "Cheque" ? `${expense.paymentMode} (${expense.chequeNumber})` : expense.paymentMode}
-                                        </td>
+                                        <td className="p-4 text-sm text-gray-600">{expense.paymentMode}</td>
                                         <td className="p-4 text-sm text-gray-600">{expense.addedBy}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
@@ -278,26 +291,18 @@ export default function ExpensesPage() {
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                        {/* Modal Header */}
                         <div className="bg-red-600 text-white p-6 flex items-center justify-between rounded-t-xl sticky top-0">
                             <h2 className="text-2xl font-bold">
                                 {editingExpense ? "Edit Expense" : "Add Expense"}
                             </h2>
-                            <button
-                                onClick={handleCloseModal}
-                                className="p-2 hover:bg-red-700 rounded-lg transition-colors"
-                            >
+                            <button onClick={handleCloseModal} className="p-2 hover:bg-red-700 rounded-lg transition-colors">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        {/* Modal Content */}
                         <div className="p-6 space-y-4">
-                            {/* Date */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Date <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Date <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Calendar size={18} className="text-gray-400" />
@@ -311,11 +316,8 @@ export default function ExpensesPage() {
                                 </div>
                             </div>
 
-                            {/* Reason */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Reason <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={formData.reason}
@@ -325,11 +327,8 @@ export default function ExpensesPage() {
                                 />
                             </div>
 
-                            {/* Party Name */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Party Name <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Party Name</label>
                                 <input
                                     type="text"
                                     value={formData.partyName}
@@ -339,29 +338,21 @@ export default function ExpensesPage() {
                                 />
                             </div>
 
-                            {/* Category */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Category <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Category <span className="text-red-500">*</span></label>
                                 <select
                                     value={formData.category}
                                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
                                 >
-                                    <option value="Salaries">Salaries</option>
-                                    <option value="Utilities">Utilities</option>
-                                    <option value="Maintenance">Maintenance</option>
-                                    <option value="Supplies">Supplies</option>
-                                    <option value="Other">Other</option>
+                                    {UI_EXPENSE_CATEGORIES.map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
                                 </select>
                             </div>
 
-                            {/* Amount */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Amount <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Amount <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <IndianRupee size={18} className="text-gray-400" />
@@ -376,54 +367,32 @@ export default function ExpensesPage() {
                                 </div>
                             </div>
 
-                            {/* Payment Mode */}
                             <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Payment Mode <span className="text-red-500">*</span>
-                                </label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Mode <span className="text-red-500">*</span></label>
                                 <select
                                     value={formData.paymentMode}
-                                    onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as PaymentMode })}
+                                    onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
                                 >
-                                    <option value="Cash">Cash</option>
-                                    <option value="NEFT">NEFT</option>
-                                    <option value="Cheque">Cheque</option>
+                                    {UI_PAYMENT_MODES.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
                                 </select>
                             </div>
-
-                            {/* Cheque Number */}
-                            {formData.paymentMode === "Cheque" && (
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Cheque Number <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.chequeNumber}
-                                        onChange={(e) => setFormData({ ...formData, chequeNumber: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
-                                        placeholder="Enter cheque number"
-                                    />
-                                </div>
-                            )}
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3 rounded-b-xl sticky bottom-0">
-                            <button
-                                onClick={handleCloseModal}
-                                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
-                            >
+                            <button onClick={handleCloseModal}
+                                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={!formData.reason || !formData.partyName || formData.amount <= 0 || (formData.paymentMode === "Cheque" && !formData.chequeNumber)}
+                                disabled={saving || !formData.reason || formData.amount <= 0}
                                 className="flex items-center space-x-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Save size={18} />
-                                <span>Save</span>
+                                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={18} />}
+                                <span>{saving ? 'Saving...' : 'Save'}</span>
                             </button>
                         </div>
                     </div>

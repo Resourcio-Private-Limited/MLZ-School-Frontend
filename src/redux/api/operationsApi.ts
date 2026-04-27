@@ -49,6 +49,24 @@ export interface ClassroomTeacher {
   isClassTeacher: boolean;
 }
 
+export interface ConversationItem {
+  otherUserId: string;
+  otherUserRole: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  direction: 'sent' | 'received';
+}
+
+export interface MessageItem {
+  id: string;
+  createdAt: string;
+  content: string;
+  senderId: string;
+  receiverId: string;
+  sender: { id: string; email: string; role: string };
+  receiver: { id: string; email: string; role: string };
+}
+
 export interface ClassroomSection {
   id: string;
   name: string;
@@ -93,10 +111,31 @@ export const operationsApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/operations/message', method: 'POST', body }),
     }),
 
+    getConversations: builder.query<ConversationItem[], string>({
+      query: (userId) => ({ url: `/operations/conversations?userId=${encodeURIComponent(userId)}`, method: 'GET' }),
+    }),
+
+    getConversation: builder.query<MessageItem[], { userId: string; otherUserId: string }>({
+      query: ({ userId, otherUserId }) => ({
+        url: `/operations/conversation?userId=${encodeURIComponent(userId)}&otherUserId=${encodeURIComponent(otherUserId)}`,
+        method: 'GET',
+      }),
+    }),
+
     createNotice: builder.mutation<Notice, CreateNoticePayload>({
       query: (body) => ({ url: '/operations/notices', method: 'POST', body }),
     }),
   }),
 });
 
-export const { useGetNoticesQuery, useGetAnnouncementsQuery, useGetClassroomTeachersQuery, useGetSectionsByGradeQuery, useCreateAnnouncementMutation, useSendMessageMutation, useCreateNoticeMutation } = operationsApi;
+export const {
+  useGetNoticesQuery,
+  useGetAnnouncementsQuery,
+  useGetClassroomTeachersQuery,
+  useGetSectionsByGradeQuery,
+  useCreateAnnouncementMutation,
+  useSendMessageMutation,
+  useGetConversationsQuery,
+  useGetConversationQuery,
+  useCreateNoticeMutation,
+} = operationsApi;

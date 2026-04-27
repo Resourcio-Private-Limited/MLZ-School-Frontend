@@ -1,78 +1,142 @@
 "use client";
 
-import { use, useState } from "react";
-import { ArrowLeft, Search, Paperclip } from "lucide-react";
+import { use, useState, useEffect } from "react";
+import { ArrowLeft, Search, Send } from "lucide-react";
 import Link from "next/link";
+import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
+import { useGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
-export default function MessagesPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+function formatTime(dateStr: string) {
+    try {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = now.getTime() - date.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days === 0) {
+            return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        } else if (days === 1) {
+            return 'Yesterday';
+        } else if (days < 7) {
+            return date.toLocaleDateString('en-IN', { weekday: 'short' });
+        } else {
+            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        }
+    } catch {
+        return '';
+    }
+}
+
+function getRoleLabel(role: string): string {
+    const labels: Record<string, string> = {
+        STUDENT: 'Student',
+        TEACHER: 'Teacher',
+        PRINCIPAL: 'Principal',
+        ACCOUNTANT: 'Accountant',
+        SUPER_ADMIN: 'Super Admin',
+    };
+    return labels[role] ?? role;
+}
+
+function getAuthUser() {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = localStorage.getItem("authUser");
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
+interface SidebarItem {
+    userId: string;
+    name: string;
+    role: string;
+    lastMessage: string;
+    lastMessageAt: string;
+    direction: 'sent' | 'received';
+    unread: number;
+}
+
+export default function TeacherMessagesPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: classroomId } = use(params);
+    const [authUser, setAuthUser] = useState<Record<string, any>>({});
+
+    useEffect(() => {
+        setAuthUser(getAuthUser());
+    }, []);
+
+    const currentUserId = authUser?.id;
+    const teacherId = authUser?.teacher?.id ?? currentUserId;
+
+    const { data: allConversations = [], refetch: refetchConversations } = useGetConversationsQuery(currentUserId ?? "");
+    const { data: students = [] } = useGetClassStudentsQuery(classroomId);
+    const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
+
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
-    const [newMessage, setNewMessage] = useState("");
-    const [attachment, setAttachment] = useState<File | null>(null);
+    const [messageText, setMessageText] = useState("");
 
-    // Mock Students List with Last Message
-    const students = [
-        { id: 101, name: "Aarav Patel", rollNo: "01", avatar: "A", lastMessage: "Thank you for the update, sir.", time: "10:30 AM", unread: 0 },
-        { id: 102, name: "Aditi Sharma", rollNo: "02", avatar: "A", lastMessage: "I will be absent tomorrow due to...", time: "Yesterday", unread: 2 },
-        { id: 103, name: "Arjun Singh", rollNo: "03", avatar: "A", lastMessage: "Is the assignment due by Friday?", time: "Yesterday", unread: 0 },
-        { id: 104, name: "Diya Gupta", rollNo: "04", avatar: "D", lastMessage: "Okay, noted.", time: "Oct 15", unread: 0 },
-        { id: 105, name: "Ishaan Kumar", rollNo: "05", avatar: "I", lastMessage: "Can we schedule a call?", time: "Oct 14", unread: 1 },
-    ];
-
-    // Mock Messages for Selected Student
-    const [conversations, setConversations] = useState<{ [key: number]: { id: number, sender: 'teacher' | 'student', text: string, time: string }[] }>({
-        101: [
-            { id: 1, sender: 'teacher', text: "Hello Aarav, your performance in the last test was excellent. Keep it up!", time: "10:00 AM" },
-            { id: 2, sender: 'student', text: "Thank you so much sir! I have been working hard.", time: "10:15 AM" },
-            { id: 3, sender: 'teacher', text: "It shows. Let me know if you need any help with the upcoming project.", time: "10:25 AM" },
-            { id: 4, sender: 'student', text: "Thank you for the update, sir.", time: "10:30 AM" },
-        ],
-        102: [
-            { id: 1, sender: 'student', text: "Good morning Ma'am, I wanted to inform you that I will be absent tomorrow.", time: "Yesterday" },
-            { id: 2, sender: 'student', text: "I have a doctor's appointment.", time: "Yesterday" },
-        ]
-    });
-
-    const filteredStudents = students.filter(student =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.rollNo.toLowerCase().includes(searchTerm.toLowerCase())
+    const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
+        { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
+        { skip: !currentUserId || !selectedUserId }
     );
 
-    const activeStudent = students.find(s => s.id === selectedStudentId);
-    const activeMessages = selectedStudentId ? conversations[selectedStudentId] || [] : [];
+    // Build sidebar: use conversation data where available, fall back to student list
+    const studentUserIds = new Set(students.map(s => s.id));
 
-    const handleSendMessage = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !selectedStudentId) return;
+    const sidebarItems: SidebarItem[] = [];
 
-        const newMsgOption = {
-            id: Date.now(),
-            sender: 'teacher' as const,
-            text: newMessage,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
+    // First, add students who have conversation data
+    const conversationMap = new Map(
+        allConversations
+            .filter(c => c.otherUserRole === 'STUDENT' && studentUserIds.has(c.otherUserId))
+            .map(conv => [conv.otherUserId, conv])
+    );
 
-        setConversations(prev => ({
-            ...prev,
-            [selectedStudentId]: [...(prev[selectedStudentId] || []), newMsgOption]
-        }));
-        setNewMessage("");
-        setAttachment(null);
-    };
+    // Then add all students (conversation data if available, otherwise placeholder)
+    for (const student of students) {
+        const conv = conversationMap.get(student.id);
+        sidebarItems.push({
+            userId: student.id,
+            name: student.fullName,
+            role: 'STUDENT',
+            lastMessage: conv?.lastMessage ?? 'No messages yet',
+            lastMessageAt: conv?.lastMessageAt ?? '',
+            direction: conv?.direction ?? ('received' as const),
+            unread: 0,
+        });
+    }
 
-    const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setAttachment(e.target.files[0]);
+    const filteredItems = sidebarItems.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
+
+    const handleSendMessage = async () => {
+        if (!messageText.trim() || !selectedUserId || !currentUserId) return;
+
+        try {
+            await sendMessage({
+                senderId: currentUserId,
+                receiverId: selectedUserId,
+                content: messageText.trim(),
+            }).unwrap();
+            setMessageText("");
+            refetchMessages();
+            refetchConversations();
+        } catch {
+            // silent fail
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-6">
             <div className="max-w-7xl mx-auto space-y-8">
+                {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <Link href={`/teacher/classroom/${id}`}>
+                        <Link href={`/teacher/classroom/${classroomId}`}>
                             <button className="flex items-center space-x-2 text-slate-600 hover:text-blue-700 transition-colors">
                                 <ArrowLeft size={20} />
                                 <span className="font-medium">Back to Classroom</span>
@@ -83,15 +147,17 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                     </div>
                 </div>
 
+                {/* Disclaimer */}
                 <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-md">
                     <p className="text-sm text-yellow-800">
                         <strong>Note:</strong> This section is strictly for queries, issues, or formal communication. Please refrain from using it for casual or continuous chat.
                     </p>
                 </div>
 
-                <div className="flex bg-white rounded-lg shadow-lg overflow-hidden">
-                    {/* Sidebar - Student List */}
-                    <div className="w-80 border-r border-gray-200 bg-gray-50">
+                {/* Message Layout */}
+                <div className="flex bg-white rounded-lg shadow-lg overflow-hidden min-h-150">
+                    {/* Sidebar */}
+                    <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
                         <div className="p-4 border-b border-gray-200">
                             <h2 className="text-lg font-bold text-gray-800 mb-3">Students</h2>
                             <div className="relative">
@@ -107,88 +173,140 @@ export default function MessagesPage({ params }: { params: Promise<{ id: string 
                         </div>
 
                         <div className="flex-1 overflow-y-auto">
-                            {filteredStudents.map((student) => (
-                                <div
-                                    key={student.id}
-                                    onClick={() => setSelectedStudentId(student.id)}
-                                    className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${selectedStudentId === student.id ? 'bg-white border-l-4 border-l-blue-500 shadow-sm' : 'border-gray-50'}`}
-                                >
-                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                                        {student.avatar}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-baseline mb-1">
-                                            <h3 className={`text-sm font-semibold truncate ${selectedStudentId === student.id ? 'text-blue-500' : 'text-gray-800'}`}>{student.name}</h3>
-                                            <span className="text-xs text-gray-400">{student.time}</span>
-                                        </div>
-                                        <p className={`text-xs truncate ${student.unread > 0 ? 'font-bold text-gray-800' : 'text-gray-500'}`}>{student.lastMessage}</p>
-                                    </div>
-                                    {student.unread > 0 && (
-                                        <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
-                                            {student.unread}
-                                        </div>
-                                    )}
+                            {sidebarItems.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 text-sm">
+                                    {students.length === 0
+                                        ? 'No students in this class'
+                                        : 'No conversations yet — select a student from the list below'}
                                 </div>
-                            ))}
+                            ) : (
+                                filteredItems.map((item) => (
+                                    <div
+                                        key={item.userId}
+                                        onClick={() => setSelectedUserId(item.userId)}
+                                        className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${
+                                            selectedUserId === item.userId
+                                                ? 'bg-white border-l-4 border-l-blue-500 shadow-sm'
+                                                : 'border-gray-50'
+                                        }`}
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                            {item.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-baseline mb-1">
+                                                <h3 className={`text-sm font-semibold truncate ${
+                                                    selectedUserId === item.userId ? 'text-blue-500' : 'text-gray-800'
+                                                }`}>{item.name}</h3>
+                                                {item.lastMessageAt && (
+                                                    <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                                        {formatTime(item.lastMessageAt)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs text-gray-500">{getRoleLabel(item.role)}</span>
+                                                {item.direction === 'sent' && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-medium">Sent</span>
+                                                )}
+                                            </div>
+                                            {item.lastMessage && (
+                                                <p className="text-xs text-gray-500 truncate mt-0.5">{item.lastMessage}</p>
+                                            )}
+                                        </div>
+                                        {item.unread > 0 && (
+                                            <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                {item.unread}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
-                    {/* Main Content Area */}
+                    {/* Main Content */}
                     <div className="flex-1 flex flex-col">
-                        {activeStudent ? (
+                        {selectedItem ? (
                             <>
-                                <div className="p-4 border-b border-gray-200 bg-gray-50">
-                                    <h2 className="text-lg font-bold text-gray-800">Conversation with {activeStudent.name}</h2>
+                                {/* Chat Header */}
+                                <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                        {selectedItem.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-bold text-gray-800">{selectedItem.name}</h2>
+                                        <p className="text-xs text-gray-500">{getRoleLabel(selectedItem.role)}</p>
+                                    </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                                    {activeMessages.map((msg) => (
-                                        <div key={msg.id} className="border-b border-gray-200 pb-4">
-                                            <div className="flex justify-between items-baseline">
-                                                <h4 className={`text-sm font-bold ${msg.sender === 'teacher' ? 'text-blue-600' : 'text-gray-800'}`}>{msg.sender === 'teacher' ? 'You' : activeStudent.name}</h4>
-                                                <span className="text-xs text-gray-400">{msg.time}</span>
-                                            </div>
-                                            <p className="text-sm text-gray-700 mt-1">{msg.text}</p>
+                                {/* Messages */}
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    {messages.length === 0 ? (
+                                        <div className="text-center text-gray-400 py-12">
+                                            <p className="text-sm">No messages yet. Start the conversation below.</p>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        messages.map((msg) => {
+                                            const isMine = msg.senderId === currentUserId;
+                                            return (
+                                                <div key={msg.id} className="flex flex-col">
+                                                    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[70%] rounded-xl px-4 py-3 ${
+                                                            isMine
+                                                                ? 'bg-blue-600 text-white rounded-br-md'
+                                                                : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                                                        }`}>
+                                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                                            <p className={`text-[10px] mt-1 ${
+                                                                isMine ? 'text-blue-200' : 'text-gray-400'
+                                                            }`}>
+                                                                {formatTime(msg.createdAt)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {!isMine && (
+                                                        <span className="text-[10px] text-gray-400 ml-1 mt-0.5">
+                                                            {getRoleLabel(msg.sender.role)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
 
+                                {/* Input */}
                                 <div className="p-6 bg-gray-50 border-t border-gray-200">
-                                    <form onSubmit={handleSendMessage} className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Reply</label>
+                                    <div className="flex items-end gap-3">
+                                        <div className="flex-1">
                                             <textarea
                                                 rows={4}
                                                 placeholder="Type your formal reply here..."
-                                                className="w-full border rounded p-2 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500 focus:outline-none text-sm resize-none"
-                                                value={newMessage}
-                                                onChange={(e) => setNewMessage(e.target.value)}
-                                            ></textarea>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Attachment</label>
-                                            <input
-                                                type="file"
-                                                onChange={handleAttachmentChange}
-                                                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
+                                                value={messageText}
+                                                onChange={(e) => setMessageText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handleSendMessage();
+                                                    }
+                                                }}
                                             />
-                                            {attachment && (
-                                                <p className="text-sm text-gray-600 mt-2">Attached: {attachment.name}</p>
-                                            )}
                                         </div>
-                                        <div className="flex justify-end">
-                                            <button
-                                                type="submit"
-                                                disabled={!newMessage.trim()}
-                                                className={`px-6 py-2 rounded-lg font-semibold text-sm transition-colors ${newMessage.trim()
+                                        <button
+                                            onClick={handleSendMessage}
+                                            disabled={!messageText.trim() || isSending}
+                                            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
+                                                messageText.trim() && !isSending
                                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                    }`}
-                                            >
-                                                Send Message
-                                            </button>
-                                        </div>
-                                    </form>
+                                            }`}
+                                        >
+                                            <Send size={16} />
+                                            {isSending ? 'Sending...' : 'Send Message'}
+                                        </button>
+                                    </div>
                                 </div>
                             </>
                         ) : (
