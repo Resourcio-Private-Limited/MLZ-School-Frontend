@@ -53,7 +53,6 @@ export default function PaymentPage() {
         try {
             setPayingMonths([...selectedIds]);
 
-            // Create Razorpay order for the total amount
             const selectedRecords = fees.filter(f => selectedIds.includes(feeId(f)));
             const firstRecord = selectedRecords[0];
 
@@ -65,7 +64,7 @@ export default function PaymentPage() {
 
             const rzpay = new (window as any).Razorpay({
                 key: "rzp_test_JOC0wRKpLH1cVW",
-                amount: order.amount, // backend returns amount in paise
+                amount: order.amount, // backend returns paise
                 currency: order.currency,
                 name: "MLZ School",
                 description: `Monthly Fees — ${selectedIds.join(", ")}`,
@@ -76,8 +75,16 @@ export default function PaymentPage() {
                     email: "student@mlz.com",
                     contact: "9999999999",
                 },
+                config: {
+                    display: {
+                        readonly: {
+                            contact: true,
+                            email: true,
+                            name: true,
+                        },
+                    },
+                },
                 handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string }) => {
-                    // Confirm each selected month
                     await Promise.all(
                         selectedRecords.map(r =>
                             confirmPayment({
