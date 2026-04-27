@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CreditCard, Download, CheckCircle, AlertCircle, Calendar, FileText, CheckSquare, Square, Loader2 } from "lucide-react";
 import { useGetMonthlyFeesQuery, useCreateRazorpayOrderMutation, useConfirmStudentPaymentMutation } from "@/redux/api/studentApi";
 import type { MonthlyFeeRecord } from "@/redux/api/studentApi";
@@ -31,6 +31,11 @@ export default function PaymentPage() {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [payingMonths, setPayingMonths] = useState<string[]>([]);
     const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+    // Pre-load Razorpay checkout.js script on mount
+    useEffect(() => {
+        loadRazorpayScript();
+    }, []);
 
     const toggleSelection = (id: string) => {
         setSelectedIds(prev =>
