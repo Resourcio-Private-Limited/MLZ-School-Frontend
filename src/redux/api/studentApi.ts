@@ -129,6 +129,29 @@ export interface UpdateProfilePayload {
   email?: string;
 }
 
+// ─── Student Payment ────────────────────────────────────────────────
+
+export interface MonthlyFeeRecord {
+  id: string;
+  month: number;
+  year: number;
+  standardFees: number;
+  otherFees: number;
+  penalty: number;
+  totalAmount: number;
+  isPaid: boolean;
+  paidAmount: number;
+  paidAt: string | null;
+  receiptUrl: string | null;
+}
+
+export interface RazorpayOrderResponse {
+  orderId: string;
+  amount: number;
+  currency: string;
+  receipt: string;
+}
+
 // ─── API ───────────────────────────────────────────────────────────
 
 export const studentApi = baseApi.injectEndpoints({
@@ -152,7 +175,36 @@ export const studentApi = baseApi.injectEndpoints({
     getMessageRecipients: builder.query<Array<{ id: string; name: string; role: string }>, void>({
       query: () => ({ url: '/student/message-recipients', method: 'GET' }),
     }),
+
+    // Monthly fee breakdown
+    getMonthlyFees: builder.query<MonthlyFeeRecord[], void>({
+      query: () => ({ url: '/student/fees/monthly', method: 'GET' }),
+    }),
+
+    // Create Razorpay order
+    createRazorpayOrder: builder.mutation<RazorpayOrderResponse, { month: number; year: number; amount: number }>({
+      query: (body) => ({ url: '/student/fees/monthly/order', method: 'POST', body }),
+    }),
+
+    // Confirm payment after Razorpay success
+    confirmStudentPayment: builder.mutation<MonthlyFeeRecord, {
+      month: number;
+      year: number;
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+    }>({
+      query: (body) => ({ url: '/student/fees/monthly/confirm', method: 'POST', body }),
+    }),
   }),
 });
 
-export const { useGetProfileQuery, useGetDashboardQuery, useGetExamsQuery, useUpdateProfileMutation, useGetMessageRecipientsQuery } = studentApi;
+export const {
+  useGetProfileQuery,
+  useGetDashboardQuery,
+  useGetExamsQuery,
+  useUpdateProfileMutation,
+  useGetMessageRecipientsQuery,
+  useGetMonthlyFeesQuery,
+  useCreateRazorpayOrderMutation,
+  useConfirmStudentPaymentMutation,
+} = studentApi;

@@ -93,6 +93,48 @@ export interface UpdateTeacherProfilePayload {
   qualifications?: string[];
 }
 
+export interface MarkAttendanceEntry {
+  studentId: string;
+  status: 'PRESENT' | 'ABSENT';
+  teacherId: string;
+  classroomId: string;
+}
+
+export interface AttendanceDay {
+  date: string;
+  dayName: string;
+  present: number;
+  absent: number;
+  totalStudents: number;
+  isMarked: boolean;
+  teacherId: string | null;
+}
+
+export interface AttendanceHistoryResponse {
+  classroomId: string;
+  year: number;
+  month: number;
+  totalStudents: number;
+  avgAttendance: number;
+  totalWorkingDays: number;
+  days: AttendanceDay[];
+}
+
+export interface AttendanceByDateRecord {
+  studentId: string;
+  fullName: string;
+  rollNumber: string;
+  status: 'PRESENT' | 'ABSENT';
+}
+
+export interface AttendanceByDateResponse {
+  date: string;
+  total: number;
+  present: number;
+  absent: number;
+  records: AttendanceByDateRecord[];
+}
+
 // ─── API ───────────────────────────────────────────────────────────
 
 export const teacherApi = baseApi.injectEndpoints({
@@ -116,6 +158,27 @@ export const teacherApi = baseApi.injectEndpoints({
     getClassStudents: builder.query<ClassStudent[], string>({
       query: (classroomId) => ({ url: `/teacher/class/${classroomId}/students`, method: 'GET' }),
     }),
+
+    markAttendance: builder.mutation<{ count: number }, MarkAttendanceEntry[]>({
+      query: (body) => ({ url: '/operations/attendance', method: 'POST', body }),
+    }),
+
+    getAttendanceHistory: builder.query<AttendanceHistoryResponse, { classroomId: string; month?: number; year?: number }>({
+      query: ({ classroomId, month, year }) => {
+        const params = new URLSearchParams();
+        params.set('classroomId', classroomId);
+        if (month) params.set('month', String(month));
+        if (year) params.set('year', String(year));
+        return { url: `/operations/attendance/${classroomId}/history?${params.toString()}`, method: 'GET' };
+      },
+    }),
+
+    getAttendanceByDate: builder.query<AttendanceByDateResponse, { classroomId: string; date: string }>({
+      query: ({ classroomId, date }) => ({
+        url: `/operations/attendance/${classroomId}/${date}`,
+        method: 'GET',
+      }),
+    }),
   }),
 });
 
@@ -125,4 +188,7 @@ export const {
   useGetTeacherClassesQuery,
   useGetClassDetailsQuery,
   useGetClassStudentsQuery,
+  useMarkAttendanceMutation,
+  useGetAttendanceHistoryQuery,
+  useGetAttendanceByDateQuery,
 } = teacherApi;

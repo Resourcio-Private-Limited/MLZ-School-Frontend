@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useCallback } from "react";
+import { useState, use, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bell, Send, Paperclip, X, Info, CheckCircle2 } from "lucide-react";
 import { useGetAnnouncementsQuery, useCreateAnnouncementMutation } from "@/redux/api/operationsApi";
@@ -20,6 +20,16 @@ function formatTime(dateStr: string) {
     });
 }
 
+function getAuthUser() {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = localStorage.getItem("authUser");
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+}
+
 export default function TeacherAnnouncementsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
 
@@ -28,6 +38,12 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
     const [content, setContent] = useState("");
     const [fileUrl, setFileUrl] = useState("");
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [teacherId, setTeacherId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const user = getAuthUser();
+        setTeacherId(user?.teacher?.id ?? null);
+    }, []);
 
     const { data: announcements = [], isLoading, refetch } = useGetAnnouncementsQuery(classroomId);
     const [createAnnouncement, { isLoading: isCreating_ }] = useCreateAnnouncementMutation();
@@ -39,9 +55,6 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        const authUser = JSON.parse(localStorage.getItem("authUser") ?? "{}");
-        const teacherId = authUser?.teacher?.id;
 
         if (!teacherId) {
             showFeedback("error", "Teacher not found. Please login again.");
