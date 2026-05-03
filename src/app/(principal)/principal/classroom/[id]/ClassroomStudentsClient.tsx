@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Users, Plus, BookOpen, User as UserIcon, Filter, X, Search, UserCheck } from "lucide-react";
+import { useGetClassroomStudentsQuery, useGetClassroomQuery, useAddStudentMutation } from "@/redux/api/principalApi";
 import ClassroomAdmissionForm from "./ClassroomAdmissionForm";
 import StudentDetailModal from "./StudentDetailModal";
 import PromotionModal from "./PromotionModal";
@@ -10,65 +11,29 @@ import PromotionModal from "./PromotionModal";
 type Student = {
     id: string;
     admissionNo: string;
-    user: {
-        name: string;
-        email: string;
-    };
-    section?: {
-        name: string;
-    };
-    parentContact: string;
+    fullName: string;
+    email: string;
+    isActive: boolean;
     dob: Date;
     gender: string;
-    // Additional fields for filtering
+    residentialAddress: string;
+    primaryContact: string;
+    parentName?: string;
+    parentContact?: string;
     attendancePercentage?: number;
     averageMarks?: number;
     feeStatus?: 'CLEARED' | 'PENDING' | 'OVERDUE';
-    examStatus?: 'PASS' | 'FAIL';
-    bloodGroup?: string;
-    religion?: string;
-    category?: string;
-    nationality: string;
-    fatherName: string;
-    motherName: string;
-    emergencyContact?: string;
-    guardianName?: string;
-    guardianContact?: string;
-    address: string;
-    previousSchool?: string;
-    admissionYear: number;
-    passingYear?: number;
-    academicYear?: string;
-    totalPresent?: number;
-    totalAbsent?: number;
-    totalDays?: number;
-    highestMarks?: number;
-    lowestMarks?: number;
-    examResults?: Array<{
-        examName: string;
-        marks: number;
-        maxMarks: number;
-        grade: string;
-        status: 'PASS' | 'FAIL';
-    }>;
-    totalFees?: number;
-    paidFees?: number;
-    pendingFees?: number;
-    lastPaymentDate?: Date;
-};
-
-type Section = {
-    id: string;
-    name: string;
-    _count?: { students: number };
 };
 
 type Classroom = {
     id: string;
     name: string;
-    level: string;
-    classTeacher: string;
+    grade: string;
+    section: string;
     capacity: number;
+    total: number;
+    classTeacher: { id: string; fullName: string; employeeId: string } | null;
+    level?: string;
 };
 
 type FilterState = {
@@ -81,15 +46,7 @@ type FilterState = {
     feeStatus: 'all' | 'CLEARED' | 'PENDING' | 'OVERDUE';
 };
 
-export default function ClassroomStudentsClient({
-    classroom,
-    students,
-    sections
-}: {
-    classroom: Classroom;
-    students: Student[];
-    sections: Section[];
-}) {
+export default function ClassroomStudentsClient({ classroom, classroomId }: { classroom: Classroom; classroomId: string }) {
     const [showAdmissionForm, setShowAdmissionForm] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [showFilters, setShowFilters] = useState(false);
@@ -104,8 +61,12 @@ export default function ClassroomStudentsClient({
         feeStatus: 'all',
     });
 
+    const { data: classroomData } = useGetClassroomQuery(classroomId);
+    const { data: students = [], isLoading, refetch } = useGetClassroomStudentsQuery(classroomId);
+
+    const activeClassroom = classroomData ?? classroom;
     const totalStudents = students.length;
-    const capacityPercentage = (totalStudents / classroom.capacity) * 100;
+    const capacityPercentage = (totalStudents / activeClassroom.capacity) * 100;
 
     const getCapacityColor = () => {
         if (capacityPercentage >= 95) return "text-red-600 bg-red-50 border-red-200";
@@ -113,20 +74,17 @@ export default function ClassroomStudentsClient({
         return "text-green-600 bg-green-50 border-green-200";
     };
 
-    // Filter students based on criteria
     const filteredStudents = useMemo(() => {
         return students.filter(student => {
-            // Search filter
             if (filters.search) {
                 const searchLower = filters.search.toLowerCase();
                 const matchesSearch =
-                    student.user.name.toLowerCase().includes(searchLower) ||
+                    student.fullName.toLowerCase().includes(searchLower) ||
                     student.admissionNo.toLowerCase().includes(searchLower) ||
-                    student.user.email.toLowerCase().includes(searchLower);
+                    student.email.toLowerCase().includes(searchLower);
                 if (!matchesSearch) return false;
             }
 
-            // Marks filter
             if (filters.minMarks && student.averageMarks !== undefined) {
                 if (student.averageMarks < parseFloat(filters.minMarks)) return false;
             }
@@ -134,12 +92,10 @@ export default function ClassroomStudentsClient({
                 if (student.averageMarks > parseFloat(filters.maxMarks)) return false;
             }
 
-            // Exam status filter
-            if (filters.examStatus !== 'all' && student.examStatus) {
-                if (student.examStatus !== filters.examStatus) return false;
+            if (filters.examStatus !== 'all') {
+                // exam status not available from this endpoint yet
             }
 
-            // Attendance filter
             if (filters.minAttendance && student.attendancePercentage !== undefined) {
                 if (student.attendancePercentage < parseFloat(filters.minAttendance)) return false;
             }
@@ -147,7 +103,6 @@ export default function ClassroomStudentsClient({
                 if (student.attendancePercentage > parseFloat(filters.maxAttendance)) return false;
             }
 
-            // Fee status filter
             if (filters.feeStatus !== 'all' && student.feeStatus) {
                 if (student.feeStatus !== filters.feeStatus) return false;
             }
@@ -177,6 +132,15 @@ export default function ClassroomStudentsClient({
         filters.maxAttendance ||
         filters.feeStatus !== 'all';
 
+    const handleStudentAdded = () => {
+        setShowAdmissionForm(false);
+        refetch();
+    };
+
+    const handleStudentUpdated = () => {
+        refetch();
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -190,8 +154,11 @@ export default function ClassroomStudentsClient({
                     </Link>
                     <div className="h-6 w-px bg-slate-300"></div>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">{classroom.name}</h1>
-                        <p className="text-gray-500 mt-1">{classroom.level} • Class Teacher: {classroom.classTeacher}</p>
+                        <h1 className="text-3xl font-bold text-gray-800">{activeClassroom.name}</h1>
+                        <p className="text-gray-500 mt-1">
+                            Grade {activeClassroom.grade} &bull; Section {activeClassroom.section}
+                            {activeClassroom.classTeacher && ` &bull; Class Teacher: ${activeClassroom.classTeacher.fullName}`}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -220,12 +187,12 @@ export default function ClassroomStudentsClient({
                         <div>
                             <p className="font-semibold">Classroom Capacity</p>
                             <p className="text-sm opacity-80">
-                                {totalStudents} / {classroom.capacity} students ({capacityPercentage.toFixed(1)}%)
+                                {totalStudents} / {activeClassroom.capacity} students ({capacityPercentage.toFixed(1)}%)
                             </p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-2xl font-bold">{classroom.capacity - totalStudents}</p>
+                        <p className="text-2xl font-bold">{activeClassroom.capacity - totalStudents}</p>
                         <p className="text-sm opacity-80">seats available</p>
                     </div>
                 </div>
@@ -256,8 +223,7 @@ export default function ClassroomStudentsClient({
                         )}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition ${showFilters ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition ${showFilters ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             <Filter size={18} />
                             <span>Filters</span>
@@ -287,18 +253,6 @@ export default function ClassroomStudentsClient({
                                     placeholder="100"
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                                 />
-                            </div>
-                            <div>
-                                <label className="text-xs font-semibold text-gray-600 mb-1 block">Exam Status</label>
-                                <select
-                                    value={filters.examStatus}
-                                    onChange={(e) => setFilters({ ...filters, examStatus: e.target.value as any })}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                >
-                                    <option value="all">All</option>
-                                    <option value="PASS">Pass</option>
-                                    <option value="FAIL">Fail</option>
-                                </select>
                             </div>
                             <div>
                                 <label className="text-xs font-semibold text-gray-600 mb-1 block">Fee Status</label>
@@ -348,7 +302,11 @@ export default function ClassroomStudentsClient({
                         <h2 className="text-xl font-bold text-slate-800">Students List</h2>
                     </div>
                     <div className="text-sm text-gray-500">
-                        Showing: <span className="font-semibold text-gray-800">{filteredStudents.length}</span> of <span className="font-semibold text-gray-800">{totalStudents}</span> students
+                        {isLoading ? (
+                            <span className="italic">Loading...</span>
+                        ) : (
+                            <>Showing: <span className="font-semibold text-gray-800">{filteredStudents.length}</span> of <span className="font-semibold text-gray-800">{totalStudents}</span> students</>
+                        )}
                     </div>
                 </div>
 
@@ -358,7 +316,6 @@ export default function ClassroomStudentsClient({
                             <tr>
                                 <th className="p-4 font-semibold text-gray-600">Admission No</th>
                                 <th className="p-4 font-semibold text-gray-600">Name</th>
-                                <th className="p-4 font-semibold text-gray-600">Section</th>
                                 <th className="p-4 font-semibold text-gray-600">Attendance</th>
                                 <th className="p-4 font-semibold text-gray-600">Avg Marks</th>
                                 <th className="p-4 font-semibold text-gray-600">Fee Status</th>
@@ -372,15 +329,14 @@ export default function ClassroomStudentsClient({
                                     <td className="p-4">
                                         <div className="flex items-center space-x-3">
                                             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold text-sm">
-                                                {student.user.name.charAt(0).toUpperCase()}
+                                                {student.fullName.charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-800">{student.user.name}</p>
-                                                <p className="text-xs text-gray-500">{student.user.email}</p>
+                                                <p className="font-medium text-gray-800">{student.fullName}</p>
+                                                <p className="text-xs text-gray-500">{student.email}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-800">{student.section?.name || "N/A"}</td>
                                     <td className="p-4">
                                         {student.attendancePercentage !== undefined ? (
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${student.attendancePercentage >= 75
@@ -397,7 +353,7 @@ export default function ClassroomStudentsClient({
                                     </td>
                                     <td className="p-4">
                                         {student.averageMarks !== undefined ? (
-                                            <span className="font-semibold text-gray-800">{student.averageMarks.toFixed(1)}</span>
+                                            <span className="font-semibold text-gray-800">{student.averageMarks}</span>
                                         ) : (
                                             <span className="text-gray-400 text-sm">N/A</span>
                                         )}
@@ -418,7 +374,7 @@ export default function ClassroomStudentsClient({
                                     </td>
                                     <td className="p-4">
                                         <button
-                                            onClick={() => setSelectedStudent(student)}
+                                            onClick={() => setSelectedStudent(student as any)}
                                             className="text-purple-600 text-sm hover:underline font-medium"
                                         >
                                             View Details
@@ -426,9 +382,9 @@ export default function ClassroomStudentsClient({
                                     </td>
                                 </tr>
                             ))}
-                            {filteredStudents.length === 0 && (
+                            {filteredStudents.length === 0 && !isLoading && (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                                    <td colSpan={6} className="p-8 text-center text-gray-500">
                                         <div className="flex flex-col items-center space-y-3">
                                             <UserIcon size={48} className="text-gray-300" />
                                             <p className="font-medium">
@@ -454,34 +410,29 @@ export default function ClassroomStudentsClient({
             {/* Admission Form Modal */}
             {showAdmissionForm && (
                 <ClassroomAdmissionForm
-                    classroom={classroom}
-                    sections={sections}
+                    classroom={activeClassroom}
+                    classroomId={classroomId}
                     onClose={() => setShowAdmissionForm(false)}
+                    onSuccess={handleStudentAdded}
                 />
             )}
 
             {/* Student Detail Modal */}
             {selectedStudent && (
                 <StudentDetailModal
-                    student={selectedStudent}
+                    student={selectedStudent as any}
                     onClose={() => setSelectedStudent(null)}
-                    onStudentUpdate={() => {
-                        // Refresh page to show updated student data
-                        window.location.reload();
-                    }}
+                    onStudentUpdate={handleStudentUpdated}
                 />
             )}
 
             {/* Promotion Modal */}
             {showPromotionModal && (
                 <PromotionModal
-                    classroom={classroom}
-                    students={students}
+                    classroom={activeClassroom}
+                    students={students as any}
                     onClose={() => setShowPromotionModal(false)}
-                    onSuccess={() => {
-                        // Refresh page or update student list
-                        window.location.reload();
-                    }}
+                    onSuccess={handleStudentUpdated}
                 />
             )}
         </div>

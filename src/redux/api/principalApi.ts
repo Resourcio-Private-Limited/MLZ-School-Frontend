@@ -62,6 +62,23 @@ export interface ClassroomSummary {
     classTeacher: { id: string; fullName: string; employeeId: string } | null;
 }
 
+export interface ClassroomStudent {
+    id: string;
+    admissionNo: string;
+    fullName: string;
+    email: string;
+    isActive: boolean;
+    dob: Date;
+    gender: string;
+    residentialAddress: string;
+    primaryContact: string;
+    parentName?: string;
+    parentContact?: string;
+    attendancePercentage?: number;
+    averageMarks?: number;
+    feeStatus?: 'CLEARED' | 'PENDING' | 'OVERDUE';
+}
+
 export interface StudentListItem {
     studentId: string;
     admissionNumber: string;
@@ -106,6 +123,14 @@ export const principalApi = baseApi.injectEndpoints({
             query: (classroomId) => ({ url: `/principal/classrooms/${classroomId}`, method: 'GET' }),
         }),
 
+        getClassroomStudents: builder.query<ClassroomStudent[], string>({
+            query: (classroomId) => ({ url: `/principal/classrooms/${classroomId}/students`, method: 'GET' }),
+        }),
+
+        getNextClassrooms: builder.query<ClassroomSummary[], string>({
+            query: (classroomId) => ({ url: `/principal/classrooms/${classroomId}/next-classes`, method: 'GET' }),
+        }),
+
         getAllStudents: builder.query<StudentListItem[], void>({
             query: () => ({ url: '/principal/students', method: 'GET' }),
         }),
@@ -137,6 +162,28 @@ export const principalApi = baseApi.injectEndpoints({
         updatePrincipalProfile: builder.mutation<{ id: string; fullName: string }, UpdatePrincipalProfilePayload>({
             query: (body) => ({ url: '/principal/update-profile', method: 'PATCH', body }),
         }),
+
+        addStudent: builder.mutation<any, {
+            userEmail: string;
+            password: string;
+            admissionNumber: string;
+            admissionYear: number;
+            rollNumber?: string;
+            fullName: string;
+            dob: string;
+            gender: string;
+            residentialAddress: string;
+            primaryContact: string;
+            parentName?: string;
+            parentContact?: string;
+            classroomId: string;
+        }>({
+            query: (body) => ({ url: '/principal/students', method: 'POST', body }),
+        }),
+
+        promoteStudents: builder.mutation<any, { studentIds: string[]; targetClassroomId: string }>({
+            query: (body) => ({ url: '/principal/promote', method: 'POST', body }),
+        }),
     }),
 });
 
@@ -145,6 +192,10 @@ export const {
     useUpdatePrincipalProfileMutation,
     useGetAllClassroomsQuery,
     useGetClassroomQuery,
+    useGetClassroomStudentsQuery,
+    useAddStudentMutation,
+    useGetNextClassroomsQuery,
+    usePromoteStudentsMutation,
     useGetAllStudentsQuery,
     useGetAllTeachersQuery,
     useGetSubjectsByClassroomQuery,
