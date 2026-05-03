@@ -21,7 +21,7 @@ export default function PrincipalLayout({
 
     const handleLogout = () => {
         dispatch(logout());
-        router.push("/login");
+        router.push("login/principal");
     };
 
     const displayName = profile?.fullName ?? "Principal";

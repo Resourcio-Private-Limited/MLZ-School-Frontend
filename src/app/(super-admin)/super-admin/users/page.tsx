@@ -1,37 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Trash2, Key, UserPlus, X, Save, Eye, EyeOff, User, Briefcase, CheckCircle2 } from "lucide-react";
+import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2 } from "lucide-react";
 import {
     useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
     useAddUserMutation,
-    useUpdateUserMutation,
     useDeleteUserMutation,
     UserSummary,
 } from "@/redux/api/superAdminApi";
 
-const ROLES = ['TEACHER', 'STUDENT', 'PRINCIPAL', 'ACCOUNTANT'] as const;
-type Role = typeof ROLES[number];
+type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT';
 
 interface NewUserForm {
-    role: Role;
+    role: 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT';
     email: string;
     password: string;
     fullName: string;
     employeeId: string;
-    department: string;
-    admissionNumber: string;
-    admissionYear: number;
-    rollNumber: string;
     dob: string;
     gender: string;
     residentialAddress: string;
     primaryContact: string;
-    parentName: string;
-    parentContact: string;
-    classroomId: string;
-    designation: string;
 }
 
 const emptyForm: NewUserForm = {
@@ -40,39 +30,32 @@ const emptyForm: NewUserForm = {
     password: '',
     fullName: '',
     employeeId: '',
-    department: '',
-    admissionNumber: '',
-    admissionYear: new Date().getFullYear(),
-    rollNumber: '',
     dob: '',
     gender: '',
     residentialAddress: '',
     primaryContact: '',
-    parentName: '',
-    parentContact: '',
-    classroomId: '',
-    designation: '',
 };
 
 const TAB_ROLE_MAP: Record<string, Role[]> = {
     Teachers: ['TEACHER'],
-    Students: ['STUDENT'],
     Staff: ['PRINCIPAL', 'ACCOUNTANT'],
 };
 
 export default function UserManagementPage() {
-    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Students" | "Staff">("Teachers");
+    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Staff">("Teachers");
     const [searchQuery, setSearchQuery] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const [newUser, setNewUser] = useState<NewUserForm>(emptyForm);
+    const [showPassword, setShowPassword] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     const { data: kpis } = useGetUserManagementKpisQuery();
     const { data: allUsers, isLoading, refetch } = useGetAllUsersQuery();
     const [addUser, { isLoading: isAdding }] = useAddUserMutation();
-    const [updateUser] = useUpdateUserMutation();
     const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
     useEffect(() => {
@@ -87,10 +70,9 @@ export default function UserManagementPage() {
         if (!allUsers) return [];
         const roles = TAB_ROLE_MAP[selectedTab];
         return [
-            ...allUsers.teachers.filter((u) => roles.includes(u.role)),
-            ...allUsers.students.filter((u) => roles.includes(u.role)),
-            ...allUsers.staff.filter((u) => roles.includes(u.role)),
-            ...allUsers.principals.filter((u) => roles.includes(u.role)),
+            ...allUsers.teachers.filter((u) => roles.includes(u.role as Role)),
+            ...allUsers.staff.filter((u) => roles.includes(u.role as Role)),
+            ...allUsers.principals.filter((u) => roles.includes(u.role as Role)),
         ];
     };
 
@@ -99,6 +81,12 @@ export default function UserManagementPage() {
         (u) =>
             u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             u.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+    const paginatedUsers = filteredUsers.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
     );
 
     const handleAddUser = async () => {
@@ -127,12 +115,11 @@ export default function UserManagementPage() {
     };
 
     const roleLabel = (role: string) =>
-        ({ TEACHER: 'Teacher', STUDENT: 'Student', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant' }[role] ?? role);
+        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant' }[role] ?? role);
 
     const roleBadge = (role: string) => {
         const styles: Record<string, string> = {
             TEACHER: 'bg-emerald-100 text-emerald-700',
-            STUDENT: 'bg-blue-100 text-blue-700',
             PRINCIPAL: 'bg-purple-100 text-purple-700',
             ACCOUNTANT: 'bg-amber-100 text-amber-700',
         };
@@ -174,14 +161,6 @@ export default function UserManagementPage() {
                     <p className="text-sm text-gray-600 font-medium">Total Teachers</p>
                     <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalTeachers ?? '—'}</p>
                 </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-                    <p className="text-sm text-gray-600 font-medium">Total Students</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalStudents ?? '—'}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
-                    <p className="text-sm text-gray-600 font-medium">Staff Members</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.staffMembers ?? '—'}</p>
-                </div>
                 <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-rose-500">
                     <p className="text-sm text-gray-600 font-medium">Total Users</p>
                     <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalUsers ?? '—'}</p>
@@ -193,10 +172,10 @@ export default function UserManagementPage() {
                 {/* Tabs */}
                 <div className="border-b border-gray-200">
                     <div className="flex space-x-8 px-6">
-                        {(["Teachers", "Students", "Staff"] as const).map((tab) => (
+                        {(["Teachers", "Staff"] as const).map((tab) => (
                             <button
                                 key={tab}
-                                onClick={() => { setSelectedTab(tab); setSearchQuery(""); }}
+                                onClick={() => { setSelectedTab(tab); setSearchQuery(""); setCurrentPage(1); }}
                                 className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${selectedTab === tab
                                     ? "border-rose-600 text-rose-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
                             >
@@ -213,7 +192,7 @@ export default function UserManagementPage() {
                         <input
                             type="text"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                             placeholder={`Search ${selectedTab.toLowerCase()}...`}
                             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
                         />
@@ -228,12 +207,6 @@ export default function UserManagementPage() {
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
-                                {selectedTab === "Teachers" && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Department</th>
-                                )}
-                                {selectedTab === "Students" && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Classroom</th>
-                                )}
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                             </tr>
@@ -247,7 +220,7 @@ export default function UserManagementPage() {
                                     </td>
                                 </tr>
                             ) : filteredUsers.length > 0 ? (
-                                filteredUsers.map((user) => (
+                                paginatedUsers.map((user) => (
                                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center">
@@ -266,12 +239,6 @@ export default function UserManagementPage() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={roleBadge(user.role)}>{roleLabel(user.role)}</span>
                                         </td>
-                                        {selectedTab === "Teachers" && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.department ?? '—'}</td>
-                                        )}
-                                        {selectedTab === "Students" && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.classroom ?? '—'}</td>
-                                        )}
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
                                                 {user.isActive ? 'Active' : 'Inactive'}
@@ -299,13 +266,55 @@ export default function UserManagementPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {!isLoading && filteredUsers.length > 0 && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                        <p className="text-sm text-gray-500">
+                            Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                            {" – "}
+                            <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)}</span>
+                            {" of "}
+                            <span className="font-medium">{filteredUsers.length}</span>
+                        </p>
+                        <div className="flex items-center space-x-1">
+                            <button
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Prev
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`w-9 h-9 text-sm rounded-lg transition-colors ${
+                                        currentPage === page
+                                            ? 'bg-rose-600 text-white'
+                                            : 'border border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Add User Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
                                 <p className="text-sm text-gray-500 mt-1">Create a new user account</p>
@@ -315,35 +324,12 @@ export default function UserManagementPage() {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
-                            {/* Role Selection */}
-                            <div className="border-b border-gray-200 pb-6">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <Briefcase size={20} className="text-rose-600" />
-                                    User Role
-                                </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {ROLES.map((r) => (
-                                        <button
-                                            key={r}
-                                            onClick={() => setNewUser({ ...emptyForm, role: r })}
-                                            className={`px-4 py-3 rounded-lg border-2 font-semibold text-sm transition-all ${
-                                                newUser.role === r
-                                                    ? 'border-rose-600 bg-rose-50 text-rose-700'
-                                                    : 'border-gray-200 text-gray-600 hover:border-rose-300'
-                                            }`}
-                                        >
-                                            {roleLabel(r)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Common Fields */}
-                            <div className="border-b border-gray-200 pb-6">
+                        <div className="p-6 space-y-5">
+                            {/* Common Fields — Name, Email, Password, User Type */}
+                            <div className="border-b border-gray-200 pb-5">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <User size={20} className="text-rose-600" />
-                                    Basic Details
+                                    Account Details
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="md:col-span-2">
@@ -360,10 +346,36 @@ export default function UserManagementPage() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
-                                        <input type="password" value={newUser.password}
-                                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        <div className="relative">
+                                            <input type={showPassword ? "text" : "password"} value={newUser.password}
+                                                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                                                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
                                     </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">User Type <span className="text-red-500">*</span></label>
+                                        <select value={newUser.role}
+                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+                                            <option value="TEACHER">Teacher</option>
+                                            <option value="PRINCIPAL">Principal</option>
+                                            <option value="ACCOUNTANT">Accountant</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Personal Details */}
+                            <div className="border-b border-gray-200 pb-5">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Briefcase size={20} className="text-rose-600" />
+                                    Personal Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
                                         <input type="tel" value={newUser.primaryContact}
@@ -380,7 +392,7 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
                                         <select value={newUser.gender}
                                             onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none">
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
@@ -398,8 +410,11 @@ export default function UserManagementPage() {
 
                             {/* Teacher Fields */}
                             {newUser.role === 'TEACHER' && (
-                                <div className="border-b border-gray-200 pb-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Teacher Details</h3>
+                                <div className="border-b border-gray-200 pb-5">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <Briefcase size={18} className="text-emerald-600" />
+                                        Teacher Details
+                                    </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID <span className="text-red-500">*</span></label>
@@ -407,86 +422,16 @@ export default function UserManagementPage() {
                                                 onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })}
                                                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Designation</label>
-                                            <input type="text" value={newUser.designation}
-                                                onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Department</label>
-                                            <input type="text" value={newUser.department}
-                                                onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Student Fields */}
-                            {newUser.role === 'STUDENT' && (
-                                <div className="border-b border-gray-200 pb-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Student Details</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Admission Number <span className="text-red-500">*</span></label>
-                                            <input type="text" value={newUser.admissionNumber}
-                                                onChange={(e) => setNewUser({ ...newUser, admissionNumber: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Admission Year</label>
-                                            <input type="number" value={newUser.admissionYear}
-                                                onChange={(e) => setNewUser({ ...newUser, admissionYear: Number(e.target.value) })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Roll Number</label>
-                                            <input type="text" value={newUser.rollNumber}
-                                                onChange={(e) => setNewUser({ ...newUser, rollNumber: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Classroom ID <span className="text-red-500">*</span></label>
-                                            <input type="text" value={newUser.classroomId}
-                                                onChange={(e) => setNewUser({ ...newUser, classroomId: e.target.value })}
-                                                placeholder="Paste classroom ID here"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Parent Name</label>
-                                            <input type="text" value={newUser.parentName}
-                                                onChange={(e) => setNewUser({ ...newUser, parentName: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Parent Contact</label>
-                                            <input type="tel" value={newUser.parentContact}
-                                                onChange={(e) => setNewUser({ ...newUser, parentContact: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Principal / Accountant Fields */}
                             {(newUser.role === 'PRINCIPAL' || newUser.role === 'ACCOUNTANT') && (
-                                <div className="border-b border-gray-200 pb-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">{roleLabel(newUser.role)} Details</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Designation</label>
-                                            <input type="text" value={newUser.designation}
-                                                onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Department</label>
-                                            <input type="text" value={newUser.department}
-                                                onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                        </div>
-                                    </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <Briefcase size={18} className="text-purple-600" />
+                                        {roleLabel(newUser.role)} Details
+                                    </h3>
                                 </div>
                             )}
                         </div>

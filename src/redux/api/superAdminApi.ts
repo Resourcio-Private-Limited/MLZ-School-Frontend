@@ -40,8 +40,6 @@ export interface UserSummary {
     employeeId?: string;
     admissionNumber?: string;
     classroom?: string;
-    designation?: string | null;
-    department?: string | null;
     isActive: boolean;
     email: string;
     role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT';
