@@ -224,23 +224,53 @@ export default function PaymentPage() {
                                                     </div>
 
                                                     {/* Fee Breakdown */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3 bg-white border border-slate-200 p-3 rounded-lg text-sm shadow-sm">
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 bg-white border border-slate-200 p-3 rounded-lg text-sm shadow-sm">
                                                         <div>
-                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Regular Fees</span>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Tuition</span>
                                                             <span className="font-medium text-slate-700">
-                                                                ₹ {record.standardFees.toLocaleString()}
+                                                                ₹ {record.tuitionFees.toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Annual</span>
+                                                            <span className="font-medium text-slate-700">
+                                                                ₹ {record.annualCharges > 0 ? record.annualCharges.toLocaleString() : "—"}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Transport</span>
+                                                            <span className="font-medium text-slate-700">
+                                                                {record.transportFees > 0 ? `₹ ${record.transportFees.toLocaleString()}` : "—"}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Penalty</span>
+                                                            <span className={`font-medium ${record.penalty > 0 ? "text-red-600" : "text-slate-700"}`}>
+                                                                {record.penalty > 0 ? `₹ ${record.penalty.toLocaleString()}` : "—"}
                                                             </span>
                                                         </div>
                                                         <div>
                                                             <span className="text-slate-500 block text-xs uppercase tracking-wide">Other Fees</span>
                                                             <span className="font-medium text-slate-700">
-                                                                ₹ {record.otherFees > 0 ? record.otherFees.toLocaleString() : "—"}
+                                                                {record.otherFees > 0 ? `₹ ${record.otherFees.toLocaleString()}` : "—"}
                                                             </span>
                                                         </div>
                                                         <div>
-                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Late Fees</span>
-                                                            <span className={`font-medium ${record.penalty > 0 ? "text-red-600" : "text-slate-700"}`}>
-                                                                {record.penalty > 0 ? `₹ ${record.penalty.toLocaleString()}` : "—"}
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Discount</span>
+                                                            <span className={`font-medium ${record.discount > 0 ? "text-green-600" : "text-slate-700"}`}>
+                                                                {record.discount > 0 ? `₹ ${record.discount.toLocaleString()}` : "—"}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Total</span>
+                                                            <span className="font-medium text-slate-700">
+                                                                ₹ {record.totalAmount > 0 ? record.totalAmount.toLocaleString() : "0"}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-slate-500 block text-xs uppercase tracking-wide">Paid</span>
+                                                            <span className="font-medium text-emerald-600">
+                                                                {record.paidAmount > 0 ? `₹ ${record.paidAmount.toLocaleString()}` : "—"}
                                                             </span>
                                                         </div>
                                                     </div>

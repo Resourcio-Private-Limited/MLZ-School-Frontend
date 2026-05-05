@@ -10,21 +10,80 @@ export interface ClassroomWithFees {
     grade: string;
     section: string;
     totalStudents: number;
-    standardFees: number;
+    tuitionFees: number;
     lateFees: number;
+    annualCharges: number;
 }
 
 export interface StudentFeeRecord {
     studentId: string;
     rollNumber: string;
     fullName: string;
-    standardFees: number;
+    tuitionFees: number;
+    transportFees: number;
+    annualCharges: number;
     otherFees: number;
+    otherFeesRemarks: string | null;
     penalty: number;
+    previousAmount: number;
+    discount: number;
+    totalAmount: number;
+    isPaid: boolean;
+    paidAmount: number;
+    classroomId?: string;
+    classroomName?: string;
+}
+
+export interface StudentDetailFeeHistory {
+    id: string;
+    month: number;
+    year: number;
+    tuitionFees: number;
+    annualCharges: number;
+    transportFees: number;
+    otherFees: number;
+    otherFeesRemarks: string | null;
+    penalty: number;
+    discount: number;
     previousAmount: number;
     totalAmount: number;
     isPaid: boolean;
     paidAmount: number;
+    paidAt: string | null;
+    paymentMode: string | null;
+    receiptUrl: string | null;
+}
+
+export interface StudentDetailResponse {
+    studentId: string;
+    fullName: string;
+    rollNumber: string;
+    admissionNumber: string;
+    dob: string;
+    gender: string;
+    parentName: string | null;
+    parentContact: string | null;
+    primaryContact: string;
+    email: string | null;
+    classroom: {
+        id: string;
+        name: string;
+        grade: string;
+        section: string;
+    };
+    examEligibility: boolean;
+    feeStructure: {
+        tuitionFees: number;
+        annualCharges: number;
+        transportOpted: boolean;
+    };
+    paymentSummary: {
+        totalPaid: number;
+        totalDue: number;
+        paidMonths: number;
+        unpaidMonths: number;
+    };
+    feeHistory: StudentDetailFeeHistory[];
 }
 
 export interface IncomeRecord {
@@ -35,6 +94,7 @@ export interface IncomeRecord {
     categoryName: string | null;
     amount: number;
     paymentMode: PaymentMode;
+    chequeNumber: string | null;
     addedBy: string;
     createdAt: string;
 }
@@ -48,6 +108,7 @@ export interface ExpenseRecord {
     categoryName: string | null;
     amount: number;
     paymentMode: PaymentMode;
+    chequeNumber: string | null;
     addedBy: string;
     createdAt: string;
 }
@@ -67,7 +128,7 @@ export const accountsApi = baseApi.injectEndpoints({
             query: () => ({ url: '/accounts/classrooms/fees', method: 'GET' }),
         }),
 
-        upsertClassroomFees: builder.mutation<ClassroomWithFees, { classroomId: string; standardFees: number; lateFees: number }>({
+        upsertClassroomFees: builder.mutation<ClassroomWithFees, { classroomId: string; tuitionFees: number; lateFees: number; annualCharges: number }>({
             query: ({ classroomId, ...body }) => ({
                 url: `/accounts/classrooms/${classroomId}/fees`,
                 method: 'POST',
@@ -88,12 +149,33 @@ export const accountsApi = baseApi.injectEndpoints({
             },
         }),
 
+        searchStudentsFees: builder.query<StudentFeeRecord[], {
+            query?: string;
+            classroomId?: string;
+            status?: 'PAID' | 'UNPAID' | 'PARTIAL';
+            month?: number;
+            year?: number;
+        }>({
+            query: (params) => {
+                const p = new URLSearchParams();
+                if (params.query) p.set('query', params.query);
+                if (params.classroomId) p.set('classroomId', params.classroomId);
+                if (params.status) p.set('status', params.status);
+                if (params.month) p.set('month', String(params.month));
+                if (params.year) p.set('year', String(params.year));
+                const qs = p.toString();
+                return { url: `/accounts/students/search${qs ? `?${qs}` : ''}`, method: 'GET' };
+            },
+        }),
+
         updateOtherFees: builder.mutation<StudentFeeRecord, {
             studentId: string;
             classroomId: string;
             month: number;
             year: number;
             otherFees: number;
+            otherFeesRemarks?: string;
+            discount?: number;
         }>({
             query: ({ studentId, ...body }) => ({
                 url: `/accounts/students/${studentId}/fees`,
@@ -117,6 +199,19 @@ export const accountsApi = baseApi.injectEndpoints({
             }),
         }),
 
+        // Student Detail
+        getStudentDetail: builder.query<StudentDetailResponse, string>({
+            query: (studentId) => ({ url: `/accounts/students/${studentId}`, method: 'GET' }),
+        }),
+
+        updateExamEligibility: builder.mutation<{ id: string; fullName: string; examEligibility: boolean }, { studentId: string; examEligibility: boolean }>({
+            query: ({ studentId, examEligibility }) => ({
+                url: `/accounts/students/${studentId}/eligibility`,
+                method: 'PATCH',
+                body: { examEligibility },
+            }),
+        }),
+
         // Income
         getIncomes: builder.query<IncomeRecord[], void>({
             query: () => ({ url: '/accounts/incomes', method: 'GET' }),
@@ -130,6 +225,7 @@ export const accountsApi = baseApi.injectEndpoints({
             amount: number;
             paymentMode: PaymentMode;
             addedBy: string;
+            chequeNumber?: string;
         }>({
             query: (body) => ({ url: '/accounts/incomes', method: 'POST', body }),
         }),
@@ -156,6 +252,7 @@ export const accountsApi = baseApi.injectEndpoints({
             amount: number;
             paymentMode: PaymentMode;
             addedBy: string;
+            chequeNumber?: string;
         }>({
             query: (body) => ({ url: '/accounts/expenses', method: 'POST', body }),
         }),
@@ -185,8 +282,11 @@ export const {
     useGetClassroomsWithFeesQuery,
     useUpsertClassroomFeesMutation,
     useGetStudentFeesQuery,
+    useSearchStudentsFeesQuery,
     useUpdateOtherFeesMutation,
     useRecordStudentPaymentMutation,
+    useGetStudentDetailQuery,
+    useUpdateExamEligibilityMutation,
     useGetIncomesQuery,
     useCreateIncomeMutation,
     useUpdateIncomeMutation,

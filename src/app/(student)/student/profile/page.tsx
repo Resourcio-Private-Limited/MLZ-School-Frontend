@@ -15,72 +15,10 @@ import {
     History,
     Lock
 } from "lucide-react";
-import { useState } from "react";
-import { useGetProfileQuery, useUpdateProfileMutation } from "@/redux/api/studentApi";
+import { useGetProfileQuery } from "@/redux/api/studentApi";
 
 export default function ProfilePage() {
-    const { data: profile, isLoading, refetch } = useGetProfileQuery();
-    const [updateProfile] = useUpdateProfileMutation();
-
-    const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({
-        fullName: "",
-        residentialAddress: "",
-        primaryContact: "",
-        secondaryContact: "",
-        email: "",
-    });
-    const [saving, setSaving] = useState(false);
-    const [saveError, setSaveError] = useState("");
-    const [saveSuccess, setSaveSuccess] = useState("");
-
-    // Populate edit form when profile loads
-    const startEditing = () => {
-        if (!profile) return;
-        setEditData({
-            fullName: profile.personal.fullName,
-            residentialAddress: profile.personal.residentialAddress,
-            primaryContact: profile.personal.primaryContact,
-            secondaryContact: profile.personal.secondaryContact ?? "",
-            email: profile.personal.email ?? "",
-        });
-        setIsEditing(true);
-        setSaveError("");
-        setSaveSuccess("");
-    };
-
-    const cancelEditing = () => {
-        setIsEditing(false);
-        setSaveError("");
-        setSaveSuccess("");
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        setSaveError("");
-        setSaveSuccess("");
-        try {
-            await updateProfile({
-                fullName: editData.fullName,
-                residentialAddress: editData.residentialAddress,
-                primaryContact: editData.primaryContact,
-                secondaryContact: editData.secondaryContact || undefined,
-                email: editData.email || undefined,
-            }).unwrap();
-            setSaveSuccess("Profile updated successfully!");
-            setIsEditing(false);
-            refetch();
-        } catch (err: unknown) {
-            const e2 = err as { data?: { message?: string }; message?: string };
-            const msg =
-                typeof e2?.data?.message === "string"
-                    ? e2.data.message
-                    : e2?.message ?? "Failed to update profile.";
-            setSaveError(msg);
-        } finally {
-            setSaving(false);
-        }
-    };
+    const { data: profile, isLoading } = useGetProfileQuery();
 
     if (isLoading) {
         return (
@@ -168,97 +106,30 @@ export default function ProfilePage() {
                 {/* ── Personal Details Card ─────────────────────────── */}
                 <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
                     <div className="p-6 md:p-8">
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                    <User size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                    <p className="text-sm text-gray-500">Manage your personal information</p>
-                                </div>
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
+                                <User size={24} />
                             </div>
-                            {!isEditing && (
-                                <button
-                                    onClick={startEditing}
-                                    className="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 px-4 py-2 rounded-lg transition-colors"
-                                >
-                                    Edit
-                                </button>
-                            )}
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
+                                <p className="text-sm text-gray-500">Your personal information</p>
+                            </div>
                         </div>
 
-                        {saveError && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{saveError}</div>}
-                        {saveSuccess && <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 text-sm">{saveSuccess}</div>}
-
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <EditableField
-                                label="Full Name"
-                                value={personal.fullName}
-                                editValue={editData.fullName}
-                                onChange={(v) => setEditData({ ...editData, fullName: v })}
-                                isEditing={isEditing}
-                                icon={<User size={16} />}
-                            />
+                            <InfoField label="Full Name" value={personal.fullName} icon={<User size={16} />} />
                             <InfoField label="Date of Birth" value={formatDate(personal.dob)} icon={<Calendar size={16} />} />
                             <InfoField label="Gender" value={genderLabel} icon={<User size={16} />} />
                             <InfoField label="Nationality" value={personal.nationality ?? "—"} icon={<MapPin size={16} />} />
                             <InfoField label="Caste" value={personal.caste ?? "—"} icon={<User size={16} />} />
                             <InfoField label="Aadhar No." value={personal.aadharNo ?? "—"} icon={<Shield size={16} />} />
-                            <EditableField
-                                label="Email ID"
-                                value={personal.email ?? "—"}
-                                editValue={editData.email}
-                                onChange={(v) => setEditData({ ...editData, email: v })}
-                                isEditing={isEditing}
-                                icon={<Mail size={16} />}
-                            />
+                            <InfoField label="Email ID" value={personal.email ?? "—"} icon={<Mail size={16} />} />
                             <InfoField label="PWD" value={pwdLabel} icon={<User size={16} />} />
-                            <EditableField
-                                label="Primary Contact No."
-                                value={personal.primaryContact}
-                                editValue={editData.primaryContact}
-                                onChange={(v) => setEditData({ ...editData, primaryContact: v })}
-                                isEditing={isEditing}
-                                icon={<Phone size={16} />}
-                            />
-                            <EditableField
-                                label="Secondary Contact No."
-                                value={personal.secondaryContact ?? "—"}
-                                editValue={editData.secondaryContact}
-                                onChange={(v) => setEditData({ ...editData, secondaryContact: v })}
-                                isEditing={isEditing}
-                                icon={<Phone size={16} />}
-                            />
+                            <InfoField label="Primary Contact No." value={personal.primaryContact} icon={<Phone size={16} />} />
+                            <InfoField label="Secondary Contact No." value={personal.secondaryContact ?? "—"} icon={<Phone size={16} />} />
                             <InfoField label="Identification Mark" value={personal.identificationMark ?? "—"} icon={<User size={16} />} className="md:col-span-2" />
-                            <EditableField
-                                label="Residential Address"
-                                value={personal.residentialAddress}
-                                editValue={editData.residentialAddress}
-                                onChange={(v) => setEditData({ ...editData, residentialAddress: v })}
-                                isEditing={isEditing}
-                                icon={<MapPin size={16} />}
-                                className="md:col-span-3"
-                            />
+                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-3" />
                         </div>
-
-                        {isEditing && (
-                            <div className="flex gap-3 mt-6 justify-end">
-                                <button
-                                    onClick={cancelEditing}
-                                    className="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
-                                >
-                                    {saving ? "Saving..." : "Save Changes"}
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -368,7 +239,7 @@ export default function ProfilePage() {
     );
 }
 
-// ─── Reusable components ─────────────────────────────────────────
+// ─── Reusable component ─────────────────────────────────────────
 
 function InfoField({
     label,
@@ -389,44 +260,6 @@ function InfoField({
             <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
                 {value}
             </p>
-        </div>
-    );
-}
-
-function EditableField({
-    label,
-    value,
-    editValue,
-    onChange,
-    isEditing,
-    icon,
-    className = "",
-}: {
-    label: string;
-    value: string;
-    editValue: string;
-    onChange: (v: string) => void;
-    isEditing: boolean;
-    icon?: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <div className={className}>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
-            {isEditing ? (
-                <input
-                    type="text"
-                    value={editValue}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="w-full border border-blue-300 rounded px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-            ) : (
-                <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
-                    {value}
-                </p>
-            )}
         </div>
     );
 }

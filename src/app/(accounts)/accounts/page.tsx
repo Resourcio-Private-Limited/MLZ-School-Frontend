@@ -23,14 +23,14 @@ export default function AccountantHomePage() {
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [editedClassroom, setEditedClassroom] = useState<any>(null);
 
-    // Map API data to UI format
     const classrooms = apiClassrooms.map(cls => ({
         id: cls.classroomId,
         name: cls.className,
         level: GRADE_LEVELS[cls.grade] ?? cls.grade,
         students: cls.totalStudents,
-        standardFees: cls.standardFees,
+        tuitionFees: cls.tuitionFees,
         lateFees: cls.lateFees,
+        annualCharges: cls.annualCharges,
         _api: cls,
     }));
 
@@ -53,8 +53,9 @@ export default function AccountantHomePage() {
         try {
             await upsertClassroomFees({
                 classroomId: editedClassroom.id,
-                standardFees: editedClassroom.standardFees,
+                tuitionFees: editedClassroom.tuitionFees,
                 lateFees: editedClassroom.lateFees,
+                annualCharges: editedClassroom.annualCharges,
             }).unwrap();
         } catch {
             // silent fail
@@ -125,12 +126,16 @@ export default function AccountantHomePage() {
                                         </div>
                                         <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                                             <div className="flex justify-between items-center text-sm">
-                                                <span className="text-gray-600">Standard Fees</span>
-                                                <span className="font-bold text-amber-600">₹{classroom.standardFees}</span>
+                                                <span className="text-gray-600">Tuition Fees</span>
+                                                <span className="font-bold text-amber-600">₹{classroom.tuitionFees}</span>
                                             </div>
                                             <div className="flex justify-between items-center text-sm">
                                                 <span className="text-gray-600">Late Fees</span>
                                                 <span className="font-bold text-red-600">₹{classroom.lateFees}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600">Annual Charges</span>
+                                                <span className="font-bold text-purple-600">₹{classroom.annualCharges}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -150,8 +155,8 @@ export default function AccountantHomePage() {
             {/* Settings Modal */}
             {showSettingsModal && editedClassroom && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-                        <div className="bg-white border-b border-gray-200 p-6 flex items-center justify-between rounded-t-xl">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                        <div className="bg-white border-b border-gray-200 p-6 flex items-center justify-between rounded-t-xl sticky top-0">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800">Fee Settings</h2>
                                 <p className="text-sm text-gray-500 mt-1">{editedClassroom.name}</p>
@@ -161,10 +166,10 @@ export default function AccountantHomePage() {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        <div className="p-6 space-y-5">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Standard Fees (Monthly) <span className="text-red-500">*</span>
+                                    Tuition Fees (Monthly) <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -172,8 +177,8 @@ export default function AccountantHomePage() {
                                     </div>
                                     <input
                                         type="number"
-                                        value={editedClassroom.standardFees}
-                                        onChange={(e) => setEditedClassroom({ ...editedClassroom, standardFees: Number(e.target.value) })}
+                                        value={editedClassroom.tuitionFees}
+                                        onChange={(e) => setEditedClassroom({ ...editedClassroom, tuitionFees: Number(e.target.value) })}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                                     />
                                 </div>
@@ -191,6 +196,24 @@ export default function AccountantHomePage() {
                                         type="number"
                                         value={editedClassroom.lateFees}
                                         onChange={(e) => setEditedClassroom({ ...editedClassroom, lateFees: Number(e.target.value) })}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
+                                    />
+                                </div>
+                            </div>
+
+                            
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Annual Charges
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <IndianRupee size={18} className="text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        value={editedClassroom.annualCharges}
+                                        onChange={(e) => setEditedClassroom({ ...editedClassroom, annualCharges: Number(e.target.value) })}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                                     />
                                 </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Filter, FileText, Image as ImageIcon, Link2, Download, ExternalLink, Plus, X, Upload } from "lucide-react";
-import { useGetNoticesQuery, useCreateNoticeMutation, NoticeTag } from "@/redux/api/operationsApi";
+import { Bell, Filter, Link2, Plus, X, Edit2, Trash2 } from "lucide-react";
+import { useGetNoticesQuery, useCreateNoticeMutation, useUpdateNoticeMutation, useDeleteNoticeMutation, NoticeTag, Notice } from "@/redux/api/operationsApi";
 
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
@@ -57,47 +57,96 @@ function formatTime(dateStr: string) {
     }
 }
 
+type NoticeForm = {
+    title: string;
+    tag: NoticeTag;
+    content: string;
+    link: string;
+};
+
+const emptyForm: NoticeForm = { title: "", tag: "GENERAL", content: "", link: "" };
+
 export default function SuperAdminNoticeBoardPage() {
     const [selectedCategory, setSelectedCategory] = useState("All Notices");
-    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+    const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+    const [form, setForm] = useState<NoticeForm>(emptyForm);
 
-    const [form, setForm] = useState({
-        title: "",
-        tag: "GENERAL" as NoticeTag,
-        content: "",
-        link: "",
-    });
-
-    const { data: notices = [], isLoading } = useGetNoticesQuery();
+    const { data: notices = [], isLoading, refetch } = useGetNoticesQuery();
     const [createNotice, { isLoading: isCreating }] = useCreateNoticeMutation();
+    const [updateNotice, { isLoading: isUpdating }] = useUpdateNoticeMutation();
+    const [deleteNotice, { isLoading: isDeleting }] = useDeleteNoticeMutation();
 
     const filteredNotices = selectedCategory === "All Notices"
         ? notices
         : notices.filter((n) => n.tag === LABEL_TO_TAG[selectedCategory]);
 
     const getCategoryColor = (tag: NoticeTag) => {
-        const label = TAG_TO_LABEL[tag] ?? tag;
         return TAG_COLORS[tag] ?? "bg-blue-50 text-blue-700 border border-blue-100";
     };
 
-    const handleCreateNotice = async () => {
+    const showFeedback = (type: "success" | "error", msg: string) => {
+        setFeedback({ type, msg });
+        setTimeout(() => setFeedback(null), 4000);
+    };
+
+    const openCreate = () => {
+        setEditingNotice(null);
+        setForm(emptyForm);
+        setShowForm(true);
+    };
+
+    const openEdit = (notice: Notice) => {
+        setEditingNotice(notice);
+        setForm({ title: notice.title, tag: notice.tag, content: notice.content, link: notice.link ?? "" });
+        setShowForm(true);
+    };
+
+    const handleSubmit = async () => {
         if (!form.title.trim() || !form.content.trim()) return;
+
         try {
-            await createNotice({
-                title: form.title.trim(),
-                content: form.content.trim(),
-                senderName: "Super Admin",
-                tag: form.tag,
-                link: form.link.trim() || undefined,
-            }).unwrap();
-            setFeedback({ type: "success", msg: "Notice broadcasted successfully!" });
-            setShowCreateForm(false);
-            setForm({ title: "", tag: "GENERAL", content: "", link: "" });
-            setTimeout(() => setFeedback(null), 4000);
+            if (editingNotice) {
+                await updateNotice({
+                    noticeId: editingNotice.id,
+                    data: {
+                        title: form.title.trim(),
+                        content: form.content.trim(),
+                        senderName: editingNotice.senderName,
+                        tag: form.tag,
+                        link: form.link.trim() || undefined,
+                    },
+                }).unwrap();
+                showFeedback("success", "Notice updated successfully!");
+            } else {
+                await createNotice({
+                    title: form.title.trim(),
+                    content: form.content.trim(),
+                    senderName: "Super Admin",
+                    tag: form.tag,
+                    link: form.link.trim() || undefined,
+                }).unwrap();
+                showFeedback("success", "Notice broadcasted successfully!");
+            }
+            setShowForm(false);
+            setForm(emptyForm);
+            setEditingNotice(null);
+            refetch();
         } catch {
-            setFeedback({ type: "error", msg: "Failed to broadcast notice. Please try again." });
-            setTimeout(() => setFeedback(null), 4000);
+            showFeedback("error", "Failed to save notice. Please try again.");
+        }
+    };
+
+    const handleDelete = async (noticeId: string) => {
+        try {
+            await deleteNotice(noticeId).unwrap();
+            setShowDeleteConfirm(null);
+            showFeedback("success", "Notice deleted successfully!");
+            refetch();
+        } catch {
+            showFeedback("error", "Failed to delete notice.");
         }
     };
 
@@ -110,11 +159,11 @@ export default function SuperAdminNoticeBoardPage() {
                     <p className="text-gray-500 mt-1">Send notices to all portals</p>
                 </div>
                 <button
-                    onClick={() => setShowCreateForm(!showCreateForm)}
+                    onClick={openCreate}
                     className="flex items-center space-x-2 bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 transition-colors shadow-md hover:shadow-lg font-medium"
                 >
-                    {showCreateForm ? <X size={20} /> : <Plus size={20} />}
-                    <span>{showCreateForm ? "Cancel" : "Create Notice"}</span>
+                    <Plus size={20} />
+                    <span>Create Notice</span>
                 </button>
             </div>
 
@@ -129,10 +178,12 @@ export default function SuperAdminNoticeBoardPage() {
                 </div>
             )}
 
-            {/* Create Notice Form */}
-            {showCreateForm && (
+            {/* Create / Edit Notice Form */}
+            {showForm && (
                 <div className="bg-white rounded-xl shadow-md border-t-4 border-rose-600 p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Create Broadcast Notice</h2>
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">
+                        {editingNotice ? "Edit Notice" : "Create Broadcast Notice"}
+                    </h2>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -191,21 +242,46 @@ export default function SuperAdminNoticeBoardPage() {
 
                         <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                             <button
-                                onClick={() => setShowCreateForm(false)}
+                                onClick={() => { setShowForm(false); setEditingNotice(null); setForm(emptyForm); }}
                                 className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={handleCreateNotice}
-                                disabled={!form.title.trim() || !form.content.trim() || isCreating}
+                                onClick={handleSubmit}
+                                disabled={!form.title.trim() || !form.content.trim() || isCreating || isUpdating}
                                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                                    form.title.trim() && form.content.trim() && !isCreating
+                                    form.title.trim() && form.content.trim() && !isCreating && !isUpdating
                                         ? "bg-rose-600 text-white hover:bg-rose-700"
                                         : "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 }`}
                             >
-                                {isCreating ? "Broadcasting..." : "Broadcast Notice"}
+                                {editingNotice ? (isUpdating ? "Saving..." : "Save Changes") : (isCreating ? "Broadcasting..." : "Broadcast Notice")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">Delete Notice</h3>
+                        <p className="text-gray-600 mb-6">Are you sure you want to delete this notice? This action cannot be undone.</p>
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => setShowDeleteConfirm(null)}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDelete(showDeleteConfirm)}
+                                disabled={isDeleting}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50"
+                            >
+                                {isDeleting ? "Deleting..." : "Delete"}
                             </button>
                         </div>
                     </div>
@@ -272,15 +348,19 @@ export default function SuperAdminNoticeBoardPage() {
                                     </a>
                                 )}
 
-                                <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="flex items-center space-x-2">
-                                        <button className="p-1.5 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors text-xs">
-                                            Edit
-                                        </button>
-                                        <button className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors text-xs">
-                                            Delete
-                                        </button>
-                                    </div>
+                                <div className="absolute top-5 right-5 flex items-center space-x-2">
+                                    <button
+                                        onClick={() => openEdit(notice)}
+                                        className="p-1.5 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors text-xs"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(notice.id)}
+                                        className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors text-xs"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
                             </div>
                         ))

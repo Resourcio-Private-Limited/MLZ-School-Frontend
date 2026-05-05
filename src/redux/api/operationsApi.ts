@@ -125,6 +125,14 @@ export const operationsApi = baseApi.injectEndpoints({
     createNotice: builder.mutation<Notice, CreateNoticePayload>({
       query: (body) => ({ url: '/operations/notices', method: 'POST', body }),
     }),
+
+    updateNotice: builder.mutation<Notice, { noticeId: string; data: Partial<CreateNoticePayload> }>({
+      query: ({ noticeId, data }) => ({ url: `/operations/notices/${noticeId}`, method: 'PATCH', body: data }),
+    }),
+
+    deleteNotice: builder.mutation<{ success: boolean; noticeId: string }, string>({
+      query: (noticeId) => ({ url: `/operations/notices/${noticeId}`, method: 'DELETE' }),
+    }),
   }),
 });
 
@@ -138,4 +146,6 @@ export const {
   useGetConversationsQuery,
   useGetConversationQuery,
   useCreateNoticeMutation,
+  useUpdateNoticeMutation,
+  useDeleteNoticeMutation,
 } = operationsApi;

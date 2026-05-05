@@ -135,9 +135,12 @@ export interface MonthlyFeeRecord {
   id: string;
   month: number;
   year: number;
-  standardFees: number;
+  tuitionFees: number;
+  annualCharges: number;
+  transportFees: number;
   otherFees: number;
   penalty: number;
+  discount: number;
   totalAmount: number;
   isPaid: boolean;
   paidAmount: number;

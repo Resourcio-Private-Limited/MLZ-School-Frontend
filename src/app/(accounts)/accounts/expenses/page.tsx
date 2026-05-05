@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingDown, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2 } from "lucide-react";
+import { TrendingDown, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2, Download } from "lucide-react";
 import {
     useGetExpensesQuery,
     useCreateExpenseMutation,
@@ -12,7 +12,7 @@ import {
 } from "@/redux/api/accountsApi";
 
 const UI_EXPENSE_CATEGORIES = ['Salaries', 'Utilities', 'Maintenance', 'Supplies', 'Other'] as const;
-const UI_PAYMENT_MODES = ['Cash', 'NEFT', 'Cheque'] as const;
+const UI_PAYMENT_MODES = ['Cash', 'NEFT', 'Cheque', 'Online', 'Card'] as const;
 
 const API_EXPENSE_CATEGORY: Record<string, ExpenseCategory> = {
     'Salaries': 'SALARIES', 'Utilities': 'UTILITIES', 'Maintenance': 'MAINTENANCE',
@@ -23,12 +23,16 @@ const UI_EXPENSE_CATEGORY: Record<string, string> = {
     'SUPPLIES': 'Supplies', 'OTHER': 'Other',
 };
 const API_PAYMENT_MODE: Record<string, PaymentMode> = {
-    'Cash': 'CASH', 'NEFT': 'NEFT', 'Cheque': 'CHEQUE',
+    'Cash': 'CASH', 'NEFT': 'NEFT', 'Cheque': 'CHEQUE', 'Online': 'ONLINE', 'Card': 'CARD',
 };
 
 function toApiCategory(v: string) { return API_EXPENSE_CATEGORY[v] ?? 'OTHER'; }
 function toUiCategory(v: string) { return UI_EXPENSE_CATEGORY[v] ?? v; }
 function toApiPaymentMode(v: string) { return API_PAYMENT_MODE[v] ?? 'CASH'; }
+function toUiPaymentMode(v: string) {
+    const map: Record<string, string> = { 'CASH': 'Cash', 'NEFT': 'NEFT', 'CHEQUE': 'Cheque', 'ONLINE': 'Online', 'CARD': 'Card' };
+    return map[v] ?? v;
+}
 
 interface ExpenseUI {
     id: string;
@@ -40,6 +44,28 @@ interface ExpenseUI {
     partyName: string;
     paymentMode: string;
     chequeNumber?: string;
+}
+
+function exportToExcel(data: ExpenseUI[], filename: string) {
+    const headers = ['Date', 'Reason', 'Party Name', 'Category', 'Amount', 'Payment Mode', 'Cheque Number', 'Added By'];
+    const rows = data.map(e => [
+        new Date(e.date).toLocaleDateString('en-IN'),
+        e.reason,
+        e.partyName,
+        e.category,
+        e.amount,
+        e.paymentMode,
+        e.chequeNumber ?? '',
+        e.addedBy,
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 export default function ExpensesPage() {
@@ -64,7 +90,6 @@ export default function ExpensesPage() {
         chequeNumber: "",
     });
 
-    // Map API records to UI format
     const expenses: ExpenseUI[] = apiExpenses.map(e => ({
         id: e.id,
         date: new Date(e.date).toISOString().split('T')[0],
@@ -73,7 +98,8 @@ export default function ExpensesPage() {
         category: toUiCategory(e.category),
         addedBy: e.addedBy,
         partyName: e.partyName ?? '',
-        paymentMode: e.paymentMode === 'CARD' ? 'Card' : e.paymentMode === 'ONLINE' ? 'Online' : e.paymentMode === 'CASH' ? 'Cash' : e.paymentMode === 'NEFT' ? 'NEFT' : e.paymentMode === 'CHEQUE' ? 'Cheque' : e.paymentMode,
+        paymentMode: toUiPaymentMode(e.paymentMode),
+        chequeNumber: e.chequeNumber ?? undefined,
     }));
 
     const handleOpenModal = (expense?: ExpenseUI) => {
@@ -119,6 +145,7 @@ export default function ExpensesPage() {
                 partyName: formData.partyName || undefined,
                 paymentMode: toApiPaymentMode(formData.paymentMode) as PaymentMode,
                 addedBy: "Mr. Rakesh Kapoor",
+                chequeNumber: formData.paymentMode === 'Cheque' ? formData.chequeNumber || undefined : undefined,
             };
             if (editingExpense) {
                 await updateExpense({ id: editingExpense.id, body: payload }).unwrap();
@@ -170,13 +197,22 @@ export default function ExpensesPage() {
                     <h1 className="text-3xl font-bold text-gray-800">Expense Management</h1>
                     <p className="text-gray-500 mt-1">Track and manage all school expenses</p>
                 </div>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
-                >
-                    <TrendingDown size={20} />
-                    <span>Add Expense</span>
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => exportToExcel(filteredExpenses, `expenses-${new Date().toISOString().split('T')[0]}`)}
+                        className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+                    >
+                        <Download size={18} />
+                        <span>Export Excel</span>
+                    </button>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
+                    >
+                        <TrendingDown size={20} />
+                        <span>Add Expense</span>
+                    </button>
+                </div>
             </div>
 
             {/* Search and Sort */}
@@ -188,13 +224,13 @@ export default function ExpensesPage() {
                         placeholder="Search by reason, category, or party..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                     />
                 </div>
                 <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as "all" | "day" | "month")}
-                    className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
+                    className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                 >
                     <option value="all">All</option>
                     <option value="day">Sort by Day</option>
@@ -228,6 +264,7 @@ export default function ExpensesPage() {
                                 <th className="text-left p-4 font-semibold text-gray-700">Category</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Amount</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Payment Mode</th>
+                                <th className="text-left p-4 font-semibold text-gray-700">Cheque No.</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Added By</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Actions</th>
                             </tr>
@@ -235,13 +272,13 @@ export default function ExpensesPage() {
                         <tbody className="divide-y divide-gray-100">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center">
+                                    <td colSpan={9} className="p-8 text-center">
                                         <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto" />
                                     </td>
                                 </tr>
                             ) : filteredExpenses.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-gray-500">
+                                    <td colSpan={9} className="p-8 text-center text-gray-500">
                                         No expense entries yet. Click "Add Expense" to create one.
                                     </td>
                                 </tr>
@@ -260,6 +297,12 @@ export default function ExpensesPage() {
                                         </td>
                                         <td className="p-4 text-sm font-bold text-red-600">₹{expense.amount.toLocaleString()}</td>
                                         <td className="p-4 text-sm text-gray-600">{expense.paymentMode}</td>
+                                        <td className="p-4 text-sm text-gray-600">
+                                            {expense.chequeNumber
+                                                ? <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{expense.chequeNumber}</span>
+                                                : <span className="text-gray-300">—</span>
+                                            }
+                                        </td>
                                         <td className="p-4 text-sm text-gray-600">{expense.addedBy}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
@@ -379,6 +422,19 @@ export default function ExpensesPage() {
                                     ))}
                                 </select>
                             </div>
+
+                            {formData.paymentMode === 'Cheque' && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Cheque Number <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        value={formData.chequeNumber}
+                                        onChange={(e) => setFormData({ ...formData, chequeNumber: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none text-gray-800"
+                                        placeholder="Enter cheque number"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3 rounded-b-xl sticky bottom-0">
@@ -388,7 +444,7 @@ export default function ExpensesPage() {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={saving || !formData.reason || formData.amount <= 0}
+                                disabled={saving || !formData.reason || formData.amount <= 0 || (formData.paymentMode === 'Cheque' && !formData.chequeNumber)}
                                 className="flex items-center space-x-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={18} />}
