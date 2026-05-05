@@ -135,6 +135,10 @@ export const superAdminApi = baseApi.injectEndpoints({
         deleteUser: builder.mutation<{ success: boolean; userId: string }, string>({
             query: (userId) => ({ url: `/super-admin/users/${userId}`, method: 'DELETE' }),
         }),
+
+        changeUserPassword: builder.mutation<{ success: boolean; message: string; userId: string }, { userId: string; currentPassword: string; newPassword: string }>({
+            query: ({ userId, ...body }) => ({ url: `/super-admin/users/${userId}/password`, method: 'PATCH', body }),
+        }),
     }),
 });
 
@@ -147,4 +151,5 @@ export const {
     useAddUserMutation,
     useUpdateUserMutation,
     useDeleteUserMutation,
+    useChangeUserPasswordMutation,
 } = superAdminApi;

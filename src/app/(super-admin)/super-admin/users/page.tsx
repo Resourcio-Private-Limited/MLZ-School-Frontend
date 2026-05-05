@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2 } from "lucide-react";
+import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key } from "lucide-react";
 import {
     useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
     useAddUserMutation,
     useDeleteUserMutation,
+    useUpdateUserMutation,
+    useChangeUserPasswordMutation,
     UserSummary,
 } from "@/redux/api/superAdminApi";
 
-type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT';
+type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
 
 interface NewUserForm {
-    role: 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT';
+    role: 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
+    customRole: string;
     email: string;
     password: string;
     fullName: string;
@@ -26,6 +29,7 @@ interface NewUserForm {
 
 const emptyForm: NewUserForm = {
     role: 'TEACHER',
+    customRole: '',
     email: '',
     password: '',
     fullName: '',
@@ -38,7 +42,7 @@ const emptyForm: NewUserForm = {
 
 const TAB_ROLE_MAP: Record<string, Role[]> = {
     Teachers: ['TEACHER'],
-    Staff: ['PRINCIPAL', 'ACCOUNTANT'],
+    Staff: ['PRINCIPAL', 'ACCOUNTANT', 'OTHER'],
 };
 
 export default function UserManagementPage() {
@@ -46,17 +50,25 @@ export default function UserManagementPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const [newUser, setNewUser] = useState<NewUserForm>(emptyForm);
     const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [editForm, setEditForm] = useState({ fullName: '', email: '', primaryContact: '' });
+    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const ITEMS_PER_PAGE = 10;
 
     const { data: kpis } = useGetUserManagementKpisQuery();
     const { data: allUsers, isLoading, refetch } = useGetAllUsersQuery();
     const [addUser, { isLoading: isAdding }] = useAddUserMutation();
     const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
+    const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+    const [changePassword, { isLoading: isChangingPassword }] = useChangeUserPasswordMutation();
 
     useEffect(() => {
         if (feedback) setTimeout(() => setFeedback(null), 4000);
@@ -114,14 +126,59 @@ export default function UserManagementPage() {
         }
     };
 
+    const openEditModal = (user: UserSummary) => {
+        setSelectedUser(user);
+        setEditForm({ fullName: user.fullName, email: user.email, primaryContact: '' });
+        setShowEditModal(true);
+    };
+
+    const openPasswordModal = (user: UserSummary) => {
+        setSelectedUser(user);
+        setPasswordForm({ currentPassword: '', newPassword: '' });
+        setShowPasswordModal(true);
+    };
+
+    const handleUpdateUser = async () => {
+        if (!selectedUser) return;
+        try {
+            await updateUser({ userId: selectedUser.userId, data: editForm as any }).unwrap();
+            setShowEditModal(false);
+            setSelectedUser(null);
+            showFeedback("success", "User updated successfully!");
+            refetch();
+        } catch {
+            showFeedback("error", "Failed to update user.");
+        }
+    };
+
+    const handleChangePassword = async () => {
+        if (!selectedUser) return;
+        if (!passwordForm.currentPassword || !passwordForm.newPassword) return;
+        try {
+            await changePassword({
+                userId: selectedUser.userId,
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+            }).unwrap();
+            setShowPasswordModal(false);
+            setSelectedUser(null);
+            setPasswordForm({ currentPassword: '', newPassword: '' });
+            showFeedback("success", "Password changed successfully!");
+            refetch();
+        } catch (err: any) {
+            showFeedback("error", err?.data?.message ?? "Failed to change password.");
+        }
+    };
+
     const roleLabel = (role: string) =>
-        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant' }[role] ?? role);
+        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant', OTHER: 'Other' }[role] ?? role);
 
     const roleBadge = (role: string) => {
         const styles: Record<string, string> = {
             TEACHER: 'bg-emerald-100 text-emerald-700',
             PRINCIPAL: 'bg-purple-100 text-purple-700',
             ACCOUNTANT: 'bg-amber-100 text-amber-700',
+            OTHER: 'bg-gray-100 text-gray-700',
         };
         return `px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[role] ?? 'bg-gray-100 text-gray-700'}`;
     };
@@ -245,13 +302,29 @@ export default function UserManagementPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <button
-                                                onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }}
-                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                title="Delete User"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex items-center space-x-1">
+                                                <button
+                                                    onClick={() => openEditModal(user)}
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    title="Edit User"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => openPasswordModal(user)}
+                                                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                                    title="Change Password"
+                                                >
+                                                    <Key size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }}
+                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -359,13 +432,23 @@ export default function UserManagementPage() {
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">User Type <span className="text-red-500">*</span></label>
                                         <select value={newUser.role}
-                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}
+                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as NewUserForm['role'], customRole: '' })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
                                             <option value="TEACHER">Teacher</option>
                                             <option value="PRINCIPAL">Principal</option>
                                             <option value="ACCOUNTANT">Accountant</option>
+                                            <option value="OTHER">Other (Non-portal staff)</option>
                                         </select>
                                     </div>
+                                    {newUser.role === 'OTHER' && (
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Custom Role <span className="text-red-500">*</span></label>
+                                            <input type="text" value={newUser.customRole}
+                                                onChange={(e) => setNewUser({ ...newUser, customRole: e.target.value })}
+                                                placeholder="e.g., Gardener, Sweeper, Receptionist"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -443,12 +526,133 @@ export default function UserManagementPage() {
                             </button>
                             <button
                                 onClick={handleAddUser}
-                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password}
+                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password || (newUser.role === 'OTHER' && !newUser.customRole)}
                                 className="flex items-center space-x-2 px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors font-medium"
                             >
                                 <UserPlus size={18} />
                                 {isAdding ? "Adding..." : "Add User"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit User Modal */}
+            {showEditModal && selectedUser && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Edit2 size={20} className="text-blue-600" />
+                                    Edit User
+                                </h2>
+                                <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <X size={20} className="text-gray-600" />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+                                    <input type="text" value={editForm.fullName}
+                                        onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                                    <input type="email" value={editForm.email}
+                                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
+                                    <input type="tel" value={editForm.primaryContact}
+                                        onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-3 mt-6">
+                                <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleUpdateUser}
+                                    disabled={isUpdating || !editForm.fullName || !editForm.email}
+                                    className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    {isUpdating ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Change Password Modal */}
+            {showPasswordModal && selectedUser && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Key size={20} className="text-amber-600" />
+                                    Change Password
+                                </h2>
+                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <X size={20} className="text-gray-600" />
+                                </button>
+                            </div>
+
+                            <p className="text-sm text-gray-600 mb-4">
+                                Changing password for <strong>{selectedUser.fullName}</strong>
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Current Password <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type={showCurrentPassword ? "text" : "password"} value={passwordForm.currentPassword}
+                                            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">New Password <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type={showNewPassword ? "text" : "password"} value={passwordForm.newPassword}
+                                            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-3 mt-6">
+                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleChangePassword}
+                                    disabled={isChangingPassword || !passwordForm.currentPassword || !passwordForm.newPassword}
+                                    className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    <Key size={16} />
+                                    {isChangingPassword ? "Changing..." : "Change Password"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

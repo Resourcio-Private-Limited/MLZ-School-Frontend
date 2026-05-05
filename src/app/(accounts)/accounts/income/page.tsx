@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PlusCircle, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2 } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2, Download } from "lucide-react";
 import {
     useGetIncomesQuery,
     useCreateIncomeMutation,
@@ -29,6 +29,7 @@ const UI_PAYMENT_MODE: Record<string, string> = {
 function toApiCategory(v: string) { return API_INCOME_CATEGORY[v] ?? 'OTHER'; }
 function toUiCategory(v: string) { return UI_INCOME_CATEGORY[v] ?? v; }
 function toApiPaymentMode(v: string) { return API_PAYMENT_MODE[v] ?? 'CASH'; }
+function toUiPaymentMode(v: string) { return UI_PAYMENT_MODE[v] ?? v; }
 
 interface IncomeUI {
     id: string;
@@ -39,6 +40,27 @@ interface IncomeUI {
     addedBy: string;
     paymentMode: string;
     chequeNumber?: string;
+}
+
+function exportToExcel(data: IncomeUI[], filename: string) {
+    const headers = ['Date', 'Source', 'Category', 'Amount', 'Payment Mode', 'Cheque Number', 'Added By'];
+    const rows = data.map(i => [
+        new Date(i.date).toLocaleDateString('en-IN'),
+        i.source,
+        i.category,
+        i.amount,
+        i.paymentMode,
+        i.chequeNumber ?? '',
+        i.addedBy,
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 export default function IncomePage() {
@@ -69,7 +91,8 @@ export default function IncomePage() {
         amount: i.amount,
         category: toUiCategory(i.category),
         addedBy: i.addedBy,
-        paymentMode: UI_PAYMENT_MODE[i.paymentMode] ?? i.paymentMode,
+        paymentMode: toUiPaymentMode(i.paymentMode),
+        chequeNumber: i.chequeNumber ?? undefined,
     }));
 
     const handleOpenModal = (income?: IncomeUI) => {
@@ -113,6 +136,7 @@ export default function IncomePage() {
                 categoryName: formData.category === 'Other' ? formData.source : undefined,
                 paymentMode: toApiPaymentMode(formData.paymentMode) as PaymentMode,
                 addedBy: "Mr. Rakesh Kapoor",
+                chequeNumber: formData.paymentMode === 'Cheque' ? formData.chequeNumber || undefined : undefined,
             };
             if (editingIncome) {
                 await updateIncome({ id: editingIncome.id, body: payload }).unwrap();
@@ -163,13 +187,22 @@ export default function IncomePage() {
                     <h1 className="text-3xl font-bold text-gray-800">Income Management</h1>
                     <p className="text-gray-500 mt-1">Track income sources other than student fees</p>
                 </div>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
-                >
-                    <PlusCircle size={20} />
-                    <span>Add Income</span>
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => exportToExcel(filteredIncomes, `income-${new Date().toISOString().split('T')[0]}`)}
+                        className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+                    >
+                        <Download size={18} />
+                        <span>Export Excel</span>
+                    </button>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
+                    >
+                        <PlusCircle size={20} />
+                        <span>Add Income</span>
+                    </button>
+                </div>
             </div>
 
             {/* Search and Sort */}
@@ -220,6 +253,7 @@ export default function IncomePage() {
                                 <th className="text-left p-4 font-semibold text-gray-700">Category</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Amount</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Payment Mode</th>
+                                <th className="text-left p-4 font-semibold text-gray-700">Cheque No.</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Added By</th>
                                 <th className="text-left p-4 font-semibold text-gray-700">Actions</th>
                             </tr>
@@ -227,13 +261,13 @@ export default function IncomePage() {
                         <tbody className="divide-y divide-gray-100">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center">
+                                    <td colSpan={8} className="p-8 text-center">
                                         <Loader2 className="w-6 h-6 animate-spin text-amber-500 mx-auto" />
                                     </td>
                                 </tr>
                             ) : filteredIncomes.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                                    <td colSpan={8} className="p-8 text-center text-gray-500">
                                         No income entries yet. Click "Add Income" to create one.
                                     </td>
                                 </tr>
@@ -251,6 +285,12 @@ export default function IncomePage() {
                                         </td>
                                         <td className="p-4 text-sm font-bold text-green-600">₹{income.amount.toLocaleString()}</td>
                                         <td className="p-4 text-sm text-gray-600">{income.paymentMode}</td>
+                                        <td className="p-4 text-sm text-gray-600">
+                                            {income.chequeNumber
+                                                ? <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{income.chequeNumber}</span>
+                                                : <span className="text-gray-300">—</span>
+                                            }
+                                        </td>
                                         <td className="p-4 text-sm text-gray-600">{income.addedBy}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
@@ -360,6 +400,19 @@ export default function IncomePage() {
                                     <option value="Cheque">Cheque</option>
                                 </select>
                             </div>
+
+                            {formData.paymentMode === 'Cheque' && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Cheque Number <span className="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        value={formData.chequeNumber}
+                                        onChange={(e) => setFormData({ ...formData, chequeNumber: e.target.value })}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
+                                        placeholder="Enter cheque number"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3 rounded-b-xl sticky bottom-0">
@@ -369,7 +422,7 @@ export default function IncomePage() {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={saving || !formData.source || formData.amount <= 0}
+                                disabled={saving || !formData.source || formData.amount <= 0 || (formData.paymentMode === 'Cheque' && !formData.chequeNumber)}
                                 className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={18} />}

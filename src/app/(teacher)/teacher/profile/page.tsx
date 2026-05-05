@@ -222,7 +222,7 @@ export default function TeacherProfilePage() {
                 </div>
 
                 {/* Edit Personal Details Card */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-emerald-500">
+                {/* <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-emerald-500">
                     <div className="p-6 md:p-8">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-4">
@@ -293,7 +293,7 @@ export default function TeacherProfilePage() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> */}
 
                 {/* Security Settings */}
                 <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-purple-500 mb-12">

@@ -1,84 +1,130 @@
-import { getMockSession, MOCK_FEE_STRUCTURES, MOCK_PAYMENTS, MockAcademicYearService } from "@/lib/mocks";
-import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+"use client";
 
-async function getStudentFees(studentId: string) {
-    const activeYear = await MockAcademicYearService.getActive();
-    if (!activeYear) return { feeStructures: [], payments: [] };
+import { useState, useEffect } from "react";
+import { CheckCircle, AlertCircle, Clock, IndianRupee } from "lucide-react";
+import { useGetMonthlyFeesQuery } from "@/redux/api/studentApi";
 
-    return { feeStructures: MOCK_FEE_STRUCTURES, payments: MOCK_PAYMENTS };
+function formatDate(dateStr: string | Date | null) {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+        day: "2-digit", month: "short", year: "numeric",
+    });
 }
 
-export default async function StudentFeesPage() {
-    const session = await getMockSession();
-    if (!session) return null;
+function getStatusBadge(isPaid: boolean, paidAmount: number, totalAmount: number) {
+    if (isPaid) return <span className="flex items-center text-green-600 text-xs font-bold"><CheckCircle size={14} className="mr-1" /> Paid</span>;
+    if (paidAmount > 0) return <span className="flex items-center text-yellow-600 text-xs font-bold"><Clock size={14} className="mr-1" /> Partial</span>;
+    return <span className="flex items-center text-red-600 text-xs font-bold"><AlertCircle size={14} className="mr-1" /> Due</span>;
+}
 
-    const { feeStructures, payments } = await getStudentFees(session.user.id);
+export default function StudentFeesPage() {
+    const [authUser, setAuthUser] = useState<Record<string, any>>({});
 
-    // Simple logic to calculate dues
-    // In a real system, we'd map fee frequency (monthly) to current month.
-    // Here, we'll just list fees and paid amounts to show summary.
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const raw = localStorage.getItem("authUser");
+                setAuthUser(raw ? JSON.parse(raw) : {});
+            } catch {
+                setAuthUser({});
+            }
+        }
+    }, []);
 
-    const totalPaid = payments.reduce((sum, p) => sum + p.amountPaid, 0);
+    const { data: fees = [], isLoading } = useGetMonthlyFeesQuery(undefined, {
+        skip: !authUser?.id,
+    });
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    const totalPaid = fees
+        .filter(f => f.isPaid)
+        .reduce((sum, f) => sum + f.paidAmount, 0);
+
+    const currentDue = fees.find(f => f.month === currentMonth && f.year === currentYear);
+    const totalDue = currentDue
+        ? currentDue.tuitionFees + currentDue.annualCharges + currentDue.transportFees + currentDue.otherFees + currentDue.penalty - currentDue.discount
+        : 0;
 
     return (
         <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-6">Fees & Payments</h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-xl border shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-700 mb-4">Fee Structure (Current Year)</h2>
-                    <div className="space-y-3">
-                        {feeStructures.map(fee => (
-                            <div key={fee.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                                <span className="text-gray-900">{fee.name} <span className="text-xs text-gray-400">({fee.description})</span></span>
-                                <span className="font-bold text-gray-900">₹{fee.amount}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col justify-center items-center text-center">
-                    <h2 className="text-gray-500 font-medium mb-2">Total Paid This Year</h2>
-                    <div className="text-4xl font-bold text-green-600">₹{totalPaid}</div>
-                    <p className="text-xs text-gray-400 mt-2">Does not include pending dues calculation</p>
+                    <h2 className="text-gray-500 font-medium mb-1 text-sm">Total Paid</h2>
+                    <div className="text-3xl font-bold text-green-600">₹{totalPaid.toLocaleString()}</div>
+                    <p className="text-xs text-gray-400 mt-1">All time</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col justify-center items-center text-center">
+                    <h2 className="text-gray-500 font-medium mb-1 text-sm">Current Month Due</h2>
+                    <div className="text-3xl font-bold text-red-600">₹{totalDue.toLocaleString()}</div>
+                    <p className="text-xs text-gray-400 mt-1">{new Date().toLocaleString("en-IN", { month: "long", year: "numeric" })}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl border shadow-sm flex flex-col justify-center items-center text-center">
+                    <h2 className="text-gray-500 font-medium mb-1 text-sm">Outstanding</h2>
+                    <div className="text-3xl font-bold text-amber-600">
+                        ₹{fees.filter(f => !f.isPaid).reduce((sum, f) => sum + (f.tuitionFees + f.annualCharges + f.transportFees + f.otherFees - f.discount), 0).toLocaleString()}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Unpaid records</p>
                 </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                 <div className="p-6 border-b">
-                    <h2 className="text-lg font-bold text-gray-800">Payment History</h2>
+                    <h2 className="text-lg font-bold text-gray-800">Fee History</h2>
                 </div>
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 text-gray-500 text-sm">
-                        <tr>
-                            <th className="p-4">Receipt No</th>
-                            <th className="p-4">Date</th>
-                            <th className="p-4">Fee Type</th>
-                            <th className="p-4">Amount</th>
-                            <th className="p-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {payments.map(payment => (
-                            <tr key={payment.id} className="hover:bg-gray-50">
-                                <td className="p-4 font-mono text-xs text-gray-500">{payment.transactionId}</td>
-                                <td className="p-4 text-sm text-gray-900">{new Date(payment.paymentDate).toLocaleDateString()}</td>
-                                <td className="p-4 font-medium text-gray-900">{payment.feeStructure.name}</td>
-                                <td className="p-4 font-bold text-gray-900">₹{payment.amountPaid}</td>
-                                <td className="p-4">
-                                    {payment.status === 'PAID' && <span className="flex items-center text-green-600 text-xs font-bold"><CheckCircle size={14} className="mr-1" /> Paid</span>}
-                                    {payment.status === 'PARTIAL' && <span className="flex items-center text-yellow-600 text-xs font-bold"><Clock size={14} className="mr-1" /> Partial</span>}
-                                    {payment.status === 'DUE' && <span className="flex items-center text-red-600 text-xs font-bold"><AlertCircle size={14} className="mr-1" /> Due</span>}
-                                </td>
-                            </tr>
-                        ))}
-                        {payments.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="p-8 text-center text-gray-500">No payment history found.</td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+
+                {isLoading ? (
+                    <div className="p-8 text-center text-gray-400">Loading fees...</div>
+                ) : fees.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">No fee records found.</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 text-gray-500 text-sm">
+                                <tr>
+                                    <th className="p-4">Month</th>
+                                    <th className="p-4 text-right">Tuition</th>
+                                    <th className="p-4 text-right">Annual</th>
+                                    <th className="p-4 text-right">Transport</th>
+                                    <th className="p-4 text-right">Other</th>
+                                    <th className="p-4 text-right">Discount</th>
+                                    <th className="p-4 text-right">Penalty</th>
+                                    <th className="p-4 text-right">Total</th>
+                                    <th className="p-4 text-right">Paid</th>
+                                    <th className="p-4 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {fees.map(fee => {
+                                    const total = fee.tuitionFees + fee.annualCharges + fee.transportFees + fee.otherFees - fee.discount;
+                                    return (
+                                        <tr key={fee.id} className="hover:bg-gray-50">
+                                            <td className="p-4 text-sm font-medium text-gray-900">
+                                                {new Date(currentYear, fee.month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })}
+                                            </td>
+                                            <td className="p-4 text-sm text-right text-gray-700">₹{fee.tuitionFees}</td>
+                                            <td className="p-4 text-sm text-right text-purple-600">₹{fee.annualCharges}</td>
+                                            <td className="p-4 text-sm text-right text-blue-600">{fee.transportFees > 0 ? `₹${fee.transportFees}` : '—'}</td>
+                                            <td className="p-4 text-sm text-right text-gray-700">{fee.otherFees > 0 ? `₹${fee.otherFees}` : '—'}</td>
+                                            <td className="p-4 text-sm text-right text-green-600">{fee.discount > 0 ? `₹${fee.discount}` : '—'}</td>
+                                            <td className="p-4 text-sm text-right text-red-600">{fee.penalty > 0 ? `₹${fee.penalty}` : '—'}</td>
+                                            <td className="p-4 text-sm text-right font-bold text-gray-900">
+                                                {fee.isPaid ? '₹0' : `₹${total > 0 ? total : 0}`}
+                                            </td>
+                                            <td className="p-4 text-sm text-right text-green-600">
+                                                {fee.paidAmount > 0 ? `₹${fee.paidAmount}` : '—'}
+                                            </td>
+                                            <td className="p-4">{getStatusBadge(fee.isPaid, fee.paidAmount, total)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     );

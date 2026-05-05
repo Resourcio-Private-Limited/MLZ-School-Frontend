@@ -108,7 +108,7 @@ export default function ClassroomAdmissionForm({
                     )}
 
                     {/* Auto-Generated Info */}
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    {/* <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                         <h3 className="font-semibold text-purple-900 mb-3 flex items-center space-x-2">
                             <Award size={18} />
                             <span>Admission Information</span>
@@ -131,7 +131,7 @@ export default function ClassroomAdmissionForm({
                                 <p className="text-purple-900 font-semibold">{passingYear}</p>
                             </div>
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Login Credentials */}
                     <div className="border-t pt-4">
