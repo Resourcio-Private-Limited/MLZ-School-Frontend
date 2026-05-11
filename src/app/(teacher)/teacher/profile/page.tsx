@@ -19,9 +19,11 @@ import {
     Lock,
     ArrowLeft,
     Save,
+    Camera,
+    Loader2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useGetTeacherProfileQuery, useUpdateTeacherProfileMutation } from "@/redux/api/teacherApi";
+import { useEffect, useState, useRef } from "react";
+import { useGetTeacherProfileQuery, useUpdateTeacherProfileMutation, useUploadProfileImageMutation } from "@/redux/api/teacherApi";
 
 function formatDate(dateStr: string | null | undefined) {
     if (!dateStr) return "—";
@@ -37,8 +39,10 @@ function formatDate(dateStr: string | null | undefined) {
 }
 
 export default function TeacherProfilePage() {
-    const { data: profile, isLoading } = useGetTeacherProfileQuery();
+    const { data: profile, isLoading, refetch } = useGetTeacherProfileQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateTeacherProfileMutation();
+    const [uploadProfileImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [form, setForm] = useState({
         fullName: "",
@@ -76,6 +80,23 @@ export default function TeacherProfilePage() {
         }
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+            try {
+                const imageUrl = reader.result as string;
+                await uploadProfileImage({ imageUrl }).unwrap();
+                refetch();
+            } catch (err) {
+                console.error('Failed to upload image:', err);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
@@ -106,13 +127,36 @@ export default function TeacherProfilePage() {
                         </Link>
                     </div>
                     <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-                        <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
-                            <Image
-                                src="/MLZS_contents/Students Stage 1.png"
-                                alt="Teacher Photo"
-                                width={160}
-                                height={160}
-                                className="object-cover w-full h-full"
+                        <div className="relative group">
+                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
+                                {personal.profileImage ? (
+                                    <Image
+                                        src={personal.profileImage}
+                                        alt="Teacher Photo"
+                                        width={160}
+                                        height={160}
+                                        className="object-cover w-full h-full"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-slate-700">
+                                        <User size={48} className="text-slate-400" />
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                title="Upload Photo"
+                            >
+                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
                             />
                         </div>
                         <div className="text-center md:text-left text-white">
@@ -296,7 +340,7 @@ export default function TeacherProfilePage() {
                 </div> */}
 
                 {/* Security Settings */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-purple-500 mb-12">
+                {/* <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-purple-500 mb-12">
                     <div className="p-6 md:p-8 flex items-center justify-between flex-wrap gap-4">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
@@ -314,7 +358,7 @@ export default function TeacherProfilePage() {
                             </button>
                         </Link>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     );

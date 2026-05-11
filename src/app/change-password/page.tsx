@@ -77,7 +77,7 @@ export default function ChangePasswordPage() {
             // Clear the stored reset email
             store.dispatch(setResetEmail(""));
 
-            router.push("/login");
+            router.push("/");
         } catch (err: unknown) {
             const e2 = err as { data?: { message?: string }; message?: string };
             const msg =
