@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import { useResetPasswordMutation } from "@/redux/api/authApi";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get("token");
@@ -157,5 +157,21 @@ export default function ResetPasswordPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+                <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 size={24} className="animate-spin text-gray-400" />
+                    </div>
+                </div>
+            </div>
+        }>
+            <ResetPasswordForm />
+        </Suspense>
     );
 }
