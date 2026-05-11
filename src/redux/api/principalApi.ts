@@ -38,6 +38,7 @@ export interface PrincipalFullProfile {
     designation: string | null;
     department: string | null;
     userEmail: string;
+    profileImage: string | null;
 }
 
 export interface UpdatePrincipalProfilePayload {
@@ -74,9 +75,34 @@ export interface ClassroomStudent {
     primaryContact: string;
     parentName?: string;
     parentContact?: string;
+    rollNumber?: string | null;
+    profileImage?: string | null;
+    classroom?: { id: string; name: string; grade: string; section: string };
     attendancePercentage?: number;
     averageMarks?: number;
     feeStatus?: 'CLEARED' | 'PENDING' | 'OVERDUE';
+}
+
+export interface AdmitCardScheduleEntry {
+    subjectId: string;
+    subjectName: string;
+    examDate: string | null;
+}
+
+export interface AdmitCardPreview {
+    studentId: string;
+    studentName: string;
+    admissionNumber: string;
+    rollNumber: string | null;
+    classroom: { grade: string; section: string; name: string };
+    examName: string;
+    examDate: string | null;
+    examSubject: string | null;
+    subjects: string[];
+    examSchedule: AdmitCardScheduleEntry[];
+    profileImage: string | null;
+    center: string;
+    issuedAt: string;
 }
 
 export interface StudentListItem {
@@ -143,6 +169,17 @@ export const principalApi = baseApi.injectEndpoints({
             query: (classroomId) => ({ url: `/principal/subjects/${classroomId}`, method: 'GET' }),
         }),
 
+        getExamSchedule: builder.query<AdmitCardScheduleEntry[], { classroomId: string; examType: string }>({
+            query: ({ classroomId, examType }) => ({
+                url: `/principal/classrooms/${classroomId}/exam-schedule?examType=${encodeURIComponent(examType)}`,
+                method: 'GET',
+            }),
+        }),
+
+        setExamSchedule: builder.mutation<AdmitCardScheduleEntry[], { classroomId: string; examType: string; schedule: Array<{ subjectId: string; examDate: string }> }>({
+            query: (body) => ({ url: '/principal/exam-schedule', method: 'POST', body }),
+        }),
+
         assignClassTeacher: builder.mutation<any, { teacherId: string; classroomId: string }>({
             query: (body) => ({ url: '/principal/class-teacher', method: 'POST', body }),
         }),
@@ -184,6 +221,21 @@ export const principalApi = baseApi.injectEndpoints({
         promoteStudents: builder.mutation<any, { studentIds: string[]; targetClassroomId: string }>({
             query: (body) => ({ url: '/principal/promote', method: 'POST', body }),
         }),
+
+        uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
+            query: (body) => ({ url: '/upload/profile-image', method: 'POST', body }),
+        }),
+
+        getStudentAdmitCardPreview: builder.query<AdmitCardPreview, { studentId: string; examType: string }>({
+            query: ({ studentId, examType }) => ({
+                url: `/principal/students/${studentId}/admit-card-preview?examType=${encodeURIComponent(examType)}`,
+                method: 'GET',
+            }),
+        }),
+
+        createAdmitCard: builder.mutation<AdmitCardPreview, { studentId: string; examType: string }>({
+            query: (body) => ({ url: '/principal/admit-cards', method: 'POST', body }),
+        }),
     }),
 });
 
@@ -199,6 +251,11 @@ export const {
     useGetAllStudentsQuery,
     useGetAllTeachersQuery,
     useGetSubjectsByClassroomQuery,
+    useGetExamScheduleQuery,
+    useSetExamScheduleMutation,
     useAssignClassTeacherMutation,
     useAddSubjectWithTeacherMutation,
+    useUploadProfileImageMutation,
+    useGetStudentAdmitCardPreviewQuery,
+    useCreateAdmitCardMutation,
 } = principalApi;

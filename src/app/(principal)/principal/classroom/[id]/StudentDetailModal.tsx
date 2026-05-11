@@ -109,7 +109,7 @@ export default function StudentDetailModal({
                 <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold">{editedStudent.user.name}</h2>
+                            <h2 className="text-2xl font-bold">{editedStudent.user?.name || editedStudent.admissionNo}</h2>
                             <p className="text-purple-100 text-sm mt-1">
                                 {editedStudent.admissionNo} • {editedStudent.section?.name || 'N/A'}
                             </p>
@@ -298,8 +298,7 @@ function PersonalTab({ student, isEditing, onUpdate }: {
                     </div>
                 ) : (
                     <div className="bg-gray-50 rounded-lg p-4">
-                        <InfoRow label="Full Name" value={student.user.name} />
-                        <InfoRow label="Email" value={student.user.email} />
+                        <InfoRow label="Full Name" value={student.admissionNo} />
                         <InfoRow label="Date of Birth" value={new Date(student.dob).toLocaleDateString()} />
                         <InfoRow label="Gender" value={student.gender} />
                         <InfoRow label="Blood Group" value={student.bloodGroup} />

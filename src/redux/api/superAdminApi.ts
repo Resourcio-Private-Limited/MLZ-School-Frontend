@@ -15,6 +15,7 @@ export interface SuperAdminProfile {
     designation: string | null;
     department: string | null;
     userEmail: string;
+    profileImage: string | null;
 }
 
 export interface DashboardKpis {
@@ -139,6 +140,10 @@ export const superAdminApi = baseApi.injectEndpoints({
         changeUserPassword: builder.mutation<{ success: boolean; message: string; userId: string }, { userId: string; currentPassword: string; newPassword: string }>({
             query: ({ userId, ...body }) => ({ url: `/super-admin/users/${userId}/password`, method: 'PATCH', body }),
         }),
+
+        uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
+            query: (body) => ({ url: '/upload/profile-image', method: 'POST', body }),
+        }),
     }),
 });
 
@@ -152,4 +157,5 @@ export const {
     useUpdateUserMutation,
     useDeleteUserMutation,
     useChangeUserPasswordMutation,
+    useUploadProfileImageMutation,
 } = superAdminApi;

@@ -16,6 +16,7 @@ export interface TeacherPersonal {
   secondaryContact: string | null;
   email: string | null;
   bloodGroup: string | null;
+  profileImage: string | null;
 }
 
 export interface TeacherOfficial {
@@ -179,6 +180,10 @@ export const teacherApi = baseApi.injectEndpoints({
         method: 'GET',
       }),
     }),
+
+    uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
+      query: (body) => ({ url: '/upload/profile-image', method: 'POST', body }),
+    }),
   }),
 });
 
@@ -191,4 +196,5 @@ export const {
   useMarkAttendanceMutation,
   useGetAttendanceHistoryQuery,
   useGetAttendanceByDateQuery,
+  useUploadProfileImageMutation,
 } = teacherApi;

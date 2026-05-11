@@ -15,6 +15,7 @@ export interface StudentPersonal {
   secondaryContact: string | null;
   identificationMark: string | null;
   residentialAddress: string;
+  profileImage: string | null;
 }
 
 export interface StudentAcademic {
@@ -198,6 +199,10 @@ export const studentApi = baseApi.injectEndpoints({
     }>({
       query: (body) => ({ url: '/student/fees/monthly/confirm', method: 'POST', body }),
     }),
+
+    uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
+      query: (body) => ({ url: '/upload/profile-image', method: 'POST', body }),
+    }),
   }),
 });
 
@@ -210,4 +215,5 @@ export const {
   useGetMonthlyFeesQuery,
   useCreateRazorpayOrderMutation,
   useConfirmStudentPaymentMutation,
+  useUploadProfileImageMutation,
 } = studentApi;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key } from "lucide-react";
+import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle } from "lucide-react";
 import {
     useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
@@ -61,6 +61,8 @@ export default function UserManagementPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [editForm, setEditForm] = useState({ fullName: '', email: '', primaryContact: '' });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+    const [showPrincipalWarningModal, setShowPrincipalWarningModal] = useState(false);
+    const [pendingPrincipalActivation, setPendingPrincipalActivation] = useState<{ userId: string; userName: string; action: 'activate' | 'add' } | null>(null);
     const ITEMS_PER_PAGE = 10;
 
     const { data: kpis } = useGetUserManagementKpisQuery();
@@ -167,6 +169,32 @@ export default function UserManagementPage() {
             refetch();
         } catch (err: any) {
             showFeedback("error", err?.data?.message ?? "Failed to change password.");
+        }
+    };
+
+    const handleToggleUserStatus = (user: UserSummary) => {
+        if (user.role === 'PRINCIPAL' && !user.isActive) {
+            // Check if there's an active principal
+            const hasActivePrincipal = allUsers?.principals.some(p => p.isActive && p.userId !== user.userId);
+            if (hasActivePrincipal) {
+                setPendingPrincipalActivation({ userId: user.userId, userName: user.fullName, action: 'activate' });
+                setShowPrincipalWarningModal(true);
+                return;
+            }
+        }
+        // For non-principal users or activating principal with no active principal, proceed directly
+        confirmToggleStatus(user.userId, true);
+    };
+
+    const confirmToggleStatus = async (userId: string, activate: boolean) => {
+        try {
+            await updateUser({ userId, data: { isActive: activate } }).unwrap();
+            setShowPrincipalWarningModal(false);
+            setPendingPrincipalActivation(null);
+            showFeedback("success", activate ? "User activated successfully!" : "User deactivated successfully!");
+            refetch();
+        } catch {
+            showFeedback("error", "Failed to update user status.");
         }
     };
 
@@ -318,11 +346,29 @@ export default function UserManagementPage() {
                                                     <Key size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }}
-                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                    title="Delete User"
+                                                    onClick={() => {
+                                                        if (user.isActive) {
+                                                            // Deactivate
+                                                            updateUser({ userId: user.userId, data: { isActive: false } }).unwrap()
+                                                                .then(() => { showFeedback("success", "User deactivated."); refetch(); })
+                                                                .catch(() => showFeedback("error", "Failed to deactivate user."));
+                                                        } else {
+                                                            // Try to activate - may show warning for principal
+                                                            handleToggleUserStatus(user);
+                                                        }
+                                                    }}
+                                                    className={`p-1.5 rounded transition-colors ${
+                                                        user.isActive
+                                                            ? 'text-gray-500 hover:bg-gray-100 title="Deactivate"'
+                                                            : 'text-green-600 hover:bg-green-50 title="Activate"'
+                                                    }`}
+                                                    title={user.isActive ? "Deactivate" : "Activate"}
                                                 >
-                                                    <Trash2 size={16} />
+                                                    {user.isActive ? (
+                                                        <span className="text-xs font-medium">Off</span>
+                                                    ) : (
+                                                        <span className="text-xs font-medium">On</span>
+                                                    )}
                                                 </button>
                                             </div>
                                         </td>
@@ -651,6 +697,48 @@ export default function UserManagementPage() {
                                 >
                                     <Key size={16} />
                                     {isChangingPassword ? "Changing..." : "Change Password"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Principal Activation Warning Modal */}
+            {showPrincipalWarningModal && pendingPrincipalActivation && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-amber-700 flex items-center gap-2">
+                                    <AlertCircle size={22} className="text-amber-500" />
+                                    Principal Activation Warning
+                                </h2>
+                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <X size={20} className="text-gray-600" />
+                                </button>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                                <p className="text-sm text-amber-900">
+                                    Activating <strong>{pendingPrincipalActivation.userName}</strong> as Principal will automatically deactivate the existing active principal account. The previous principal will no longer be able to log in.
+                                </p>
+                                <p className="text-xs text-amber-700 mt-2 font-medium">
+                                    Only one principal can be active at a time. Do you want to proceed?
+                                </p>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => confirmToggleStatus(pendingPrincipalActivation.userId, true)}
+                                    disabled={isUpdating}
+                                    className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    <CheckCircle2 size={16} />
+                                    {isUpdating ? "Activating..." : "Yes, Activate"}
                                 </button>
                             </div>
                         </div>

@@ -90,7 +90,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm flex items-start space-x-2">
-                            <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                            <AlertCircle size={18} className="mt-0.5 shrink-0" />
                             <span>{error}</span>
                         </div>
                     )}
@@ -124,10 +124,14 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
 
                     <div className="border-t pt-4 mt-4">
                         <h3 className="font-semibold text-gray-600 mb-3">Academic Details</h3>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <label className="label">Admission No</label>
                                 <input name="admissionNo" required className="input" placeholder="ADM-202X-001" />
+                            </div>
+                            <div>
+                                <label className="label">Roll No</label>
+                                <input name="rollNo" className="input" placeholder="e.g., 101" />
                             </div>
                             <div>
                                 <label className="label">Admission Date</label>
