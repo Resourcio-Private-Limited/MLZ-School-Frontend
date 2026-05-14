@@ -2,6 +2,7 @@
 
 import { X, User, BookOpen, Calendar, FileText, DollarSign, CheckCircle, XCircle, AlertCircle, Edit, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import toast from 'react-hot-toast';
 import { mockAction } from "@/lib/mocks";
 
 type StudentDetail = {
@@ -78,13 +79,13 @@ export default function StudentDetailModal({
     const handleSave = async () => {
         try {
             await mockAction("updateStudent", editedStudent);
-            alert("Student details updated successfully!");
+            toast.success("Student details updated successfully!");
             setIsEditing(false);
             if (onStudentUpdate) {
                 onStudentUpdate();
             }
         } catch (error) {
-            alert("Failed to update student details");
+            toast.error("Failed to update student details");
         }
     };
 

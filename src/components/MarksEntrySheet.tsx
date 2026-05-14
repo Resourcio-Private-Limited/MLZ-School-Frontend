@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
+import toast from 'react-hot-toast';
 
 // Types
 type Student = {
@@ -68,16 +68,14 @@ export default function MarksEntrySheet({ exam, students, existingResults }: Pro
             };
         });
 
-        const res = await mockAction("publishResults", {
-            examId: exam.id,
-            results
-        });
+        // TODO: Replace with actual API call
+        const res = { success: true }; // mockAction("publishResults", { examId: exam.id, results });
 
         if (res.success) {
-            alert("Results published successfully!");
+            toast.success("Results published successfully!");
             router.refresh();
         } else {
-            alert("Failed (Mock)");
+            toast.error("Failed to publish results");
         }
         setLoading(false);
     };

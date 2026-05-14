@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import toast from 'react-hot-toast';
 import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
 
@@ -33,7 +34,7 @@ export default function CreateFeeForm({ academicYearId }: { academicYearId: stri
             setAmount("");
             router.refresh();
         } else {
-            alert("Failed (Mock)");
+            toast.error("Failed to create fee structure");
         }
         setLoading(false);
     };

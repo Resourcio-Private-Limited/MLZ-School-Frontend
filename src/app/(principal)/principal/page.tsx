@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Users, ArrowRight, Settings, X, Save, Plus } from "lucide-react";
+import { BookOpen, Users, ArrowRight, Settings, X, Save, Plus, Edit2, Trash2 } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 import {
     useGetAllClassroomsQuery,
     useGetAllStudentsQuery,
@@ -10,6 +11,8 @@ import {
     useGetSubjectsByClassroomQuery,
     useAssignClassTeacherMutation,
     useAddSubjectWithTeacherMutation,
+    useUpdateSubjectMutation,
+    useDeleteSubjectMutation,
     ClassroomSummary,
 } from "@/redux/api/principalApi";
 
@@ -36,6 +39,8 @@ export default function PrincipalHomePage() {
     const { data: allTeachers = [] } = useGetAllTeachersQuery();
     const [assignClassTeacher] = useAssignClassTeacherMutation();
     const [addSubjectWithTeacher] = useAddSubjectWithTeacherMutation();
+    const [updateSubject] = useUpdateSubjectMutation();
+    const [deleteSubject] = useDeleteSubjectMutation();
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [selectedClassroom, setSelectedClassroom] = useState<ClassroomSummary | null>(null);
@@ -43,7 +48,11 @@ export default function PrincipalHomePage() {
     const [newSubjectName, setNewSubjectName] = useState("");
     const [newSubjectTeacherId, setNewSubjectTeacherId] = useState<string>("");
     const [saving, setSaving] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+    const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
+    const [editingSubjectName, setEditingSubjectName] = useState<string>("");
+    const [editingSubjectTeacherId, setEditingSubjectTeacherId] = useState<string>("");
+    const [showDeleteSubjectModal, setShowDeleteSubjectModal] = useState(false);
+    const [subjectToDelete, setSubjectToDelete] = useState<{ id: string; name: string } | null>(null);
 
     const { data: classroomSubjects = [] } = useGetSubjectsByClassroomQuery(
         selectedClassroom?.id ?? "",
@@ -68,7 +77,6 @@ export default function PrincipalHomePage() {
         setEditedClassTeacherId(classroom.classTeacher?.id ?? "");
         setNewSubjectName("");
         setNewSubjectTeacherId("");
-        setFeedback(null);
         setShowSettingsModal(true);
     };
 
@@ -78,12 +86,8 @@ export default function PrincipalHomePage() {
         setEditedClassTeacherId("");
         setNewSubjectName("");
         setNewSubjectTeacherId("");
-        setFeedback(null);
-    };
-
-    const showFeedback = (type: "success" | "error", msg: string) => {
-        setFeedback({ type, msg });
-        setTimeout(() => setFeedback(null), 4000);
+        setEditingSubjectId(null);
+        setEditingSubjectName("");
     };
 
     const handleSaveClassTeacher = async () => {
@@ -94,9 +98,11 @@ export default function PrincipalHomePage() {
                 teacherId: editedClassTeacherId,
                 classroomId: selectedClassroom.id,
             }).unwrap();
-            showFeedback("success", "Class teacher assigned successfully!");
-        } catch {
-            showFeedback("error", "Failed to assign class teacher.");
+            toast.success("Class teacher assigned successfully!");
+            // Refetch is handled automatically by invalidatesTags
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to assign class teacher.");
         } finally {
             setSaving(false);
         }
@@ -113,18 +119,71 @@ export default function PrincipalHomePage() {
             }).unwrap();
             setNewSubjectName("");
             setNewSubjectTeacherId("");
-            showFeedback("success", "Subject added successfully!");
-        } catch {
-            showFeedback("error", "Failed to add subject.");
+            toast.success("Subject added successfully!");
+            // Refetch is handled automatically by invalidatesTags
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to add subject.");
         } finally {
             setSaving(false);
         }
     };
 
-    // Filter teachers: exclude teachers already assigned as class teacher to OTHER classrooms
-    const availableTeachers = allTeachers.filter(
-        (t) => !t.classTeacherOf || t.classTeacherOf.name === selectedClassroom?.name
-    );
+    const handleEditSubject = (subject: any) => {
+        setEditingSubjectId(subject.id);
+        setEditingSubjectName(subject.name);
+        setEditingSubjectTeacherId(subject.teachers[0]?.id || "");
+    };
+
+    const handleSaveSubjectEdit = async () => {
+        if (!editingSubjectId || !editingSubjectName.trim()) return;
+        setSaving(true);
+        try {
+            const updateData: any = {
+                subjectId: editingSubjectId,
+                name: editingSubjectName.trim(),
+            };
+            if (editingSubjectTeacherId) {
+                updateData.teacherId = editingSubjectTeacherId;
+            }
+            await updateSubject(updateData).unwrap();
+            toast.success("Subject updated!");
+            setEditingSubjectId(null);
+            setEditingSubjectName("");
+            setEditingSubjectTeacherId("");
+            // Refetch is handled automatically by invalidatesTags
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to update subject.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteSubject = (subjectId: string, subjectName: string) => {
+        setSubjectToDelete({ id: subjectId, name: subjectName });
+        setShowDeleteSubjectModal(true);
+    };
+
+    const confirmDeleteSubject = async () => {
+        if (!subjectToDelete) return;
+        setSaving(true);
+        try {
+            await deleteSubject(subjectToDelete.id).unwrap();
+            toast.success("Subject deleted successfully!");
+            setShowDeleteSubjectModal(false);
+            setSubjectToDelete(null);
+            // Refetch is handled automatically by invalidatesTags
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to delete subject.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Show ALL active teachers for selection (not just class teachers)
+    const availableTeachers = allTeachers.filter(t => t.isActive);
 
     return (
         <div className="space-y-8">
@@ -245,17 +304,6 @@ export default function PrincipalHomePage() {
                             </button>
                         </div>
 
-                        {/* Feedback */}
-                        {feedback && (
-                            <div className={`mx-6 mt-4 rounded-lg px-4 py-3 text-sm font-medium ${
-                                feedback.type === "success"
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                    : "bg-red-50 text-red-700 border border-red-200"
-                            }`}>
-                                {feedback.msg}
-                            </div>
-                        )}
-
                         <div className="p-6 space-y-8">
                             {/* ── Class Teacher ── */}
                             <div>
@@ -309,17 +357,81 @@ export default function PrincipalHomePage() {
                                     ) : (
                                         classroomSubjects.map((subj) => (
                                             <div key={subj.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                <div>
-                                                    <p className="font-medium text-gray-800">{subj.name}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {subj.teachers.length > 0
-                                                            ? subj.teachers.map((t) => t.fullName).join(", ")
-                                                            : "No teacher assigned"}
-                                                    </p>
+                                                <div className="flex-1">
+                                                    {editingSubjectId === subj.id ? (
+                                                        <div className="space-y-2">
+                                                            <input
+                                                                type="text"
+                                                                value={editingSubjectName}
+                                                                onChange={(e) => setEditingSubjectName(e.target.value)}
+                                                                placeholder="Subject name"
+                                                                className="w-full px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                                                                autoFocus
+                                                            />
+                                                            <select
+                                                                value={editingSubjectTeacherId}
+                                                                onChange={(e) => setEditingSubjectTeacherId(e.target.value)}
+                                                                className="w-full px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                                                            >
+                                                                <option value="">Select teacher (optional)</option>
+                                                                {availableTeachers.map((t) => (
+                                                                    <option key={t.id} value={t.id}>
+                                                                        {t.fullName} {t.employeeId ? `(${t.employeeId})` : ""}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={handleSaveSubjectEdit}
+                                                                    disabled={saving}
+                                                                    className="p-1.5 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
+                                                                    title="Save"
+                                                                >
+                                                                    <Save size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setEditingSubjectId(null); setEditingSubjectName(""); setEditingSubjectTeacherId(""); }}
+                                                                    className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                                                                    title="Cancel"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <p className="font-medium text-gray-800">{subj.name}</p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {subj.teachers.length > 0
+                                                                    ? subj.teachers.map((t) => `${t.fullName} (${t.employeeId})`).join(", ")
+                                                                    : "No teacher assigned"}
+                                                            </p>
+                                                        </>
+                                                    )}
                                                 </div>
-                                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                                    {subj.teachers.length} teacher{subj.teachers.length !== 1 ? "s" : ""}
-                                                </span>
+                                                <div className="flex items-center gap-2 ml-4">
+                                                    {editingSubjectId !== subj.id && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleEditSubject(subj)}
+                                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                title="Edit Subject Name"
+                                                            >
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteSubject(subj.id, subj.name)}
+                                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Delete Subject"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                                {subj.teachers.length} teacher{subj.teachers.length !== 1 ? "s" : ""}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))
                                     )}
@@ -377,6 +489,41 @@ export default function PrincipalHomePage() {
                             >
                                 Close
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Delete Subject Confirmation Modal ─────────────────────────────────────────── */}
+            {showDeleteSubjectModal && subjectToDelete && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex items-center justify-center mb-4">
+                                <div className="p-3 rounded-full bg-red-100">
+                                    <Trash2 size={24} className="text-red-600" />
+                                </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Delete Subject</h3>
+                            <p className="text-gray-600 text-center mb-6">
+                                Are you sure you want to delete the subject <strong>"{subjectToDelete.name}"</strong>?
+                                This action cannot be undone and will remove all associated data.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteSubjectModal(false)}
+                                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteSubject}
+                                    disabled={saving}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    {saving ? "Deleting..." : "Delete"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Eye, Edit, Key, X, EyeOff, RefreshCw } from "lucide-react";
+import toast from 'react-hot-toast';
 import { MOCK_STUDENTS_LIST, mockAction } from "@/lib/mocks";
 import CreateStudentForm from "./CreateStudentForm";
 
@@ -48,7 +49,7 @@ export default function StudentsPage() {
                 : s
         ));
         await mockAction("resetPassword", { studentId, newPassword });
-        alert(`Password reset successfully! New password: ${newPassword}`);
+        toast.success(`Password reset successfully! New password: ${newPassword}`);
     };
 
     const handleSaveEdit = async () => {
@@ -60,7 +61,7 @@ export default function StudentsPage() {
 
         await mockAction("updateStudent", editingStudent);
         setEditingStudent(null);
-        alert("Student details updated successfully!");
+        toast.success("Student details updated successfully!");
     };
 
     const generateNewPassword = () => {

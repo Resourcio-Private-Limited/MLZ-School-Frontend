@@ -1,14 +1,6 @@
-import LoginForm from "@/components/LoginForm";
+import { redirect } from 'next/navigation';
 
 export default function SuperAdminLoginPage() {
-    return (
-        <LoginForm
-            title="Super Admin Login"
-            description="Complete system administration and control"
-            redirectTo="/super-admin"
-            identifierLabel="User ID"
-            identifierPlaceholder="Enter User ID"
-            identifierType="text"
-        />
-    );
+    // Redirect to unified login page
+    redirect('/login');
 }

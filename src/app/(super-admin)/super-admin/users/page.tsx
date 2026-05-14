@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle } from "lucide-react";
+import toast from 'react-hot-toast';
 import {
     useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
@@ -25,6 +26,8 @@ interface NewUserForm {
     gender: string;
     residentialAddress: string;
     primaryContact: string;
+    highestQualification: string;
+    salary: string;
 }
 
 const emptyForm: NewUserForm = {
@@ -38,6 +41,8 @@ const emptyForm: NewUserForm = {
     gender: '',
     residentialAddress: '',
     primaryContact: '',
+    highestQualification: '',
+    salary: '',
 };
 
 const TAB_ROLE_MAP: Record<string, Role[]> = {
@@ -104,14 +109,55 @@ export default function UserManagementPage() {
     );
 
     const handleAddUser = async () => {
+        // Validate age for non-student roles (must be at least 20 years old)
+        if (newUser.dob) {
+            const birthDate = new Date(newUser.dob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            if (age < 20) {
+                toast.error(`Age must be at least 20 years. Current age: ${age} years.`);
+                return;
+            }
+        }
+
+        // Check if adding a PRINCIPAL and there's already an active principal
+        if (newUser.role === 'PRINCIPAL') {
+            const activePrincipal = allUsers?.principals.find(p => p.isActive);
+            if (activePrincipal) {
+                // Show warning modal that creating this principal will deactivate the current one
+                setPendingPrincipalActivation({ userId: '', userName: newUser.fullName, action: 'add' });
+                setShowPrincipalWarningModal(true);
+                return;
+            }
+        }
+
         try {
             await addUser(newUser as any).unwrap();
             setShowAddModal(false);
             setNewUser(emptyForm);
-            showFeedback("success", "User added successfully!");
+            toast.success("User added successfully!");
             refetch();
-        } catch {
-            showFeedback("error", "Failed to add user. Email may already be in use.");
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to add user. Email may already be in use.");
+        }
+    };
+
+    const confirmPrincipalAdd = async () => {
+        try {
+            await addUser(newUser as any).unwrap();
+            setShowAddModal(false);
+            setShowPrincipalWarningModal(false);
+            setNewUser(emptyForm);
+            toast.success("Principal added successfully! The previous principal has been deactivated.");
+            refetch();
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to add principal. Email may already be in use.");
         }
     };
 
@@ -551,6 +597,20 @@ export default function UserManagementPage() {
                                                 onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })}
                                                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification <span className="text-red-500">*</span></label>
+                                            <input type="text" value={newUser.highestQualification}
+                                                onChange={(e) => setNewUser({ ...newUser, highestQualification: e.target.value })}
+                                                placeholder="e.g., M.Sc., B.Ed., Ph.D."
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹) <span className="text-red-500">*</span></label>
+                                            <input type="number" value={newUser.salary}
+                                                onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
+                                                placeholder="e.g., 50000"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -572,7 +632,7 @@ export default function UserManagementPage() {
                             </button>
                             <button
                                 onClick={handleAddUser}
-                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password || (newUser.role === 'OTHER' && !newUser.customRole)}
+                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password || (newUser.role === 'OTHER' && !newUser.customRole) || (newUser.role === 'TEACHER' && (!newUser.employeeId || !newUser.highestQualification || !newUser.salary))}
                                 className="flex items-center space-x-2 px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors font-medium"
                             >
                                 <UserPlus size={18} />
@@ -720,26 +780,50 @@ export default function UserManagementPage() {
                                 </button>
                             </div>
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                                <p className="text-sm text-amber-900">
-                                    Activating <strong>{pendingPrincipalActivation.userName}</strong> as Principal will automatically deactivate the existing active principal account. The previous principal will no longer be able to log in.
-                                </p>
-                                <p className="text-xs text-amber-700 mt-2 font-medium">
-                                    Only one principal can be active at a time. Do you want to proceed?
-                                </p>
+                                {pendingPrincipalActivation.action === 'add' ? (
+                                    <>
+                                        <p className="text-sm text-amber-900">
+                                            Creating <strong>{pendingPrincipalActivation.userName}</strong> as Principal will automatically deactivate the existing active principal account. The previous principal will no longer be able to log in.
+                                        </p>
+                                        <p className="text-xs text-amber-700 mt-2 font-medium">
+                                            Only one principal can be active at a time. Do you want to proceed?
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-sm text-amber-900">
+                                            Activating <strong>{pendingPrincipalActivation.userName}</strong> as Principal will automatically deactivate the existing active principal account. The previous principal will no longer be able to log in.
+                                        </p>
+                                        <p className="text-xs text-amber-700 mt-2 font-medium">
+                                            Only one principal can be active at a time. Do you want to proceed?
+                                        </p>
+                                    </>
+                                )}
                             </div>
                             <div className="flex justify-end space-x-3">
                                 <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>
-                                <button
-                                    onClick={() => confirmToggleStatus(pendingPrincipalActivation.userId, true)}
-                                    disabled={isUpdating}
-                                    className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
-                                >
-                                    <CheckCircle2 size={16} />
-                                    {isUpdating ? "Activating..." : "Yes, Activate"}
-                                </button>
+                                {pendingPrincipalActivation.action === 'add' ? (
+                                    <button
+                                        onClick={confirmPrincipalAdd}
+                                        disabled={isAdding}
+                                        className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
+                                    >
+                                        <CheckCircle2 size={16} />
+                                        {isAdding ? "Creating..." : "Yes, Create & Deactivate Current"}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => confirmToggleStatus(pendingPrincipalActivation.userId, true)}
+                                        disabled={isUpdating}
+                                        className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
+                                    >
+                                        <CheckCircle2 size={16} />
+                                        {isUpdating ? "Activating..." : "Yes, Activate"}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

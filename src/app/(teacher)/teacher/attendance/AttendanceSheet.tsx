@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from 'react-hot-toast';
 import { mockAction } from "@/lib/mocks";
 import { useRouter } from "next/navigation";
 
@@ -54,10 +55,10 @@ export default function AttendanceSheet({ classroomId, students }: Props) {
         });
 
         if (res.success) {
-            alert("Attendance marked successfully (Mock)!");
+            toast.success("Attendance marked successfully!");
             router.refresh();
         } else {
-            alert("Failed (Mock)");
+            toast.error("Failed to mark attendance");
         }
         setLoading(false);
     };

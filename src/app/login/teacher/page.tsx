@@ -1,11 +1,5 @@
-import LoginForm from "@/components/LoginForm";
+import { redirect } from 'next/navigation';
 
 export default function TeacherLoginPage() {
-    return (
-        <LoginForm
-            title="Teacher Login"
-            description="Manage your classroom and students"
-            redirectTo="/teacher"
-        />
-    );
+    redirect('/login');
 }
