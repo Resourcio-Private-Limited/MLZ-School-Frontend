@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import {
     GraduationCap,
     Award,
@@ -13,7 +12,6 @@ import {
     Calendar,
     FileText,
     History,
-    Lock,
     Camera,
     Loader2,
 } from "lucide-react";
@@ -80,7 +78,8 @@ export default function ProfilePage() {
     });
 
     const handleDownload = (cls: string, session: string) => {
-        alert(`Requesting Marksheet PDF for ${cls} (${session}).`);
+        // Marksheet download feature coming soon
+        console.log(`Requested Marksheet for ${cls} (${session})`);
     };
 
     // Format date helper

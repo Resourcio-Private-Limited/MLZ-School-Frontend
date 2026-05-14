@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2 } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation } from "@/redux/api/principalApi";
 
 const EXAM_TYPES = [
@@ -91,11 +92,10 @@ export default function AdmitCardPage() {
                     examDate: examScheduleDates[subject.id],
                 })),
             }).unwrap();
-            setScheduleSaved(true);
-            alert('Exam dates saved. You can now generate admit cards.');
+            toast.success('Exam dates saved. You can now generate admit cards.');
         } catch (err) {
             console.error('Failed to save exam schedule:', err);
-            alert('Failed to save exam schedule. Please try again.');
+            toast.error('Failed to save exam schedule. Please try again.');
         }
     };
 
@@ -109,12 +109,12 @@ export default function AdmitCardPage() {
                     examType: selectedExamType,
                 }).unwrap();
             }
-            alert(`Admit cards generated for ${selectedStudentIds.length} student(s)!`);
+            toast.success(`Admit cards generated for ${selectedStudentIds.length} student(s)!`);
             setSelectedStudentIds([]);
             setSelectAll(false);
         } catch (err) {
             console.error("Failed to generate admit cards:", err);
-            alert("Failed to generate admit cards. Please try again.");
+            toast.error("Failed to generate admit cards. Please try again.");
         } finally {
             setGenerating(false);
         }

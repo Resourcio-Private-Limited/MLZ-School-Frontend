@@ -3,6 +3,7 @@
 import { useState, use } from "react";
 import { ArrowLeft, Save, Edit2, Check, X, FileSpreadsheet, Award } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 
 export default function FinalExamMarksPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -44,7 +45,7 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
     const handleSave = (studentId: number) => {
         const marks = parseInt(editValue);
         if (isNaN(marks) || marks < 0 || marks > 100) {
-            alert("Please enter valid marks between 0 and 100");
+            toast.error("Please enter valid marks between 0 and 100");
             return;
         }
 
@@ -60,7 +61,7 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
         // TODO: Send data to backend API
         setTimeout(() => {
             setIsSaving(false);
-            alert("Marks saved successfully!");
+            toast.success("Marks saved successfully!");
         }, 1000);
     };
 

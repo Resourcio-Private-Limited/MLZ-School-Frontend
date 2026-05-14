@@ -3,19 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Users, UserCheck, BookOpen, Shield } from "lucide-react";
 import { useLoginMutation } from "@/redux/api/authApi";
 import { setCredentials } from "@/redux/slices/authSlice";
 import { store } from "@/redux";
-
-interface LoginFormProps {
-    title: string;
-    description?: string;
-    redirectTo?: string;
-    identifierLabel?: string;
-    identifierPlaceholder?: string;
-    identifierType?: string;
-}
 
 // Role to redirect path mapping
 const ROLE_REDIRECT_MAP: Record<string, string> = {
@@ -26,14 +17,15 @@ const ROLE_REDIRECT_MAP: Record<string, string> = {
     ACCOUNTANT: '/accounts',
 };
 
-export default function LoginForm({
-    title,
-    description,
-    redirectTo,
-    identifierLabel = "Email Address",
-    identifierPlaceholder = "name@school.com",
-    identifierType = "email",
-}: LoginFormProps) {
+const ROLE_INFO = [
+    { role: 'STUDENT', label: 'Student', icon: GraduationCap, color: 'blue' },
+    { role: 'TEACHER', label: 'Teacher', icon: Users, color: 'emerald' },
+    { role: 'PRINCIPAL', label: 'Principal', icon: UserCheck, color: 'purple' },
+    { role: 'ACCOUNTANT', label: 'Accounts', icon: BookOpen, color: 'amber' },
+    { role: 'SUPER_ADMIN', label: 'Super Admin', icon: Shield, color: 'rose' },
+];
+
+export default function UnifiedLoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -53,7 +45,7 @@ export default function LoginForm({
 
             // Determine redirect path based on user role
             const userRole = res.user?.role;
-            const redirectPath = redirectTo || ROLE_REDIRECT_MAP[userRole] || '/student';
+            const redirectPath = ROLE_REDIRECT_MAP[userRole] || '/student';
 
             // Store auth data in Redux and localStorage
             store.dispatch(
@@ -70,7 +62,6 @@ export default function LoginForm({
 
             router.push(redirectPath);
         } catch (err: unknown) {
-            // RTK Query errors have a property `data` with the error message
             const error = err as { data?: { message?: string }; message?: string };
             const msg =
                 typeof error?.data?.message === "string"
@@ -80,6 +71,17 @@ export default function LoginForm({
         } finally {
             setLoading(false);
         }
+    };
+
+    const getColorClasses = (color: string) => {
+        const colors: Record<string, { bg: string; text: string; border: string; hover: string }> = {
+            blue: { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-500', hover: 'hover:bg-blue-700' },
+            emerald: { bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-500', hover: 'hover:bg-emerald-700' },
+            purple: { bg: 'bg-purple-600', text: 'text-purple-600', border: 'border-purple-500', hover: 'hover:bg-purple-700' },
+            amber: { bg: 'bg-amber-600', text: 'text-amber-600', border: 'border-amber-500', hover: 'hover:bg-amber-700' },
+            rose: { bg: 'bg-rose-600', text: 'text-rose-600', border: 'border-rose-500', hover: 'hover:bg-rose-700' },
+        };
+        return colors[color] || colors.blue;
     };
 
     return (
@@ -129,6 +131,7 @@ export default function LoginForm({
                     </div>
                 </div>
 
+                
                 <div className="relative z-10 text-slate-500 text-sm">
                     © {new Date().getFullYear()} Mount Litera Zee School. All
                     rights reserved.
@@ -151,11 +154,9 @@ export default function LoginForm({
                             />
                         </div>
                         <h2 className="text-3xl font-bold text-slate-800 mb-2">
-                            {title}
+                            Portal Login
                         </h2>
-                        {description && (
-                            <p className="text-slate-500">{description}</p>
-                        )}
+                        <p className="text-slate-500">Sign in to access your dashboard</p>
                     </div>
 
                     {error && (
@@ -168,14 +169,14 @@ export default function LoginForm({
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-1.5">
                             <label className="block text-sm font-bold text-slate-700">
-                                {identifierLabel}
+                                Email Address
                             </label>
                             <input
-                                type={identifierType}
+                                type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full border rounded p-2 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500"
-                                placeholder={identifierPlaceholder}
+                                placeholder="name@school.com"
                                 required
                             />
                         </div>
@@ -267,6 +268,25 @@ export default function LoginForm({
                             </a>
                         </div>
                     </form>
+
+                    {/* Mobile role info */}
+                    <div className="mt-6 pt-6 border-t border-gray-100 lg:hidden">
+                        <p className="text-xs text-slate-500 text-center mb-3">Supports all user roles</p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {ROLE_INFO.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <div
+                                        key={item.role}
+                                        className="flex items-center space-x-1 px-2 py-1 rounded bg-gray-50 border border-gray-200"
+                                    >
+                                        <Icon size={14} className={getColorClasses(item.color).text} />
+                                        <span className="text-xs text-gray-600">{item.label}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

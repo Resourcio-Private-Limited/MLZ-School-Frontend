@@ -127,6 +127,7 @@ export interface TeacherSummary {
     primaryContact: string | null;
     email: string | null;
     status: string;
+    isActive: boolean;
     isClassTeacher: boolean;
     classTeacherOf: { name: string; grade: string; section: string } | null;
     subjects: { subjectName: string; classroomName: string }[];
@@ -143,6 +144,7 @@ export const principalApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getAllClassrooms: builder.query<ClassroomSummary[], void>({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),
+            providesTags: ['Classroom'],
         }),
 
         getClassroom: builder.query<ClassroomSummary, string>({
@@ -167,6 +169,7 @@ export const principalApi = baseApi.injectEndpoints({
 
         getSubjectsByClassroom: builder.query<SubjectSummary[], string>({
             query: (classroomId) => ({ url: `/principal/subjects/${classroomId}`, method: 'GET' }),
+            providesTags: ['Subject'],
         }),
 
         getExamSchedule: builder.query<AdmitCardScheduleEntry[], { classroomId: string; examType: string }>({
@@ -182,10 +185,22 @@ export const principalApi = baseApi.injectEndpoints({
 
         assignClassTeacher: builder.mutation<any, { teacherId: string; classroomId: string }>({
             query: (body) => ({ url: '/principal/class-teacher', method: 'POST', body }),
+            invalidatesTags: ['Classroom'],
         }),
 
         addSubjectWithTeacher: builder.mutation<any, { subjectName: string; classroomId: string; teacherId: string }>({
             query: (body) => ({ url: '/principal/subjects', method: 'POST', body }),
+            invalidatesTags: ['Subject'],
+        }),
+
+        updateSubject: builder.mutation<any, { subjectId: string; name: string; teacherId?: string }>({
+            query: ({ subjectId, ...body }) => ({ url: `/principal/subjects/${subjectId}`, method: 'PATCH', body }),
+            invalidatesTags: ['Subject'],
+        }),
+
+        deleteSubject: builder.mutation<any, string>({
+            query: (subjectId) => ({ url: `/principal/subjects/${subjectId}`, method: 'DELETE' }),
+            invalidatesTags: ['Subject'],
         }),
 
         getPrincipalProfile: builder.query<PrincipalFullProfile, void>({
@@ -255,6 +270,8 @@ export const {
     useSetExamScheduleMutation,
     useAssignClassTeacherMutation,
     useAddSubjectWithTeacherMutation,
+    useUpdateSubjectMutation,
+    useDeleteSubjectMutation,
     useUploadProfileImageMutation,
     useGetStudentAdmitCardPreviewQuery,
     useCreateAdmitCardMutation,
