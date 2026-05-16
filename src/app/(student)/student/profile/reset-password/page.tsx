@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 import { useResetPasswordMutation } from "@/redux/api/authApi";
 import { useAppSelector } from "@/redux/hooks";
 
@@ -12,8 +13,6 @@ export default function ResetPasswordPage() {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -29,16 +28,14 @@ export default function ResetPasswordPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
-        setSuccess("");
 
         if (newPassword !== confirmPassword) {
-            setError("Passwords do not match");
+            toast.error("Passwords do not match");
             return;
         }
 
         if (newPassword.length < 8) {
-            setError("Password must be at least 8 characters long");
+            toast.error("Password must be at least 8 characters long");
             return;
         }
 
@@ -48,7 +45,7 @@ export default function ResetPasswordPage() {
         const token = urlToken ?? sessionToken;
 
         if (!token) {
-            setError("Session expired. Please log in again.");
+            toast.error("Session expired. Please log in again.");
             return;
         }
 
@@ -56,8 +53,7 @@ export default function ResetPasswordPage() {
 
         try {
             await resetPassword({ token, newPassword }).unwrap();
-            setSuccess("Password reset successful! Redirecting to profile...");
-
+            toast.success("Password reset successful! Redirecting to profile...");
             setTimeout(() => {
                 router.push("/student/profile");
             }, 2000);
@@ -67,7 +63,7 @@ export default function ResetPasswordPage() {
                 typeof e2?.data?.message === "string"
                     ? e2.data.message
                     : e2?.message ?? "Failed to reset password.";
-            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -97,18 +93,6 @@ export default function ResetPasswordPage() {
 
                 {/* Form */}
                 <div className="p-8">
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm border border-red-100">
-                            {error}
-                        </div>
-                    )}
-
-                    {success && (
-                        <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-4 text-sm border border-green-100">
-                            {success}
-                        </div>
-                    )}
-
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>

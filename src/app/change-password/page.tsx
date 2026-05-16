@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from 'react-hot-toast';
 import { useForgotPasswordMutation, useResetPasswordMutation } from "@/redux/api/authApi";
 import { setResetEmail } from "@/redux/slices/authSlice";
 import { store } from "@/redux";
@@ -10,7 +11,6 @@ export default function ChangePasswordPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirm, setConfirm] = useState("");
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<"email" | "reset">("email");
     const router = useRouter();
@@ -21,7 +21,6 @@ export default function ChangePasswordPage() {
     // ─── Step 1: Submit email, receive token, move to reset step ───────
     const handleEmailSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
         setLoading(true);
 
         try {
@@ -34,6 +33,7 @@ export default function ChangePasswordPage() {
             // If the backend returns `resetToken` directly, store it; otherwise
             // the user arrives here via the email link which embeds the token.
             // For now we treat the server response as confirmation to proceed.
+            toast.success("Reset link sent! Check your email.");
             setStep("reset");
         } catch (err: unknown) {
             const e2 = err as { data?: { message?: string }; message?: string };
@@ -41,7 +41,7 @@ export default function ChangePasswordPage() {
                 typeof e2?.data?.message === "string"
                     ? e2.data.message
                     : e2?.message ?? "Failed to request password reset.";
-            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -50,22 +50,21 @@ export default function ChangePasswordPage() {
     // ─── Step 2: Submit token + new password ──────────────────────────
     const handleResetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
 
         if (password !== confirm) {
-            setError("Passwords do not match");
+            toast.error("Passwords do not match");
             return;
         }
 
         if (password.length < 8) {
-            setError("Password must be at least 8 characters");
+            toast.error("Password must be at least 8 characters");
             return;
         }
 
         // Read the token from the URL query param (sent via email link)
         const token = new URLSearchParams(window.location.search).get("token");
         if (!token) {
-            setError("Missing reset token. Please use the link from your email.");
+            toast.error("Missing reset token. Please use the link from your email.");
             return;
         }
 
@@ -77,6 +76,7 @@ export default function ChangePasswordPage() {
             // Clear the stored reset email
             store.dispatch(setResetEmail(""));
 
+            toast.success("Password reset successful!");
             router.push("/");
         } catch (err: unknown) {
             const e2 = err as { data?: { message?: string }; message?: string };
@@ -84,7 +84,7 @@ export default function ChangePasswordPage() {
                 typeof e2?.data?.message === "string"
                     ? e2.data.message
                     : e2?.message ?? "Failed to reset password.";
-            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -102,12 +102,6 @@ export default function ChangePasswordPage() {
                         ? "Enter your registered email and we'll send you a reset link."
                         : "Enter your new password below."}
                 </p>
-
-                {error && (
-                    <div className="bg-red-50 text-red-600 p-3 mb-4 text-sm rounded">
-                        {error}
-                    </div>
-                )}
 
                 {step === "email" ? (
                     // ── Step 1: Email form ───────────────────────────────

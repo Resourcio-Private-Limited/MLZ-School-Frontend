@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, AlertCircle, Calendar, Award, User as UserIcon, Eye, EyeOff } from "lucide-react";
+import { X, User as UserIcon, Eye, EyeOff } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useAddStudentMutation } from "@/redux/api/principalApi";
 
 type Classroom = {
@@ -26,7 +27,6 @@ export default function ClassroomAdmissionForm({
     onSuccess: () => void;
 }) {
     const [addStudent, { isLoading }] = useAddStudentMutation();
-    const [error, setError] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
     const currentYear = new Date().getFullYear();
@@ -43,7 +43,6 @@ export default function ClassroomAdmissionForm({
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        setError("");
         const form = e.currentTarget;
         const formData = new FormData(form);
 
@@ -57,7 +56,7 @@ export default function ClassroomAdmissionForm({
 
         const password = formData.get("password") as string;
         if (!password) {
-            setError("Password is required");
+            toast.error("Password is required");
             return;
         }
 
@@ -79,9 +78,10 @@ export default function ClassroomAdmissionForm({
                 classroomId,
             }).unwrap();
 
+            toast.success("Student admitted successfully!");
             onSuccess();
         } catch (err: any) {
-            setError(err?.data?.message ?? "Failed to admit student. Please try again.");
+            toast.error(err?.data?.message ?? "Failed to admit student. Please try again.");
         }
     };
 
@@ -100,39 +100,6 @@ export default function ClassroomAdmissionForm({
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm flex items-start space-x-2">
-                            <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                            <span>{error}</span>
-                        </div>
-                    )}
-
-                    {/* Auto-Generated Info */}
-                    {/* <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <h3 className="font-semibold text-purple-900 mb-3 flex items-center space-x-2">
-                            <Award size={18} />
-                            <span>Admission Information</span>
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                                <p className="text-purple-600 font-medium">Admission No</p>
-                                <p className="text-purple-900 font-mono font-semibold">{admissionNumber}</p>
-                            </div>
-                            <div>
-                                <p className="text-purple-600 font-medium">Admission Date</p>
-                                <p className="text-purple-900 font-semibold">{new Date(currentDate).toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                                <p className="text-purple-600 font-medium">Academic Year</p>
-                                <p className="text-purple-900 font-semibold">{academicYear}</p>
-                            </div>
-                            <div>
-                                <p className="text-purple-600 font-medium">Expected Passing Year</p>
-                                <p className="text-purple-900 font-semibold">{passingYear}</p>
-                            </div>
-                        </div>
-                    </div> */}
-
                     {/* Login Credentials */}
                     <div className="border-t pt-4">
                         <h3 className="font-semibold text-gray-700 mb-3 flex items-center space-x-2">

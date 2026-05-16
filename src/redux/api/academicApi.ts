@@ -37,16 +37,49 @@ export interface ExamMarksResponse {
     records: ExamStudentRecord[];
 }
 
+export interface ClassroomExamOption {
+    classroomId: string;
+    classroomName: string;
+    grade: string;
+    section: string;
+    exams: {
+        examId: string;
+        examName: string;
+        subjectName?: string;
+        subjectId?: string;
+        examDate: string;
+        submissionOpen: boolean;
+        totalResults: number;
+    }[];
+}
+
 export const academicApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
         getExamsForTeacher: builder.query<TeacherExam[], string>({
             query: (teacherId) => ({ url: `/academic/teacher/exams?teacherId=${teacherId}`, method: 'GET' }),
         }),
 
+        getExamTypesForTeacher: builder.query<ClassroomExamOption[], string>({
+            query: (teacherId) => ({ url: `/academic/teacher/exam-types?teacherId=${teacherId}`, method: 'GET' }),
+        }),
+
         getExamMarks: builder.query<ExamMarksResponse, string>({
             query: (examId) => ({ url: `/academic/exam/${examId}/marks`, method: 'GET' }),
+        }),
+
+        updateStudentMarks: builder.mutation<any, { examId: string; studentId: string; score: number }>({
+            query: ({ examId, studentId, score }) => ({
+                url: `/academic/exam/${examId}/marks/${studentId}`,
+                method: 'POST',
+                body: { score },
+            }),
         }),
     }),
 });
 
-export const { useGetExamsForTeacherQuery, useGetExamMarksQuery } = academicApi;
+export const {
+    useGetExamsForTeacherQuery,
+    useGetExamTypesForTeacherQuery,
+    useGetExamMarksQuery,
+    useUpdateStudentMarksMutation,
+} = academicApi;

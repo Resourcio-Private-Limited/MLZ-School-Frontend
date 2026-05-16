@@ -3,23 +3,22 @@
 import { mockAction } from "@/lib/mocks";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
+import toast from 'react-hot-toast';
 
 export default function PromotionButton({ yearId, disabled }: { yearId: string, disabled: boolean }) {
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState("");
 
     const handlePromote = async () => {
         if (!confirm("Are you sure you want to promote ALL students? This cannot be undone.")) return;
 
         setLoading(true);
-        setMessage("");
 
         const res = await mockAction("promoteStudents", { yearId });
 
         if (res.success) {
-            setMessage(`Success! Promoted: ${10} (Mock), Graduated: ${0} (Mock)`);
+            toast.success(`Success! Promoted: ${10} (Mock), Graduated: ${0} (Mock)`);
         } else {
-            setMessage("Error: " + "Failed (Mock)");
+            toast.error("Failed to promote students.");
         }
         setLoading(false);
     };
@@ -36,7 +35,6 @@ export default function PromotionButton({ yearId, disabled }: { yearId: string, 
                 <span>{loading ? "Promoting..." : "Promote Students"}</span>
                 {!loading && <ArrowRight size={20} />}
             </button>
-            {message && <p className="mt-2 text-sm font-medium text-gray-700">{message}</p>}
         </div>
     );
 }

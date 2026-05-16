@@ -182,8 +182,19 @@ export default function PrincipalHomePage() {
         }
     };
 
-    // Show ALL active teachers for selection (not just class teachers)
+    // Derive teachers already assigned to a subject in this classroom (to prevent duplicate assignment)
+    const assignedTeacherIds = new Set<string>();
+    for (const subj of classroomSubjects) {
+        for (const t of subj.teachers) {
+            assignedTeacherIds.add(t.id);
+        }
+    }
+
+    // Show ALL active teachers for selection, but highlight those already assigned
     const availableTeachers = allTeachers.filter(t => t.isActive);
+
+    // Filter out teachers already assigned to a subject in this classroom
+    const availableTeachersForNewSubject = availableTeachers.filter(t => !assignedTeacherIds.has(t.id));
 
     return (
         <div className="space-y-8">
@@ -374,7 +385,7 @@ export default function PrincipalHomePage() {
                                                                 className="w-full px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                                                             >
                                                                 <option value="">Select teacher (optional)</option>
-                                                                {availableTeachers.map((t) => (
+                                                                {availableTeachersForNewSubject.map((t) => (
                                                                     <option key={t.id} value={t.id}>
                                                                         {t.fullName} {t.employeeId ? `(${t.employeeId})` : ""}
                                                                     </option>
@@ -459,7 +470,7 @@ export default function PrincipalHomePage() {
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
                                             >
                                                 <option value="">Select teacher</option>
-                                                {availableTeachers.map((t) => (
+                                                {availableTeachersForNewSubject.map((t) => (
                                                     <option key={t.id} value={t.id}>
                                                         {t.fullName}
                                                     </option>

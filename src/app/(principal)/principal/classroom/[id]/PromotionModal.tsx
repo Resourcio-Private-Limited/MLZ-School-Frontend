@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, UserCheck, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { X, UserCheck } from "lucide-react";
+import toast from 'react-hot-toast';
 import { usePromoteStudentsMutation, useGetNextClassroomsQuery } from "@/redux/api/principalApi";
 
 type Student = {
@@ -31,7 +32,6 @@ export default function PromotionModal({
 }) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [targetClassroomId, setTargetClassroomId] = useState<string>("");
-    const [error, setError] = useState("");
 
     const { data: allClassrooms = [], isLoading: loadingClassrooms } = useGetNextClassroomsQuery(classroom.id);
     const [promoteStudents, { isLoading: isPromoting }] = usePromoteStudentsMutation();
@@ -61,21 +61,21 @@ export default function PromotionModal({
 
     const handlePromote = async () => {
         if (selectedStudents.length === 0) {
-            setError("Please select at least one student to promote");
+            toast.error("Please select at least one student to promote");
             return;
         }
         if (!targetClassroomId) {
-            setError("Please select a target classroom");
+            toast.error("Please select a target classroom");
             return;
         }
 
-        setError("");
         try {
             await promoteStudents({ studentIds: selectedStudents, targetClassroomId }).unwrap();
+            toast.success(`${selectedStudents.length} student(s) promoted successfully!`);
             onSuccess();
             onClose();
         } catch (err: any) {
-            setError(err?.data?.message ?? "Failed to promote students. Please try again.");
+            toast.error(err?.data?.message ?? "Failed to promote students. Please try again.");
         }
     };
 
@@ -180,17 +180,6 @@ export default function PromotionModal({
                         <span className="font-semibold text-gray-900">{selectedStudents.length}</span> selected
                     </div>
                 </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-                        <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={20} />
-                        <div>
-                            <p className="text-red-800 font-semibold">Promotion Error</p>
-                            <p className="text-red-700 text-sm mt-1">{error}</p>
-                        </div>
-                    </div>
-                )}
 
                 {/* Student List */}
                 <div className="flex-1 overflow-y-auto p-6">

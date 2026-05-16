@@ -16,7 +16,7 @@ export default function TeacherLayout({
     const router = useRouter();
     const { data: teacherProfile } = useGetTeacherProfileQuery();
 
-    const teacherName = teacherProfile?.personal?.fullName ?? "Teacher";
+    const teacherName = teacherProfile?.fullName ?? "Teacher";
     const teacherEmail = teacherProfile?.userEmail ?? "";
 
     const handleLogout = () => {

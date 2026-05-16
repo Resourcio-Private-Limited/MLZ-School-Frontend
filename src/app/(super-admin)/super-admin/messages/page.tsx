@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Send, CheckCircle2, MessageSquare } from "lucide-react";
+import { Search, Send, MessageSquare } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
 
@@ -74,7 +75,6 @@ export default function SuperAdminMessagesPage() {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [messageText, setMessageText] = useState("");
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
     const { data: allUsers } = useGetAllUsersQuery();
     const { data: conversations = [], refetch: refetchConversations } = useGetConversationsQuery(currentUserId ?? "");
@@ -84,10 +84,6 @@ export default function SuperAdminMessagesPage() {
         { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
         { skip: !currentUserId || !selectedUserId }
     );
-
-    useEffect(() => {
-        if (feedback) setTimeout(() => setFeedback(null), 4000);
-    }, [feedback]);
 
     // Build sidebar: all users merged with conversation data
     const allSidebarUsers: SidebarUser[] = [
@@ -129,11 +125,11 @@ export default function SuperAdminMessagesPage() {
                 content: messageText.trim(),
             }).unwrap();
             setMessageText("");
-            setFeedback({ type: "success", message: "Message sent!" });
+            toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
         } catch {
-            setFeedback({ type: "error", message: "Failed to send message." });
+            toast.error("Failed to send message.");
         }
     };
 
@@ -147,20 +143,6 @@ export default function SuperAdminMessagesPage() {
                         <p className="text-gray-500 mt-1">Communicate with all users in the system</p>
                     </div>
                 </div>
-
-                {/* Feedback Banner */}
-                {feedback && (
-                    <div className={`flex items-center space-x-3 px-5 py-3 rounded-lg shadow-md border ${
-                        feedback.type === "success"
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                            : "bg-red-50 border-red-200 text-red-800"
-                    }`}>
-                        {feedback.type === "success"
-                            ? <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-                            : <Send size={20} className="text-red-500 shrink-0" />}
-                        <p className="font-medium text-sm">{feedback.message}</p>
-                    </div>
-                )}
 
                 {/* Message Layout */}
                 <div className="flex bg-white rounded-lg shadow-lg overflow-hidden min-h-[600px]">

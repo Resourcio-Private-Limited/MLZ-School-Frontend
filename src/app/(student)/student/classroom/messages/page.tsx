@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Send, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Search, Send } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
 
@@ -59,16 +60,11 @@ export default function StudentMessagesPage() {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [messageText, setMessageText] = useState("");
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
     const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
         { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
         { skip: !currentUserId || !selectedUserId }
     );
-
-    useEffect(() => {
-        if (feedback) setTimeout(() => setFeedback(null), 4000);
-    }, [feedback]);
 
     // Get the name and role for a given userId from recipients
     const getRecipientInfo = (userId: string) => {
@@ -108,11 +104,11 @@ export default function StudentMessagesPage() {
                 content: messageText.trim(),
             }).unwrap();
             setMessageText("");
-            setFeedback({ type: "success", message: "Message sent!" });
+            toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
         } catch {
-            setFeedback({ type: "error", message: "Failed to send message." });
+            toast.error("Failed to send message.");
         }
     };
 
@@ -132,21 +128,6 @@ export default function StudentMessagesPage() {
                         <h1 className="text-3xl font-bold text-slate-800">Messages</h1>
                     </div>
                 </div>
-
-                {/* Feedback Banner */}
-                {feedback && (
-                    <div className={`flex items-center space-x-3 px-5 py-3 rounded-lg shadow-md border ${
-                        feedback.type === "success"
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                            : "bg-red-50 border-red-200 text-red-800"
-                    }`}>
-                        {feedback.type === "success"
-                            ? <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-                            : <Send size={20} className="text-red-500 shrink-0" />
-                        }
-                        <p className="font-medium text-sm">{feedback.message}</p>
-                    </div>
-                )}
 
                 {/* Disclaimer */}
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">

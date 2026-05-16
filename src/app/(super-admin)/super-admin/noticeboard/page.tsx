@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bell, Filter, Link2, Plus, X, Edit2, Trash2 } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useGetNoticesQuery, useCreateNoticeMutation, useUpdateNoticeMutation, useDeleteNoticeMutation, NoticeTag, Notice } from "@/redux/api/operationsApi";
 
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
@@ -69,7 +70,6 @@ const emptyForm: NoticeForm = { title: "", tag: "GENERAL", content: "", link: ""
 export default function SuperAdminNoticeBoardPage() {
     const [selectedCategory, setSelectedCategory] = useState("All Notices");
     const [showForm, setShowForm] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
     const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [form, setForm] = useState<NoticeForm>(emptyForm);
@@ -85,11 +85,6 @@ export default function SuperAdminNoticeBoardPage() {
 
     const getCategoryColor = (tag: NoticeTag) => {
         return TAG_COLORS[tag] ?? "bg-blue-50 text-blue-700 border border-blue-100";
-    };
-
-    const showFeedback = (type: "success" | "error", msg: string) => {
-        setFeedback({ type, msg });
-        setTimeout(() => setFeedback(null), 4000);
     };
 
     const openCreate = () => {
@@ -119,7 +114,7 @@ export default function SuperAdminNoticeBoardPage() {
                         link: form.link.trim() || undefined,
                     },
                 }).unwrap();
-                showFeedback("success", "Notice updated successfully!");
+                toast.success("Notice updated successfully!");
             } else {
                 await createNotice({
                     title: form.title.trim(),
@@ -128,14 +123,13 @@ export default function SuperAdminNoticeBoardPage() {
                     tag: form.tag,
                     link: form.link.trim() || undefined,
                 }).unwrap();
-                showFeedback("success", "Notice broadcasted successfully!");
+                toast.success("Notice broadcasted successfully!");
             }
             setShowForm(false);
             setForm(emptyForm);
             setEditingNotice(null);
-            refetch();
         } catch {
-            showFeedback("error", "Failed to save notice. Please try again.");
+            toast.error("Failed to save notice. Please try again.");
         }
     };
 
@@ -143,10 +137,9 @@ export default function SuperAdminNoticeBoardPage() {
         try {
             await deleteNotice(noticeId).unwrap();
             setShowDeleteConfirm(null);
-            showFeedback("success", "Notice deleted successfully!");
-            refetch();
+            toast.success("Notice deleted successfully!");
         } catch {
-            showFeedback("error", "Failed to delete notice.");
+            toast.error("Failed to delete notice.");
         }
     };
 
@@ -166,17 +159,6 @@ export default function SuperAdminNoticeBoardPage() {
                     <span>Create Notice</span>
                 </button>
             </div>
-
-            {/* Feedback Banner */}
-            {feedback && (
-                <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
-                    feedback.type === "success"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-red-50 text-red-700 border border-red-200"
-                }`}>
-                    {feedback.msg}
-                </div>
-            )}
 
             {/* Create / Edit Notice Form */}
             {showForm && (

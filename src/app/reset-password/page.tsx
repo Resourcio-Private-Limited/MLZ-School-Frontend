@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useResetPasswordMutation } from "@/redux/api/authApi";
 
 function ResetPasswordForm() {
@@ -14,44 +15,42 @@ function ResetPasswordForm() {
     const [confirm, setConfirm] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
 
         if (!token) {
-            setError("Invalid or expired reset link. Please request a new password reset.");
+            toast.error("Invalid or expired reset link. Please request a new password reset.");
             return;
         }
 
         if (password !== confirm) {
-            setError("Passwords do not match");
+            toast.error("Passwords do not match");
             return;
         }
 
         if (password.length < 8) {
-            setError("Password must be at least 8 characters");
+            toast.error("Password must be at least 8 characters");
             return;
         }
 
         try {
             await resetPassword({ token, newPassword: password }).unwrap();
-            setSuccess(true);
+            setShowSuccess(true);
         } catch (err: unknown) {
             const e2 = err as { data?: { message?: string }; message?: string };
             const msg =
                 typeof e2?.data?.message === "string"
                     ? e2.data.message
                     : e2?.message ?? "Failed to reset password. The link may have expired.";
-            setError(msg);
+            toast.error(msg);
         }
     };
 
-    if (success) {
+    if (showSuccess) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
                 <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center">
@@ -78,12 +77,6 @@ function ResetPasswordForm() {
                 <p className="text-sm text-gray-500 mb-6 text-center">
                     Enter your new password below.
                 </p>
-
-                {error && (
-                    <div className="bg-red-50 text-red-600 p-3 mb-4 text-sm rounded border border-red-200">
-                        {error}
-                    </div>
-                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
