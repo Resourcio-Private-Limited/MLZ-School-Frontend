@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, use, useCallback, useEffect } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, Send, Paperclip, X, Info, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Bell, Send, Paperclip, X, Info } from "lucide-react";
+import toast from 'react-hot-toast';
 import { useGetAnnouncementsQuery, useCreateAnnouncementMutation } from "@/redux/api/operationsApi";
 
 function formatDate(dateStr: string) {
@@ -37,7 +38,6 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [fileUrl, setFileUrl] = useState("");
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const [teacherId, setTeacherId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -45,19 +45,14 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
         setTeacherId(user?.teacher?.id ?? null);
     }, []);
 
-    const { data: announcements = [], isLoading, refetch } = useGetAnnouncementsQuery(classroomId);
+    const { data: announcements = [], isLoading } = useGetAnnouncementsQuery(classroomId);
     const [createAnnouncement, { isLoading: isCreating_ }] = useCreateAnnouncementMutation();
-
-    const showFeedback = useCallback((type: "success" | "error", message: string) => {
-        setFeedback({ type, message });
-        setTimeout(() => setFeedback(null), 4000);
-    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!teacherId) {
-            showFeedback("error", "Teacher not found. Please login again.");
+            toast.error("Teacher not found. Please login again.");
             return;
         }
 
@@ -74,10 +69,9 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
             setContent("");
             setFileUrl("");
             setIsCreating(false);
-            showFeedback("success", "Announcement posted successfully!");
-            refetch();
+            toast.success("Announcement posted successfully!");
         } catch {
-            showFeedback("error", "Failed to create announcement. Please try again.");
+            toast.error("Failed to create announcement. Please try again.");
         }
     };
 
@@ -106,21 +100,6 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                     </button>
                 )}
             </div>
-
-            {/* Feedback Banner */}
-            {feedback && (
-                <div className={`flex items-center space-x-3 px-5 py-3 rounded-lg shadow-md border ${
-                    feedback.type === "success"
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                        : "bg-red-50 border-red-200 text-red-800"
-                }`}>
-                    {feedback.type === "success"
-                        ? <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-                        : <X size={20} className="text-red-500 shrink-0" />
-                    }
-                    <p className="font-medium text-sm">{feedback.message}</p>
-                </div>
-            )}
 
             {/* Create Announcement Form */}
             {isCreating && (

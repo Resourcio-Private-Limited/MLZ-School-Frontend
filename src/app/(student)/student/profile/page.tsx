@@ -8,9 +8,7 @@ import {
     MapPin,
     Phone,
     Mail,
-    Shield,
     Calendar,
-    FileText,
     History,
     Camera,
     Loader2,
@@ -70,7 +68,6 @@ export default function ProfilePage() {
 
     // Helper to generate academic history from marksByClass
     const academicHistory = Object.entries(profile.marksByClass ?? {}).map(([label, marks]) => {
-        // Extract year from label e.g. "Grade 5 - A (2026)"
         const match = label.match(/\((\d{4})\)/);
         const year = match ? parseInt(match[1]) : new Date().getFullYear();
         const session = `${year - 1}-${year}`;
@@ -78,7 +75,6 @@ export default function ProfilePage() {
     });
 
     const handleDownload = (cls: string, session: string) => {
-        // Marksheet download feature coming soon
         console.log(`Requested Marksheet for ${cls} (${session})`);
     };
 
@@ -90,7 +86,6 @@ export default function ProfilePage() {
     };
 
     const genderLabel = personal.gender === "Male" ? "Male" : personal.gender === "Female" ? "Female" : personal.gender;
-    const pwdLabel = personal.isPwd ? "Yes" : "No";
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
@@ -171,15 +166,9 @@ export default function ProfilePage() {
                             <InfoField label="Full Name" value={personal.fullName} icon={<User size={16} />} />
                             <InfoField label="Date of Birth" value={formatDate(personal.dob)} icon={<Calendar size={16} />} />
                             <InfoField label="Gender" value={genderLabel} icon={<User size={16} />} />
-                            <InfoField label="Nationality" value={personal.nationality ?? "—"} icon={<MapPin size={16} />} />
-                            <InfoField label="Caste" value={personal.caste ?? "—"} icon={<User size={16} />} />
-                            <InfoField label="Aadhar No." value={personal.aadharNo ?? "—"} icon={<Shield size={16} />} />
-                            <InfoField label="Email ID" value={personal.email ?? "—"} icon={<Mail size={16} />} />
-                            <InfoField label="PWD" value={pwdLabel} icon={<User size={16} />} />
+                            
                             <InfoField label="Primary Contact No." value={personal.primaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Secondary Contact No." value={personal.secondaryContact ?? "—"} icon={<Phone size={16} />} />
-                            <InfoField label="Identification Mark" value={personal.identificationMark ?? "—"} icon={<User size={16} />} className="md:col-span-2" />
-                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-3" />
+                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} />
                         </div>
                     </div>
                 </div>
@@ -198,14 +187,13 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <InfoField label="Admission No." value={academic.admissionNumber} icon={<FileText size={16} />} />
+                            <InfoField label="Admission No." value={academic.admissionNumber} icon={<Award size={16} />} />
                             <InfoField label="Admission Year" value={String(academic.admissionYear)} icon={<Calendar size={16} />} />
-                            <InfoField label="Admission Class" value={currentClass.name} icon={<GraduationCap size={16} />} />
-                            <InfoField label="Date of Admission" value={formatDate(academic.admissionDate)} icon={<Calendar size={16} />} />
-                            <InfoField label="Current Class" value={currentClass.name} icon={<Award size={16} />} />
+                            <InfoField label="Current Class" value={currentClass.name} icon={<GraduationCap size={16} />} />
                             <InfoField label="Current Section" value={currentClass.section} icon={<Award size={16} />} />
-                            <InfoField label="Roll No." value={academic.rollNumber ?? "—"} icon={<FileText size={16} />} />
-                            <InfoField label="Passing Year" value={academic.passingYear ? String(academic.passingYear) : "—"} icon={<Calendar size={16} />} />
+                            <InfoField label="Roll No." value={academic.rollNumber ?? "—"} icon={<Award size={16} />} />
+                            <InfoField label="Parent Name" value={academic.parentName ?? "—"} icon={<User size={16} />} />
+                            <InfoField label="Parent Contact" value={academic.parentContact ?? "—"} icon={<Phone size={16} />} />
                         </div>
                     </div>
                 </div>
@@ -242,7 +230,7 @@ export default function ProfilePage() {
                                                 <td className="px-4 py-3 text-sm text-gray-800 font-medium">{record.class}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-600">{record.session}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-600">
-                                                    {record.marks.map((m) => (
+                                                    {record.marks.map((m: { id: string; score: number; exam: { subject: { name: string } } }) => (
                                                         <span key={m.id} className="inline-block mr-2 text-xs bg-gray-100 px-2 py-0.5 rounded">
                                                             {m.exam.subject.name}: {m.score}
                                                         </span>
@@ -264,27 +252,6 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 )}
-
-                {/* ── Security Settings ─────────────────────────────── */}
-                {/* <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-purple-500 mb-12">
-                    <div className="p-6 md:p-8 flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-                                <Lock size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Security Settings</h2>
-                                <p className="text-sm text-gray-500">Update your password to keep your account secure</p>
-                            </div>
-                        </div>
-                        <Link href="/student/profile/reset-password">
-                            <button className="flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-lg hover:bg-slate-900 transition-all shadow-lg hover:shadow-slate-500/30">
-                                <Lock size={18} />
-                                <span>Reset Password</span>
-                            </button>
-                        </Link>
-                    </div>
-                </div> */}
             </div>
         </div>
     );

@@ -43,7 +43,14 @@ export interface UserSummary {
     classroom?: string;
     isActive: boolean;
     email: string;
-    role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT';
+    role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
+    primaryContact?: string;
+    dob?: string | null;
+    gender?: string;
+    residentialAddress?: string;
+    highestQualification?: string;
+    salary?: string;
+    customRole?: string;
 }
 
 export interface AllUsersResponse {
@@ -78,8 +85,13 @@ export interface UpdateUserPayload {
     email?: string;
     fullName?: string;
     primaryContact?: string;
-    designation?: string;
-    department?: string;
+    dob?: string;
+    gender?: string;
+    residentialAddress?: string;
+    employeeId?: string;
+    highestQualification?: string;
+    salary?: string;
+    customRole?: string;
 }
 
 export interface UpdateSuperAdminProfilePayload {

@@ -58,13 +58,23 @@ export default function UserManagementPage() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
     const [newUser, setNewUser] = useState<NewUserForm>(emptyForm);
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const [editForm, setEditForm] = useState({ fullName: '', email: '', primaryContact: '' });
+    const [editForm, setEditForm] = useState({
+        fullName: '',
+        email: '',
+        primaryContact: '',
+        dob: '',
+        gender: '',
+        residentialAddress: '',
+        employeeId: '',
+        highestQualification: '',
+        salary: '',
+        customRole: '',
+    });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
     const [showPrincipalWarningModal, setShowPrincipalWarningModal] = useState(false);
     const [pendingPrincipalActivation, setPendingPrincipalActivation] = useState<{ userId: string; userName: string; action: 'activate' | 'add' } | null>(null);
@@ -76,14 +86,6 @@ export default function UserManagementPage() {
     const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
     const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
     const [changePassword, { isLoading: isChangingPassword }] = useChangeUserPasswordMutation();
-
-    useEffect(() => {
-        if (feedback) setTimeout(() => setFeedback(null), 4000);
-    }, [feedback]);
-
-    const showFeedback = (type: "success" | "error", message: string) => {
-        setFeedback({ type, message });
-    };
 
     const getTabUsers = (): UserSummary[] => {
         if (!allUsers) return [];
@@ -167,16 +169,29 @@ export default function UserManagementPage() {
             await deleteUser(selectedUser.userId).unwrap();
             setShowDeleteModal(false);
             setSelectedUser(null);
-            showFeedback("success", "User deactivated successfully!");
+            toast.success("User deactivated successfully!");
             refetch();
         } catch {
-            showFeedback("error", "Failed to delete user.");
+            toast.error("Failed to delete user.");
         }
     };
 
     const openEditModal = (user: UserSummary) => {
         setSelectedUser(user);
-        setEditForm({ fullName: user.fullName, email: user.email, primaryContact: '' });
+        // Format dob for input field (YYYY-MM-DD format)
+        const formattedDob = user.dob ? new Date(user.dob).toISOString().split('T')[0] : '';
+        setEditForm({
+            fullName: user.fullName,
+            email: user.email,
+            primaryContact: user.primaryContact ?? '',
+            dob: formattedDob,
+            gender: user.gender ?? '',
+            residentialAddress: user.residentialAddress ?? '',
+            employeeId: user.employeeId ?? '',
+            highestQualification: user.highestQualification ?? '',
+            salary: user.salary ?? '',
+            customRole: user.customRole ?? '',
+        });
         setShowEditModal(true);
     };
 
@@ -189,13 +204,38 @@ export default function UserManagementPage() {
     const handleUpdateUser = async () => {
         if (!selectedUser) return;
         try {
-            await updateUser({ userId: selectedUser.userId, data: editForm as any }).unwrap();
+            const updateData: any = {
+                fullName: editForm.fullName,
+                email: editForm.email,
+                primaryContact: editForm.primaryContact,
+            };
+
+            // Add role-specific fields
+            if (selectedUser.role === 'TEACHER') {
+                updateData.employeeId = editForm.employeeId;
+                updateData.highestQualification = editForm.highestQualification;
+                updateData.salary = editForm.salary;
+                updateData.dob = editForm.dob;
+                updateData.gender = editForm.gender;
+                updateData.residentialAddress = editForm.residentialAddress;
+            } else if (selectedUser.role === 'OTHER') {
+                updateData.customRole = editForm.customRole;
+                updateData.dob = editForm.dob;
+                updateData.gender = editForm.gender;
+                updateData.residentialAddress = editForm.residentialAddress;
+            } else {
+                updateData.dob = editForm.dob;
+                updateData.gender = editForm.gender;
+                updateData.residentialAddress = editForm.residentialAddress;
+            }
+
+            await updateUser({ userId: selectedUser.userId, data: updateData }).unwrap();
             setShowEditModal(false);
             setSelectedUser(null);
-            showFeedback("success", "User updated successfully!");
+            toast.success("User updated successfully!");
             refetch();
         } catch {
-            showFeedback("error", "Failed to update user.");
+            toast.error("Failed to update user.");
         }
     };
 
@@ -211,10 +251,10 @@ export default function UserManagementPage() {
             setShowPasswordModal(false);
             setSelectedUser(null);
             setPasswordForm({ currentPassword: '', newPassword: '' });
-            showFeedback("success", "Password changed successfully!");
+            toast.success("Password changed successfully!");
             refetch();
         } catch (err: any) {
-            showFeedback("error", err?.data?.message ?? "Failed to change password.");
+            toast.error(err?.data?.message ?? "Failed to change password.");
         }
     };
 
@@ -237,10 +277,10 @@ export default function UserManagementPage() {
             await updateUser({ userId, data: { isActive: activate } }).unwrap();
             setShowPrincipalWarningModal(false);
             setPendingPrincipalActivation(null);
-            showFeedback("success", activate ? "User activated successfully!" : "User deactivated successfully!");
+            toast.success(activate ? "User activated successfully!" : "User deactivated successfully!");
             refetch();
         } catch {
-            showFeedback("error", "Failed to update user status.");
+            toast.error("Failed to update user status.");
         }
     };
 
@@ -273,18 +313,6 @@ export default function UserManagementPage() {
                     <span>Add User</span>
                 </button>
             </div>
-
-            {/* Feedback */}
-            {feedback && (
-                <div className={`flex items-center space-x-3 px-5 py-3 rounded-lg shadow-md border ${
-                    feedback.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800"
-                }`}>
-                    {feedback.type === "success"
-                        ? <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-                        : <X size={20} className="text-red-500 shrink-0" />}
-                    <p className="font-medium text-sm">{feedback.message}</p>
-                </div>
-            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -396,8 +424,8 @@ export default function UserManagementPage() {
                                                         if (user.isActive) {
                                                             // Deactivate
                                                             updateUser({ userId: user.userId, data: { isActive: false } }).unwrap()
-                                                                .then(() => { showFeedback("success", "User deactivated."); refetch(); })
-                                                                .catch(() => showFeedback("error", "Failed to deactivate user."));
+                                                                .then(() => { toast.success("User deactivated."); refetch(); })
+                                                                .catch(() => toast.error("Failed to deactivate user."));
                                                         } else {
                                                             // Try to activate - may show warning for principal
                                                             handleToggleUserStatus(user);
@@ -646,53 +674,146 @@ export default function UserManagementPage() {
             {/* Edit User Modal */}
             {showEditModal && selectedUser && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                                     <Edit2 size={20} className="text-blue-600" />
                                     Edit User
                                 </h2>
-                                <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
-                                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <X size={20} className="text-gray-600" />
-                                </button>
+                                <p className="text-sm text-gray-500 mt-1">{roleLabel(selectedUser.role)} — {selectedUser.fullName}</p>
+                            </div>
+                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <X size={20} className="text-gray-600" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            {/* Common Fields */}
+                            <div className="border-b border-gray-200 pb-5">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <User size={18} className="text-rose-600" />
+                                    Account Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
+                                        <input type="text" value={editForm.fullName}
+                                            onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                                        <input type="email" value={editForm.email}
+                                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
+                                        <input type="tel" value={editForm.primaryContact}
+                                            onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
-                                    <input type="text" value={editForm.fullName}
-                                        onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-                                    <input type="email" value={editForm.email}
-                                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
-                                    <input type="tel" value={editForm.primaryContact}
-                                        onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                            {/* Personal Details */}
+                            <div className="border-b border-gray-200 pb-5">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Briefcase size={18} className="text-rose-600" />
+                                    Personal Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth</label>
+                                        <input type="date" value={editForm.dob}
+                                            onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
+                                        <select value={editForm.gender}
+                                            onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+                                            <option value="">Select</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Residential Address</label>
+                                        <input type="text" value={editForm.residentialAddress}
+                                            onChange={(e) => setEditForm({ ...editForm, residentialAddress: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex justify-end space-x-3 mt-6">
-                                <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
-                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleUpdateUser}
-                                    disabled={isUpdating || !editForm.fullName || !editForm.email}
-                                    className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
-                                >
-                                    {isUpdating ? "Saving..." : "Save Changes"}
-                                </button>
-                            </div>
+                            {/* Teacher Fields */}
+                            {selectedUser.role === 'TEACHER' && (
+                                <div className="border-b border-gray-200 pb-5">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <Briefcase size={18} className="text-emerald-600" />
+                                        Teacher Details
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
+                                            <input type="text" value={editForm.employeeId}
+                                                onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification</label>
+                                            <input type="text" value={editForm.highestQualification}
+                                                onChange={(e) => setEditForm({ ...editForm, highestQualification: e.target.value })}
+                                                placeholder="e.g., M.Sc., B.Ed., Ph.D."
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹)</label>
+                                            <input type="number" value={editForm.salary}
+                                                onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                                                placeholder="e.g., 50000"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Other Role Fields */}
+                            {selectedUser.role === 'OTHER' && (
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <Briefcase size={18} className="text-gray-600" />
+                                        Other Staff Details
+                                    </h3>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Custom Role</label>
+                                        <input type="text" value={editForm.customRole}
+                                            onChange={(e) => setEditForm({ ...editForm, customRole: e.target.value })}
+                                            placeholder="e.g., Gardener, Sweeper, Receptionist"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
+                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateUser}
+                                disabled={isUpdating || !editForm.fullName || !editForm.email}
+                                className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                            >
+                                <Edit2 size={16} />
+                                {isUpdating ? "Saving..." : "Save Changes"}
+                            </button>
                         </div>
                     </div>
                 </div>

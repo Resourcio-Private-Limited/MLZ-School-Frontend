@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bell, Filter, Link2, Download, ExternalLink, Plus, X, Upload } from "lucide-react";
-import { useGetNoticesQuery, useCreateNoticeMutation, NoticeTag } from "@/redux/api/operationsApi";
+import { ArrowLeft, Bell, Filter, Link2, Plus, X, Edit2, Trash2 } from "lucide-react";
+import toast from 'react-hot-toast';
+import {
+    useGetNoticesQuery,
+    useCreateNoticeMutation,
+    useUpdateNoticeMutation,
+    useDeleteNoticeMutation,
+    NoticeTag,
+    Notice,
+} from "@/redux/api/operationsApi";
 
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
@@ -61,7 +69,6 @@ function formatTime(dateStr: string) {
 export default function PrincipalNoticeBoardPage() {
     const [selectedCategory, setSelectedCategory] = useState("All Notices");
     const [showCreateForm, setShowCreateForm] = useState(false);
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
     const [form, setForm] = useState({
         title: "",
@@ -70,8 +77,20 @@ export default function PrincipalNoticeBoardPage() {
         link: "",
     });
 
+    const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+    const [editForm, setEditForm] = useState({
+        title: "",
+        tag: "GENERAL" as NoticeTag,
+        content: "",
+        link: "",
+    });
+
+    const [deletingNotice, setDeletingNotice] = useState<Notice | null>(null);
+
     const { data: notices = [], isLoading } = useGetNoticesQuery();
     const [createNotice, { isLoading: isCreating }] = useCreateNoticeMutation();
+    const [updateNotice, { isLoading: isUpdating }] = useUpdateNoticeMutation();
+    const [deleteNotice, { isLoading: isDeleting }] = useDeleteNoticeMutation();
 
     const filteredNotices = selectedCategory === "All Notices"
         ? notices
@@ -91,13 +110,51 @@ export default function PrincipalNoticeBoardPage() {
                 tag: form.tag,
                 link: form.link.trim() || undefined,
             }).unwrap();
-            setFeedback({ type: "success", msg: "Notice published successfully!" });
+            toast.success("Notice published successfully!");
             setShowCreateForm(false);
             setForm({ title: "", tag: "GENERAL", content: "", link: "" });
-            setTimeout(() => setFeedback(null), 4000);
         } catch {
-            setFeedback({ type: "error", msg: "Failed to publish notice. Please try again." });
-            setTimeout(() => setFeedback(null), 4000);
+            toast.error("Failed to publish notice. Please try again.");
+        }
+    };
+
+    const handleOpenEdit = (notice: Notice) => {
+        setEditingNotice(notice);
+        setEditForm({
+            title: notice.title,
+            tag: notice.tag,
+            content: notice.content,
+            link: notice.link ?? "",
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingNotice || !editForm.title.trim() || !editForm.content.trim()) return;
+        try {
+            await updateNotice({
+                noticeId: editingNotice.id,
+                data: {
+                    title: editForm.title.trim(),
+                    content: editForm.content.trim(),
+                    tag: editForm.tag,
+                    link: editForm.link.trim() || undefined,
+                },
+            }).unwrap();
+            toast.success("Notice updated successfully!");
+            setEditingNotice(null);
+        } catch {
+            toast.error("Failed to update notice.");
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletingNotice) return;
+        try {
+            await deleteNotice(deletingNotice.id).unwrap();
+            toast.success("Notice deleted successfully!");
+            setDeletingNotice(null);
+        } catch {
+            toast.error("Failed to delete notice.");
         }
     };
 
@@ -122,17 +179,6 @@ export default function PrincipalNoticeBoardPage() {
                     <span>{showCreateForm ? "Cancel" : "Create Notice"}</span>
                 </button>
             </div>
-
-            {/* Feedback Banner */}
-            {feedback && (
-                <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
-                    feedback.type === "success"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-red-50 text-red-700 border border-red-200"
-                }`}>
-                    {feedback.msg}
-                </div>
-            )}
 
             {/* Create Notice Form */}
             {showCreateForm && (
@@ -279,12 +325,20 @@ export default function PrincipalNoticeBoardPage() {
 
                                 {/* Admin Actions */}
                                 <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="flex items-center space-x-2">
-                                        <button className="p-1.5 bg-purple-50 text-purple-600 rounded hover:bg-purple-100 transition-colors text-xs">
-                                            Edit
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleOpenEdit(notice)}
+                                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                            title="Edit Notice"
+                                        >
+                                            <Edit2 size={16} />
                                         </button>
-                                        <button className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors text-xs">
-                                            Delete
+                                        <button
+                                            onClick={() => setDeletingNotice(notice)}
+                                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                            title="Delete Notice"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 </div>
@@ -304,6 +358,122 @@ export default function PrincipalNoticeBoardPage() {
                     )}
                 </div>
             </div>
+
+            {/* Edit Notice Modal */}
+            {editingNotice && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-800">Edit Notice</h2>
+                            <button onClick={() => setEditingNotice(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <X size={20} className="text-gray-600" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Notice Title <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Category <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={editForm.tag}
+                                    onChange={(e) => setEditForm({ ...editForm, tag: e.target.value as NoticeTag })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
+                                >
+                                    {TAG_LIST.filter(t => t !== "ALL_NOTICES").map((tag) => (
+                                        <option key={tag} value={tag}>{TAG_TO_LABEL[tag]}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Message <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    value={editForm.content}
+                                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none text-gray-900"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    External Link (Optional)
+                                </label>
+                                <input
+                                    type="url"
+                                    value={editForm.link}
+                                    onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
+                                />
+                            </div>
+                            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                                <button
+                                    onClick={() => setEditingNotice(null)}
+                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveEdit}
+                                    disabled={!editForm.title.trim() || !editForm.content.trim() || isUpdating}
+                                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                                        editForm.title.trim() && editForm.content.trim() && !isUpdating
+                                            ? "bg-purple-600 text-white hover:bg-purple-700"
+                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    }`}
+                                >
+                                    {isUpdating ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deletingNotice && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6 text-center">
+                            <div className="flex items-center justify-center mb-4">
+                                <div className="p-3 rounded-full bg-red-100">
+                                    <Trash2 size={24} className="text-red-600" />
+                                </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">Delete Notice</h3>
+                            <p className="text-gray-600 mb-6">
+                                Are you sure you want to delete the notice <strong>"{deletingNotice.title}"</strong>? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeletingNotice(null)}
+                                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleConfirmDelete}
+                                    disabled={isDeleting}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

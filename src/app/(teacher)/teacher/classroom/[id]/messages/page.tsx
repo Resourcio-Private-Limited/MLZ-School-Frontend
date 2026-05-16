@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from "react";
 import { ArrowLeft, Search, Send } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
@@ -123,10 +124,11 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
                 content: messageText.trim(),
             }).unwrap();
             setMessageText("");
+            toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
         } catch {
-            // silent fail
+            toast.error("Failed to send message.");
         }
     };
 

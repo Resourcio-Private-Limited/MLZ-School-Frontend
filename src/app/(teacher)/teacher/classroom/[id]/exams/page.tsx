@@ -1,233 +1,346 @@
 "use client";
 
 import { useState, use } from "react";
-import { ArrowLeft, Save, Edit2, Check, X, FileSpreadsheet, Award } from "lucide-react";
+import { ArrowLeft, Save, X, FileSpreadsheet, Eye } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
+import {
+    useGetClassroomExamsQuery,
+    useGetStudentMarksQuery,
+    useSaveStudentMarksMutation,
+    StudentMarkSummary,
+} from "@/redux/api/teacherApi";
 
 export default function FinalExamMarksPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
-
-    // Mock classroom data
-    const classroomDetails = {
-        name: id === "1" ? "Class 10 - Section A" : `Classroom ${id}`,
-        subject: id === "1" ? "Mathematics" : "General Subject",
-    };
-
-    // Mock student data with marks
-    const [students, setStudents] = useState([
-        { id: 1, rollNo: "001", name: "Aarav Sharma", marks: 85, totalMarks: 100 },
-        { id: 2, rollNo: "002", name: "Diya Patel", marks: 92, totalMarks: 100 },
-        { id: 3, rollNo: "003", name: "Arjun Kumar", marks: 78, totalMarks: 100 },
-        { id: 4, rollNo: "004", name: "Ananya Singh", marks: 88, totalMarks: 100 },
-        { id: 5, rollNo: "005", name: "Vihaan Gupta", marks: 76, totalMarks: 100 },
-        { id: 6, rollNo: "006", name: "Saanvi Reddy", marks: 94, totalMarks: 100 },
-        { id: 7, rollNo: "007", name: "Reyansh Verma", marks: 82, totalMarks: 100 },
-        { id: 8, rollNo: "008", name: "Isha Mehta", marks: 90, totalMarks: 100 },
-        { id: 9, rollNo: "009", name: "Aditya Joshi", marks: 73, totalMarks: 100 },
-        { id: 10, rollNo: "010", name: "Myra Kapoor", marks: 87, totalMarks: 100 },
-    ]);
-
-    const [editingId, setEditingId] = useState<number | null>(null);
-    const [editValue, setEditValue] = useState<string>("");
+    const { id: classroomId } = use(params);
+    const [selectedExamId, setSelectedExamId] = useState<string>("");
+    const [selectedExamName, setSelectedExamName] = useState<string>("");
+    const [showMarksModal, setShowMarksModal] = useState(false);
+    const [selectedStudentData, setSelectedStudentData] = useState<{
+        studentId: string;
+        fullName: string;
+        rollNumber: string | null;
+        currentScore: number | null;
+    } | null>(null);
+    const [scoreInput, setScoreInput] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
 
-    const handleEdit = (student: typeof students[0]) => {
-        setEditingId(student.id);
-        setEditValue(student.marks.toString());
+    // Fetch exams for this classroom
+    const { data: exams, isLoading: examsLoading } = useGetClassroomExamsQuery(classroomId);
+
+    // Fetch student marks when exam is selected
+    const { data: studentMarks, isLoading: marksLoading, refetch } = useGetStudentMarksQuery(
+        { classroomId, examId: selectedExamId },
+        { skip: !selectedExamId }
+    );
+
+    const [saveStudentMarks] = useSaveStudentMarksMutation();
+
+    // Get unique exam types (Half Yearly, Final, etc.)
+    const examTypes = exams ? [...new Map(exams.map(e => [e.name, e])).values()] : [];
+
+    const handleExamSelect = (examId: string, examName: string) => {
+        setSelectedExamId(examId);
+        setSelectedExamName(examName);
     };
 
-    const handleCancel = () => {
-        setEditingId(null);
-        setEditValue("");
+    const openMarksModal = (student: StudentMarkSummary) => {
+        if (!student) return;
+        setSelectedStudentData({
+            studentId: student.studentId,
+            fullName: student.fullName,
+            rollNumber: student.rollNumber,
+            currentScore: student.subjects[0]?.score ?? null,
+        });
+        setScoreInput(student.subjects[0]?.score?.toString() ?? "");
+        setShowMarksModal(true);
     };
 
-    const handleSave = (studentId: number) => {
-        const marks = parseInt(editValue);
-        if (isNaN(marks) || marks < 0 || marks > 100) {
-            toast.error("Please enter valid marks between 0 and 100");
+    const handleSaveStudentMarks = async () => {
+        if (!selectedStudentData || !selectedExamId) return;
+
+        const score = parseFloat(scoreInput);
+        if (isNaN(score) || score < 0 || score > 100) {
+            toast.error("Please enter a valid score between 0 and 100");
             return;
         }
 
-        setStudents(students.map(s =>
-            s.id === studentId ? { ...s, marks } : s
-        ));
-        setEditingId(null);
-        setEditValue("");
-    };
-
-    const handleSaveAll = () => {
         setIsSaving(true);
-        // TODO: Send data to backend API
-        setTimeout(() => {
-            setIsSaving(false);
+        try {
+            // Get the subject ID from the current exam
+            const currentExam = exams?.find(ex => ex.id === selectedExamId);
+            if (!currentExam) {
+                toast.error("Exam not found");
+                setIsSaving(false);
+                return;
+            }
+
+            await saveStudentMarks({
+                classroomId,
+                examId: selectedExamId,
+                marks: [{
+                    studentId: selectedStudentData.studentId,
+                    subjectId: currentExam.subjectId,
+                    score,
+                }],
+            }).unwrap();
+
             toast.success("Marks saved successfully!");
-        }, 1000);
+            setShowMarksModal(false);
+            refetch();
+        } catch {
+            toast.error("Failed to save marks");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const getGrade = (marks: number) => {
-        if (marks >= 90) return { grade: "A+", color: "text-green-600 bg-green-50" };
-        if (marks >= 80) return { grade: "A", color: "text-green-600 bg-green-50" };
-        if (marks >= 70) return { grade: "B", color: "text-blue-600 bg-blue-50" };
-        if (marks >= 60) return { grade: "C", color: "text-yellow-600 bg-yellow-50" };
-        if (marks >= 50) return { grade: "D", color: "text-orange-600 bg-orange-50" };
+    const getGrade = (percentage: number) => {
+        if (percentage >= 90) return { grade: "A+", color: "text-green-600 bg-green-50" };
+        if (percentage >= 80) return { grade: "A", color: "text-green-600 bg-green-50" };
+        if (percentage >= 70) return { grade: "B+", color: "text-blue-600 bg-blue-50" };
+        if (percentage >= 60) return { grade: "B", color: "text-blue-600 bg-blue-50" };
+        if (percentage >= 50) return { grade: "C", color: "text-yellow-600 bg-yellow-50" };
+        if (percentage >= 40) return { grade: "D", color: "text-orange-600 bg-orange-50" };
         return { grade: "F", color: "text-red-600 bg-red-50" };
     };
 
-    const averageMarks = (students.reduce((sum, s) => sum + s.marks, 0) / students.length).toFixed(2);
-    const highestMarks = Math.max(...students.map(s => s.marks));
-    const lowestMarks = Math.min(...students.map(s => s.marks));
+    const averageMarks = studentMarks && studentMarks.length > 0
+        ? (studentMarks.reduce((sum, s) => sum + s.percentage, 0) / studentMarks.length).toFixed(2)
+        : "0.00";
+
+    const highestMarks = studentMarks && studentMarks.length > 0
+        ? Math.max(...studentMarks.map(s => s.percentage))
+        : 0;
+
+    const lowestMarks = studentMarks && studentMarks.length > 0
+        ? Math.min(...studentMarks.map(s => s.percentage))
+        : 0;
+
+    // Get current exam's subject for display
+    const currentExam = exams?.find(ex => ex.id === selectedExamId);
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Link href={`/teacher/classroom/${id}`}>
+                    <Link href={`/teacher/classroom/${classroomId}`}>
                         <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-600 transition-colors">
                             <ArrowLeft size={20} />
                             <span className="font-medium">Back to Classroom</span>
                         </button>
                     </Link>
                     <div className="h-6 w-px bg-gray-300"></div>
-                    <h1 className="text-3xl font-bold text-gray-800">Final Exam Marks</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">Exam Marks</h1>
                 </div>
-                <div className="flex flex-col items-end">
-                    <span className="text-lg font-bold text-gray-800">{classroomDetails.name}</span>
-                    <span className="text-sm text-emerald-600 font-medium">{classroomDetails.subject}</span>
+
+                {/* Exam Type Selector */}
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-600">Select Exam:</label>
+                    <select
+                        value={selectedExamId}
+                        onChange={(e) => {
+                            const exam = exams?.find(ex => ex.id === e.target.value);
+                            handleExamSelect(e.target.value, exam?.name ?? "");
+                        }}
+                        className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white min-w-50"
+                    >
+                        <option value="">-- Select Exam --</option>
+                        {examTypes.map((exam) => (
+                            <option key={exam.id} value={exam.id}>
+                                {exam.name} - {exam.subject.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-                    <p className="text-sm text-gray-500 font-medium">Total Students</p>
-                    <p className="text-2xl font-bold text-gray-800">{students.length}</p>
+            {selectedExamId && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                        <p className="text-sm text-gray-500 font-medium">Total Students</p>
+                        <p className="text-2xl font-bold text-gray-800">{studentMarks?.length ?? 0}</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                        <p className="text-sm text-gray-500 font-medium">Average Marks</p>
+                        <p className="text-2xl font-bold text-gray-800">{averageMarks}%</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-emerald-500">
+                        <p className="text-sm text-gray-500 font-medium">Highest Marks</p>
+                        <p className="text-2xl font-bold text-gray-800">{highestMarks}%</p>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                        <p className="text-sm text-gray-500 font-medium">Lowest Marks</p>
+                        <p className="text-2xl font-bold text-gray-800">{lowestMarks}%</p>
+                    </div>
                 </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
-                    <p className="text-sm text-gray-500 font-medium">Average Marks</p>
-                    <p className="text-2xl font-bold text-gray-800">{averageMarks}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-emerald-500">
-                    <p className="text-sm text-gray-500 font-medium">Highest Marks</p>
-                    <p className="text-2xl font-bold text-gray-800">{highestMarks}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
-                    <p className="text-sm text-gray-500 font-medium">Lowest Marks</p>
-                    <p className="text-2xl font-bold text-gray-800">{lowestMarks}</p>
-                </div>
-            </div>
+            )}
 
             {/* Student Marks Table */}
-            <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-                <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-800 text-white flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                            <FileSpreadsheet size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">Student Marks Entry</h2>
-                            <p className="text-sm text-emerald-100">Click edit to update individual marks</p>
+            {selectedExamId ? (
+                <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+                    <div className="p-6 bg-linear-to-r from-emerald-600 to-teal-800 text-white flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                <FileSpreadsheet size={24} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold">{selectedExamName} - Student Marks</h2>
+                                <p className="text-sm text-emerald-100">
+                                    Subject: {currentExam?.subject.name ?? 'N/A'} | Click View to enter marks
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <button
-                        onClick={handleSaveAll}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 bg-white text-emerald-700 px-6 py-3 rounded-lg font-semibold hover:bg-emerald-50 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Save size={18} />
-                        {isSaving ? "Saving..." : "Save All Marks"}
-                    </button>
-                </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b-2 border-gray-200">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Student Name</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Marks Obtained</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Total Marks</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Percentage</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Grade</th>
-                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {students.map((student) => {
-                                const percentage = ((student.marks / student.totalMarks) * 100).toFixed(1);
-                                const { grade, color } = getGrade(student.marks);
-                                const isEditing = editingId === student.id;
-
-                                return (
-                                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-medium text-gray-900">{student.rollNo}</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-medium text-gray-900">{student.name}</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            {isEditing ? (
-                                                <input
-                                                    type="number"
-                                                    value={editValue}
-                                                    onChange={(e) => setEditValue(e.target.value)}
-                                                    min="0"
-                                                    max="100"
-                                                    className="w-20 px-3 py-2 border border-emerald-300 rounded-lg text-center focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                                                    autoFocus
-                                                />
-                                            ) : (
-                                                <span className="text-lg font-bold text-gray-900">{student.marks}</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className="text-sm text-gray-600">{student.totalMarks}</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className="text-sm font-semibold text-gray-900">{percentage}%</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${color}`}>
-                                                {grade}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            {isEditing ? (
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={() => handleSave(student.id)}
-                                                        className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                                                        title="Save"
-                                                    >
-                                                        <Check size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={handleCancel}
-                                                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                                                        title="Cancel"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleEdit(student)}
-                                                    className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                                                    title="Edit Marks"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                            )}
-                                        </td>
+                    {marksLoading ? (
+                        <div className="p-12 text-center">
+                            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-gray-500">Loading marks...</p>
+                        </div>
+                    ) : studentMarks && studentMarks.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
+                                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Obtained</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Total</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Percentage</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Grade</th>
+                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {studentMarks.map((student) => {
+                                        const { grade, color } = getGrade(student.percentage);
+                                        return (
+                                            <tr key={student.studentId} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm font-medium text-gray-900">{student.rollNumber ?? "—"}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm font-medium text-gray-900">{student.fullName}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <span className={`text-lg font-bold ${student.subjects[0]?.score !== null ? 'text-gray-900' : 'text-gray-400'}`}>
+                                                        {student.subjects[0]?.score ?? "—"}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <span className="text-sm text-gray-600">{student.totalMax}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <span className="text-sm font-semibold text-gray-900">{student.percentage}%</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${color}`}>
+                                                        {grade}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <button
+                                                        onClick={() => openMarksModal(student)}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                                                        title="View/Edit Marks"
+                                                    >
+                                                        <Eye size={14} />
+                                                        View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-12 text-center">
+                            <FileSpreadsheet size={48} className="mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-500 font-medium">No marks found for this exam</p>
+                        </div>
+                    )}
                 </div>
-            </div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-xl p-12 text-center">
+                    <FileSpreadsheet size={64} className="mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-xl font-bold text-gray-700 mb-2">Select an Exam</h3>
+                    <p className="text-gray-500">Choose an exam type above to view and manage student marks</p>
+                </div>
+            )}
+
+            {/* Marks Entry Modal */}
+            {showMarksModal && selectedStudentData && currentExam && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800">Enter Marks</h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {selectedStudentData.fullName} | {selectedExamName}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowMarksModal(false)}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <X size={24} className="text-gray-600" />
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="mb-6">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    {currentExam.subject.name} Marks
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={scoreInput}
+                                    onChange={(e) => setScoreInput(e.target.value)}
+                                    placeholder="Enter marks (0-100)"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-lg"
+                                />
+                                <p className="text-xs text-gray-400 mt-2">
+                                    Maximum marks: 100 | Current: {selectedStudentData.currentScore ?? "Not set"}
+                                </p>
+                            </div>
+
+                            {/* Quick percentage display */}
+                            {scoreInput && (
+                                <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                                    parseFloat(scoreInput) >= 40
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-red-100 text-red-700'
+                                }`}>
+                                    {scoreInput}/100 ({(parseFloat(scoreInput) || 0).toFixed(1)}%)
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
+                            <button
+                                onClick={() => setShowMarksModal(false)}
+                                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveStudentMarks}
+                                disabled={isSaving || !scoreInput}
+                                className="flex items-center space-x-2 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors font-medium"
+                            >
+                                <Save size={18} />
+                                {isSaving ? "Saving..." : "Save Marks"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

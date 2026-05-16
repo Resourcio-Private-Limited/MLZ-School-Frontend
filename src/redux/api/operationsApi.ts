@@ -86,6 +86,7 @@ export const operationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getNotices: builder.query<Notice[], void>({
       query: () => ({ url: '/operations/notices', method: 'GET' }),
+      providesTags: ['Notices'],
     }),
 
     getAnnouncements: builder.query<Announcement[], string>({
@@ -124,14 +125,17 @@ export const operationsApi = baseApi.injectEndpoints({
 
     createNotice: builder.mutation<Notice, CreateNoticePayload>({
       query: (body) => ({ url: '/operations/notices', method: 'POST', body }),
+      invalidatesTags: ['Notices'],
     }),
 
     updateNotice: builder.mutation<Notice, { noticeId: string; data: Partial<CreateNoticePayload> }>({
       query: ({ noticeId, data }) => ({ url: `/operations/notices/${noticeId}`, method: 'PATCH', body: data }),
+      invalidatesTags: ['Notices'],
     }),
 
     deleteNotice: builder.mutation<{ success: boolean; noticeId: string }, string>({
       query: (noticeId) => ({ url: `/operations/notices/${noticeId}`, method: 'DELETE' }),
+      invalidatesTags: ['Notices'],
     }),
   }),
 });

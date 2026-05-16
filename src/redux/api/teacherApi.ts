@@ -2,34 +2,6 @@ import { baseApi } from './baseApi';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
-export interface TeacherPersonal {
-  fullName: string;
-  dob: string;
-  gender: string;
-  residentialAddress: string;
-  nationality: string | null;
-  caste: string | null;
-  isPwd: boolean;
-  aadharNo: string | null;
-  identificationMark: string | null;
-  primaryContact: string;
-  secondaryContact: string | null;
-  email: string | null;
-  bloodGroup: string | null;
-  profileImage: string | null;
-}
-
-export interface TeacherOfficial {
-  employeeId: string;
-  designation: string | null;
-  department: string;
-  qualifications: string[];
-  joiningDate: string;
-  currentSalary: number | null;
-  status: string | null;
-  officialDocumentNumber: string | null;
-}
-
 export interface ClassTeacherOf {
   id: string;
   name: string;
@@ -48,8 +20,23 @@ export interface AssignedClassroom {
 }
 
 export interface TeacherFullProfile {
-  personal: TeacherPersonal;
-  official: TeacherOfficial;
+  // Basic Info
+  fullName: string;
+  email: string;
+  primaryContact: string;
+  dob: string;
+  gender: string;
+  residentialAddress: string;
+  profileImage: string | null;
+
+  // Teacher Specific Fields
+  employeeId: string;
+  highestQualification: string;
+  salary: string;
+  designation: string | null;
+  status: string;
+
+  // Related Data
   classTeacherOf: ClassTeacherOf | null;
   assignedClassrooms: AssignedClassroom[];
   userEmail: string;
@@ -83,15 +70,21 @@ export interface ClassStudent {
 
 export interface UpdateTeacherProfilePayload {
   fullName?: string;
+  email?: string;
+  primaryContact?: string;
   dob?: string;
   gender?: string;
   residentialAddress?: string;
-  primaryContact?: string;
+  employeeId?: string;
+  highestQualification?: string;
+  salary?: string;
+  nationality?: string;
+  caste?: string;
+  isPwd?: boolean;
+  aadharNo?: string;
+  identificationMark?: string;
   secondaryContact?: string;
-  email?: string;
-  designation?: string;
-  department?: string;
-  qualifications?: string[];
+  bloodGroup?: string;
 }
 
 export interface MarkAttendanceEntry {
@@ -134,6 +127,61 @@ export interface AttendanceByDateResponse {
   present: number;
   absent: number;
   records: AttendanceByDateRecord[];
+}
+
+// Exam Types
+export interface ExamSubject {
+  id: string;
+  name: string;
+}
+
+export interface ClassroomExam {
+  id: string;
+  name: string;
+  examDate: string;
+  subject: ExamSubject;
+  subjectId: string;
+  classroomId: string;
+}
+
+export interface StudentExamMark {
+  studentId: string;
+  fullName: string;
+  rollNumber: string | null;
+  subjectId: string;
+  subjectName: string;
+  examId: string;
+  examName: string;
+  score: number | null;
+  maxScore: number;
+}
+
+export interface StudentMarkSummary {
+  studentId: string;
+  fullName: string;
+  rollNumber: string | null;
+  examId: string;
+  examName: string;
+  subjects: Array<{
+    subjectId: string;
+    subjectName: string;
+    score: number | null;
+    maxScore: number;
+  }>;
+  totalObtained: number;
+  totalMax: number;
+  percentage: number;
+  grade: string;
+}
+
+export interface SaveMarksPayload {
+  classroomId: string;
+  examId: string;
+  marks: Array<{
+    studentId: string;
+    subjectId: string;
+    score: number;
+  }>;
 }
 
 // ─── API ───────────────────────────────────────────────────────────
@@ -184,6 +232,29 @@ export const teacherApi = baseApi.injectEndpoints({
     uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
       query: (body) => ({ url: '/upload/profile-image', method: 'POST', body }),
     }),
+
+    // Get exams for a classroom
+    getClassroomExams: builder.query<ClassroomExam[], string>({
+      query: (classroomId) => ({ url: `/teacher/class/${classroomId}/exams`, method: 'GET' }),
+    }),
+
+    // Get subjects assigned to this teacher for a classroom
+    getTeacherSubjects: builder.query<ExamSubject[], string>({
+      query: (classroomId) => ({ url: `/teacher/class/${classroomId}/subjects`, method: 'GET' }),
+    }),
+
+    // Get students with their marks for a specific exam
+    getStudentMarks: builder.query<StudentMarkSummary[], { classroomId: string; examId: string }>({
+      query: ({ classroomId, examId }) => ({
+        url: `/teacher/class/${classroomId}/exam/${examId}/marks`,
+        method: 'GET',
+      }),
+    }),
+
+    // Save/update marks for students
+    saveStudentMarks: builder.mutation<{ success: boolean; count: number }, SaveMarksPayload>({
+      query: (body) => ({ url: '/teacher/marks', method: 'POST', body }),
+    }),
   }),
 });
 
@@ -197,4 +268,8 @@ export const {
   useGetAttendanceHistoryQuery,
   useGetAttendanceByDateQuery,
   useUploadProfileImageMutation,
+  useGetClassroomExamsQuery,
+  useGetTeacherSubjectsQuery,
+  useGetStudentMarksQuery,
+  useSaveStudentMarksMutation,
 } = teacherApi;

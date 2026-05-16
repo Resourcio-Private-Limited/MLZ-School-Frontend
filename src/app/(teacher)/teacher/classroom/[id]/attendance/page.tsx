@@ -3,6 +3,7 @@
 import { use, useState, useEffect } from "react";
 import { ArrowLeft, Calendar, Plus, Users, Download, CheckCircle, Loader2, History } from "lucide-react";
 import Link from "next/link";
+import toast from 'react-hot-toast';
 import { useGetClassStudentsQuery, useGetTeacherProfileQuery, useMarkAttendanceMutation } from "@/redux/api/teacherApi";
 
 export default function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,7 +15,6 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
     const [isMarking, setIsMarking] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
     const [viewingRecord, setViewingRecord] = useState<any | null>(null);
-    const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
     const [authUser, setAuthUser] = useState<Record<string, any>>({});
 
@@ -63,12 +63,10 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
             await markAttendance(entries).unwrap();
             setIsConfirming(false);
             setLocalAttendance({});
-            setFeedback({ type: "success", msg: "Attendance marked and saved successfully!" });
-            setTimeout(() => setFeedback(null), 4000);
+            toast.success("Attendance marked and saved successfully!");
             refetchStudents();
         } catch {
-            setFeedback({ type: "error", msg: "Failed to submit attendance. Please try again." });
-            setTimeout(() => setFeedback(null), 4000);
+            toast.error("Failed to submit attendance. Please try again.");
             setIsConfirming(false);
         }
     };
@@ -78,17 +76,6 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
 
     return (
         <div className="space-y-6 relative">
-            {/* Feedback Banner */}
-            {feedback && (
-                <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
-                    feedback.type === "success"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-red-50 text-red-700 border border-red-200"
-                }`}>
-                    {feedback.msg}
-                </div>
-            )}
-
             {/* Modals */}
             {(isMarking || isConfirming) && (
                 <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
