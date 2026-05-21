@@ -77,12 +77,12 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
 
     const handleDownloadTodayAttendance = () => {
         const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-        const worksheetData = [
+        const worksheetData: (string | number)[][] = [
             ['SL No', 'Roll No', 'Student Name', 'Attendance Status', 'Date']
         ];
         students.forEach((student, index) => {
             worksheetData.push([
-                index + 1,
+                String(index + 1),
                 student.rollNumber ?? '—',
                 student.fullName,
                 student.attendance ?? 'Not Marked',
