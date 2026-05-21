@@ -3,29 +3,31 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Eye, EyeOff, GraduationCap, Users, UserCheck, BookOpen, Shield, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useLoginMutation } from "@/redux/api/authApi";
 import { setCredentials } from "@/redux/slices/authSlice";
 import { store } from "@/redux";
 
-// Role to redirect path mapping
-const ROLE_REDIRECT_MAP: Record<string, string> = {
-    SUPER_ADMIN: '/super-admin',
-    PRINCIPAL: '/principal',
-    TEACHER: '/teacher',
-    STUDENT: '/student',
-    ACCOUNTANT: '/accounts',
-};
+interface LoginFormProps {
+    expectedRole: string;
+    roleLabel: string;
+    colorScheme: {
+        primary: string;
+        primaryHover: string;
+        primaryLight: string;
+        accent: string;
+    };
+    redirectPath: string;
+    logoSrc?: string;
+}
 
-const ROLE_INFO = [
-    { role: 'STUDENT', label: 'Student', icon: GraduationCap, color: 'blue', href: '/login/student' },
-    { role: 'TEACHER', label: 'Teacher', icon: Users, color: 'emerald', href: '/login/teacher' },
-    { role: 'PRINCIPAL', label: 'Principal', icon: UserCheck, color: 'purple', href: '/login/principal' },
-    { role: 'ACCOUNTANT', label: 'Accounts', icon: BookOpen, color: 'amber', href: '/login/accounts' },
-    { role: 'SUPER_ADMIN', label: 'Super Admin', icon: Shield, color: 'rose', href: '/login/super-admin' },
-];
-
-export default function UnifiedLoginPage() {
+export default function LoginForm({
+    expectedRole,
+    roleLabel,
+    colorScheme,
+    redirectPath,
+    logoSrc,
+}: LoginFormProps) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -43,9 +45,14 @@ export default function UnifiedLoginPage() {
         try {
             const res = await login({ email, password }).unwrap();
 
-            // Determine redirect path based on user role
             const userRole = res.user?.role;
-            const redirectPath = ROLE_REDIRECT_MAP[userRole] || '/student';
+
+            // Validate that the user has the expected role
+            if (userRole !== expectedRole) {
+                setError(`Access denied. You don't have a ${roleLabel} profile. Please use your ${roleLabel} credentials.`);
+                setLoading(false);
+                return;
+            }
 
             // Store auth data in Redux and localStorage
             store.dispatch(
@@ -55,7 +62,6 @@ export default function UnifiedLoginPage() {
                 })
             );
 
-            // Also store role in localStorage for easy access
             if (typeof window !== 'undefined') {
                 localStorage.setItem('userRole', userRole);
             }
@@ -73,23 +79,12 @@ export default function UnifiedLoginPage() {
         }
     };
 
-    const getColorClasses = (color: string) => {
-        const colors: Record<string, { bg: string; text: string; border: string; hover: string; hoverBg: string }> = {
-            blue: { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-500', hover: 'hover:border-blue-600', hoverBg: 'hover:bg-blue-50' },
-            emerald: { bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-500', hover: 'hover:border-emerald-600', hoverBg: 'hover:bg-emerald-50' },
-            purple: { bg: 'bg-purple-600', text: 'text-purple-600', border: 'border-purple-500', hover: 'hover:border-purple-600', hoverBg: 'hover:bg-purple-50' },
-            amber: { bg: 'bg-amber-600', text: 'text-amber-600', border: 'border-amber-500', hover: 'hover:border-amber-600', hoverBg: 'hover:bg-amber-50' },
-            rose: { bg: 'bg-rose-600', text: 'text-rose-600', border: 'border-rose-500', hover: 'hover:border-rose-600', hoverBg: 'hover:bg-rose-50' },
-        };
-        return colors[color] || colors.blue;
-    };
-
     return (
         <div className="min-h-screen flex items-stretch">
             {/* Left Side: Hero Section (Desktop Only) */}
             <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative flex-col justify-between p-12 overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
+                    <div className={`absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 ${colorScheme.accent}/20 rounded-full blur-3xl`}></div>
                     <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl"></div>
                 </div>
 
@@ -111,11 +106,10 @@ export default function UnifiedLoginPage() {
 
                     <h1 className="text-3xl font-bold text-white leading-tight mb-6">
                         Nurturing Potential,<br />
-                        <span className="text-blue-500">Unleashing Brilliance</span>
+                        <span className={colorScheme.accent}>Unleashing Brilliance</span>
                     </h1>
                     <p className="text-slate-400 text-lg max-w-md leading-relaxed mb-8">
-                        Welcome to the Mount Litera Zee School digital learning
-                        environment. Access your dashboard to manage academics,
+                        Welcome to the {roleLabel} portal. Access your dashboard to manage academics,
                         resources, and more.
                     </p>
 
@@ -127,7 +121,7 @@ export default function UnifiedLoginPage() {
                             height={300}
                             className="object-cover w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500"
                         />
-                        <div className="absolute inset-0 bg-linear-to-t from-slate-900/40 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
                     </div>
                 </div>
 
@@ -141,12 +135,12 @@ export default function UnifiedLoginPage() {
             {/* Right Side: Login Form */}
             <div className="w-full lg:w-1/2 bg-slate-50 flex items-center justify-center p-8">
                 <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-100 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-blue-600 to-blue-400"></div>
+                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-${colorScheme.primary} to-${colorScheme.primaryLight}`}></div>
 
                     <div className="mb-8 text-center lg:text-left">
                         <div className="lg:hidden flex justify-center mb-6">
                             <Image
-                                src="/MLZS_contents/Horizontal MLZS Logo.png"
+                                src={logoSrc || "/MLZS_contents/Horizontal MLZS Logo.png"}
                                 alt="Mount Litera Zee School, North Kolkata, Barrackpore"
                                 width={180}
                                 height={50}
@@ -154,9 +148,9 @@ export default function UnifiedLoginPage() {
                             />
                         </div>
                         <h2 className="text-3xl font-bold text-slate-800 mb-2">
-                            Portal Login
+                            {roleLabel} Portal
                         </h2>
-                        <p className="text-slate-500">Sign in to access your dashboard</p>
+                        <p className="text-slate-500">Sign in to access your {roleLabel.toLowerCase()} dashboard</p>
                     </div>
 
                     {error && (
@@ -187,7 +181,7 @@ export default function UnifiedLoginPage() {
                                 </label>
                                 <a
                                     href="/change-password"
-                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    className={`text-xs font-semibold text-${colorScheme.primary} hover:text-${colorScheme.primaryHover}`}
                                 >
                                     Forgot Password?
                                 </a>
@@ -214,7 +208,7 @@ export default function UnifiedLoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-blue-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className={`w-full bg-${colorScheme.primary} text-white py-3.5 rounded-xl font-bold text-lg hover:bg-${colorScheme.primaryHover} transition-all shadow-lg shadow-${colorScheme.primaryLight} hover:shadow-${colorScheme.primaryLight} transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed`}
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -244,53 +238,23 @@ export default function UnifiedLoginPage() {
                                 "Sign In"
                             )}
                         </button>
+
+                        <div className="text-center pt-2">
+                            <a
+                                href="/"
+                                className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
+                            >
+                                <ArrowLeft size={16} />
+                                <span>Back to Home</span>
+                            </a>
+                        </div>
                     </form>
 
-                    {/* Role-specific portal links */}
-                    <div className="mt-8 pt-6 border-t border-gray-100">
-                        <p className="text-xs text-slate-500 text-center mb-4">Or login directly to your portal</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {ROLE_INFO.map((item) => {
-                                const Icon = item.icon;
-                                const colors = getColorClasses(item.color);
-                                return (
-                                    <a
-                                        key={item.role}
-                                        href={item.href}
-                                        className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${colors.border} ${colors.hoverBg} transition-all group`}
-                                    >
-                                        <div className="flex items-center space-x-2">
-                                            <Icon size={18} className={colors.text} />
-                                            <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                                        </div>
-                                        <ArrowRight size={14} className={`${colors.text} opacity-0 group-hover:opacity-100 transition-opacity`} />
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="text-center pt-4">
-                        <a
-                            href="/"
-                            className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="m12 19-7-7 7-7" />
-                                <path d="M19 12H5" />
-                            </svg>
-                            <span>Back to Home</span>
-                        </a>
+                    {/* Role info */}
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                        <p className="text-xs text-slate-500 text-center">
+                            Only for {roleLabel} accounts
+                        </p>
                     </div>
                 </div>
             </div>

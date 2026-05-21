@@ -61,11 +61,18 @@ export interface ClassroomDetails {
 
 export interface ClassStudent {
   id: string;
+  userId: string;
   fullName: string;
   rollNumber: string | null;
   attendance: string | null;
   overallGrade: string | null;
   lastExam: { name: string; examDate: string } | null;
+}
+
+export interface MessageRecipient {
+  id: string;
+  name: string;
+  role: string;
 }
 
 export interface UpdateTeacherProfilePayload {
@@ -208,6 +215,14 @@ export const teacherApi = baseApi.injectEndpoints({
       query: (classroomId) => ({ url: `/teacher/class/${classroomId}/students`, method: 'GET' }),
     }),
 
+    getClassStudentsLazy: builder.query<ClassStudent[], string>({
+      query: (classroomId) => ({ url: `/teacher/class/${classroomId}/students`, method: 'GET' }),
+    }),
+
+    getMessageRecipients: builder.query<MessageRecipient[], void>({
+      query: () => ({ url: '/teacher/message-recipients', method: 'GET' }),
+    }),
+
     markAttendance: builder.mutation<{ count: number }, MarkAttendanceEntry[]>({
       query: (body) => ({ url: '/operations/attendance', method: 'POST', body }),
     }),
@@ -264,6 +279,8 @@ export const {
   useGetTeacherClassesQuery,
   useGetClassDetailsQuery,
   useGetClassStudentsQuery,
+  useLazyGetClassStudentsQuery,
+  useGetMessageRecipientsQuery,
   useMarkAttendanceMutation,
   useGetAttendanceHistoryQuery,
   useGetAttendanceByDateQuery,

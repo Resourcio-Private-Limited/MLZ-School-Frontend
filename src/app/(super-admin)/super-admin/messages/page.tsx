@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Send, MessageSquare } from "lucide-react";
+import { Search, Send, MessageSquare, GraduationCap, Users, Briefcase, UserCheck } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
@@ -55,6 +55,7 @@ type SidebarUser = {
     lastMessage?: string;
     lastMessageAt?: string;
     direction?: 'sent' | 'received';
+    canSend: boolean;
 };
 
 export default function SuperAdminMessagesPage() {
@@ -85,36 +86,105 @@ export default function SuperAdminMessagesPage() {
         { skip: !currentUserId || !selectedUserId }
     );
 
-    // Build sidebar: all users merged with conversation data
-    const allSidebarUsers: SidebarUser[] = [
-        ...(allUsers?.teachers.map(u => ({
-            userId: u.userId, name: u.fullName, role: u.role as string,
-        })) ?? []),
-        ...(allUsers?.students.map(u => ({
-            userId: u.userId, name: u.fullName, role: u.role as string,
-        })) ?? []),
-        ...(allUsers?.principals.map(u => ({
-            userId: u.userId, name: u.fullName, role: u.role as string,
-        })) ?? []),
-        ...(allUsers?.staff.map(u => ({
-            userId: u.userId, name: u.fullName, role: u.role as string,
-        })) ?? []),
-    ].map(user => {
-        const conv = conversations.find(c => c.otherUserId === user.userId);
-        return {
-            ...user,
-            lastMessage: conv?.lastMessage ?? 'No messages yet',
-            lastMessageAt: conv?.lastMessageAt ?? '',
-            direction: conv?.direction ?? ('received' as const),
-        };
-    });
+    // Poll for new messages
+    useEffect(() => {
+        if (!selectedUserId) return;
+        const interval = setInterval(() => {
+            refetchMessages();
+            refetchConversations();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [selectedUserId, refetchMessages, refetchConversations]);
 
+    // Build conversation map
+    const conversationMap = new Map(
+        conversations.map(c => [c.otherUserId, c])
+    );
+
+    // Build sidebar items - Super Admin can send to everyone
+    const allSidebarUsers: SidebarUser[] = [];
+
+    // Principals
+    if (allUsers?.principals) {
+        for (const u of allUsers.principals) {
+            const conv = conversationMap.get(u.userId);
+            allSidebarUsers.push({
+                userId: u.userId,
+                name: u.fullName,
+                role: 'PRINCIPAL',
+                canSend: true,
+                lastMessage: conv?.lastMessage ?? 'No messages yet',
+                lastMessageAt: conv?.lastMessageAt ?? '',
+                direction: conv?.direction,
+            });
+        }
+    }
+
+    // Teachers
+    if (allUsers?.teachers) {
+        for (const u of allUsers.teachers) {
+            const conv = conversationMap.get(u.userId);
+            allSidebarUsers.push({
+                userId: u.userId,
+                name: u.fullName,
+                role: 'TEACHER',
+                canSend: true,
+                lastMessage: conv?.lastMessage ?? 'No messages yet',
+                lastMessageAt: conv?.lastMessageAt ?? '',
+                direction: conv?.direction,
+            });
+        }
+    }
+
+    // Accountants
+    if (allUsers?.staff) {
+        const accountants = allUsers.staff.filter((s: any) => s.role === 'ACCOUNTANT');
+        for (const u of accountants) {
+            const conv = conversationMap.get(u.userId);
+            allSidebarUsers.push({
+                userId: u.userId,
+                name: u.fullName,
+                role: 'ACCOUNTANT',
+                canSend: true,
+                lastMessage: conv?.lastMessage ?? 'No messages yet',
+                lastMessageAt: conv?.lastMessageAt ?? '',
+                direction: conv?.direction,
+            });
+        }
+    }
+
+    // Students
+    if (allUsers?.students) {
+        for (const u of allUsers.students) {
+            const conv = conversationMap.get(u.userId);
+            allSidebarUsers.push({
+                userId: u.userId,
+                name: u.fullName,
+                role: 'STUDENT',
+                canSend: true,
+                lastMessage: conv?.lastMessage ?? 'No messages yet',
+                lastMessageAt: conv?.lastMessageAt ?? '',
+                direction: conv?.direction,
+            });
+        }
+    }
+
+    // Filter by search
     const filteredItems = allSidebarUsers.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Group by role
+    const groupedByRole = {
+        PRINCIPAL: filteredItems.filter(i => i.role === 'PRINCIPAL'),
+        TEACHER: filteredItems.filter(i => i.role === 'TEACHER'),
+        ACCOUNTANT: filteredItems.filter(i => i.role === 'ACCOUNTANT'),
+        STUDENT: filteredItems.filter(i => i.role === 'STUDENT'),
+    };
+
     const selectedItem = allSidebarUsers.find(i => i.userId === selectedUserId);
+    const canSendToSelected = selectedItem?.canSend ?? false;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;
@@ -133,6 +203,57 @@ export default function SuperAdminMessagesPage() {
         }
     };
 
+    const renderUserList = (items: SidebarUser[], icon: React.ReactNode, label: string, colorClass: string) => {
+        if (items.length === 0) return null;
+        return (
+            <div className="border-b border-gray-200">
+                <div className={`px-4 py-2 bg-gray-100 flex items-center gap-2 ${colorClass}`}>
+                    {icon}
+                    <span className="text-xs font-semibold uppercase">{label}</span>
+                    <span className="text-xs text-gray-500 ml-auto">({items.length})</span>
+                </div>
+                {items.map((item) => (
+                    <div
+                        key={item.userId}
+                        onClick={() => setSelectedUserId(item.userId)}
+                        className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${
+                            selectedUserId === item.userId
+                                ? 'bg-white border-l-4 border-l-rose-500 shadow-sm'
+                                : 'border-gray-50'
+                        }`}
+                    >
+                        <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-sm shrink-0">
+                            {item.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline mb-1">
+                                <h3 className={`text-sm font-semibold truncate ${
+                                    selectedUserId === item.userId ? 'text-rose-500' : 'text-gray-800'
+                                }`}>{item.name}</h3>
+                                {item.lastMessageAt && (
+                                    <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                        {formatTime(item.lastMessageAt)}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleColor(item.role)}`}>
+                                    {getRoleLabel(item.role)}
+                                </span>
+                                {item.direction === 'sent' && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 font-medium">Sent</span>
+                                )}
+                            </div>
+                            {item.lastMessage && (
+                                <p className="text-xs text-gray-500 truncate mt-0.5">{item.lastMessage}</p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-6">
             <div className="max-w-7xl mx-auto space-y-8">
@@ -145,7 +266,7 @@ export default function SuperAdminMessagesPage() {
                 </div>
 
                 {/* Message Layout */}
-                <div className="flex bg-white rounded-lg shadow-lg overflow-hidden min-h-[600px]">
+                <div className="flex bg-white rounded-lg shadow-lg overflow-hidden min-h-150">
                     {/* Sidebar */}
                     <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
                         <div className="p-4 border-b border-gray-200">
@@ -168,44 +289,12 @@ export default function SuperAdminMessagesPage() {
                             ) : filteredItems.length === 0 ? (
                                 <div className="text-center py-8 text-gray-400 text-sm">No users found</div>
                             ) : (
-                                filteredItems.map((item) => (
-                                    <div
-                                        key={item.userId}
-                                        onClick={() => setSelectedUserId(item.userId)}
-                                        className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${
-                                            selectedUserId === item.userId
-                                                ? 'bg-white border-l-4 border-l-rose-500 shadow-sm'
-                                                : 'border-gray-50'
-                                        }`}
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-sm shrink-0">
-                                            {item.name.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-baseline mb-1">
-                                                <h3 className={`text-sm font-semibold truncate ${
-                                                    selectedUserId === item.userId ? 'text-rose-500' : 'text-gray-800'
-                                                }`}>{item.name}</h3>
-                                                {item.lastMessageAt && (
-                                                    <span className="text-xs text-gray-400 shrink-0 ml-2">
-                                                        {formatTime(item.lastMessageAt)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleColor(item.role)}`}>
-                                                    {getRoleLabel(item.role)}
-                                                </span>
-                                                {item.direction === 'sent' && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 font-medium">Sent</span>
-                                                )}
-                                            </div>
-                                            {item.lastMessage && (
-                                                <p className="text-xs text-gray-500 truncate mt-0.5">{item.lastMessage}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))
+                                <>
+                                    {renderUserList(groupedByRole.PRINCIPAL, <UserCheck size={14} />, 'Principals', 'text-purple-700')}
+                                    {renderUserList(groupedByRole.TEACHER, <Briefcase size={14} />, 'Teachers', 'text-emerald-700')}
+                                    {renderUserList(groupedByRole.ACCOUNTANT, <Briefcase size={14} />, 'Accountants', 'text-amber-700')}
+                                    {renderUserList(groupedByRole.STUDENT, <GraduationCap size={14} />, 'Students', 'text-blue-700')}
+                                </>
                             )}
                         </div>
                     </div>
@@ -301,7 +390,7 @@ export default function SuperAdminMessagesPage() {
                                     <MessageSquare size={32} />
                                 </div>
                                 <h3 className="text-lg font-bold text-gray-600 mb-1">Select a Conversation</h3>
-                                <p className="text-sm">Choose a recipient from the sidebar to view or start a conversation</p>
+                                <p className="text-sm">Choose a user from the sidebar to start messaging</p>
                             </div>
                         )}
                     </div>

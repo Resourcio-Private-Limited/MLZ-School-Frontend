@@ -512,7 +512,7 @@ export default function UserManagementPage() {
                                 <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
                                 <p className="text-sm text-gray-500 mt-1">Create a new user account</p>
                             </div>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <button onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={24} className="text-gray-600" />
                             </button>
                         </div>
@@ -654,7 +654,7 @@ export default function UserManagementPage() {
                         </div>
 
                         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
-                            <button onClick={() => setShowAddModal(false)}
+                            <button onClick={() => { setShowAddModal(false); setNewUser(emptyForm); setShowPassword(false); }}
                                 className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                 Cancel
                             </button>

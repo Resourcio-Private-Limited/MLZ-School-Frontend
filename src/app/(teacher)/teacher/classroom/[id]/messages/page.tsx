@@ -1,11 +1,11 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import { ArrowLeft, Search, Send } from "lucide-react";
+import { ArrowLeft, Search, Send, Lock } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
-import { useGetClassStudentsQuery } from "@/redux/api/teacherApi";
+import { useGetClassStudentsQuery, useGetMessageRecipientsQuery } from "@/redux/api/teacherApi";
 
 function formatTime(dateStr: string) {
     try {
@@ -52,11 +52,15 @@ interface SidebarItem {
     userId: string;
     name: string;
     role: string;
+    canSend: boolean;
     lastMessage: string;
     lastMessageAt: string;
     direction: 'sent' | 'received';
     unread: number;
 }
+
+const CAN_SEND_ROLES = ['STUDENT', 'PRINCIPAL'];
+const READ_ONLY_ROLES = ['ACCOUNTANT', 'SUPER_ADMIN', 'TEACHER'];
 
 export default function TeacherMessagesPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
@@ -70,37 +74,98 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
     const teacherId = authUser?.teacher?.id ?? currentUserId;
 
     const { data: allConversations = [], refetch: refetchConversations } = useGetConversationsQuery(currentUserId ?? "");
-    const { data: students = [] } = useGetClassStudentsQuery(classroomId);
+    const { data: students = [], isLoading: studentsLoading } = useGetClassStudentsQuery(classroomId);
+    const { data: recipients = [] } = useGetMessageRecipientsQuery();
     const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
 
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [messageText, setMessageText] = useState("");
 
-    const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
+    const { data: messages = [], refetch: refetchMessages, isFetching } = useGetConversationQuery(
         { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
         { skip: !currentUserId || !selectedUserId }
     );
 
-    // Build sidebar: use conversation data where available, fall back to student list
-    const studentUserIds = new Set(students.map(s => s.id));
+    // Poll for new messages every 3 seconds when a conversation is selected
+    useEffect(() => {
+        if (!selectedUserId) return;
+        const interval = setInterval(() => {
+            refetchMessages();
+            refetchConversations();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [selectedUserId, refetchMessages, refetchConversations]);
 
+    // Build sidebar items
     const sidebarItems: SidebarItem[] = [];
 
-    // First, add students who have conversation data
+    // Get student user IDs from class
+    const studentUserIds = new Set(students.map(s => s.userId));
+
+    // Build conversation map from conversations
     const conversationMap = new Map(
         allConversations
             .filter(c => c.otherUserRole === 'STUDENT' && studentUserIds.has(c.otherUserId))
             .map(conv => [conv.otherUserId, conv])
     );
 
-    // Then add all students (conversation data if available, otherwise placeholder)
+    // Add students from class
     for (const student of students) {
-        const conv = conversationMap.get(student.id);
+        const conv = conversationMap.get(student.userId);
         sidebarItems.push({
-            userId: student.id,
+            userId: student.userId,
             name: student.fullName,
             role: 'STUDENT',
+            canSend: true,
+            lastMessage: conv?.lastMessage ?? 'No messages yet',
+            lastMessageAt: conv?.lastMessageAt ?? '',
+            direction: conv?.direction ?? ('received' as const),
+            unread: 0,
+        });
+    }
+
+    // Add Principal from recipients
+    const principal = recipients.find(r => r.role === 'PRINCIPAL');
+    if (principal) {
+        const conv = allConversations.find(c => c.otherUserId === principal.id);
+        sidebarItems.push({
+            userId: principal.id,
+            name: principal.name,
+            role: 'PRINCIPAL',
+            canSend: true,
+            lastMessage: conv?.lastMessage ?? 'No messages yet',
+            lastMessageAt: conv?.lastMessageAt ?? '',
+            direction: conv?.direction ?? ('received' as const),
+            unread: 0,
+        });
+    }
+
+    // Add Accountant (read-only)
+    const accountant = recipients.find(r => r.role === 'ACCOUNTANT');
+    if (accountant) {
+        const conv = allConversations.find(c => c.otherUserId === accountant.id);
+        sidebarItems.push({
+            userId: accountant.id,
+            name: accountant.name,
+            role: 'ACCOUNTANT',
+            canSend: false,
+            lastMessage: conv?.lastMessage ?? 'No messages yet',
+            lastMessageAt: conv?.lastMessageAt ?? '',
+            direction: conv?.direction ?? ('received' as const),
+            unread: 0,
+        });
+    }
+
+    // Add Super Admin (read-only)
+    const superAdmin = recipients.find(r => r.role === 'SUPER_ADMIN');
+    if (superAdmin) {
+        const conv = allConversations.find(c => c.otherUserId === superAdmin.id);
+        sidebarItems.push({
+            userId: superAdmin.id,
+            name: superAdmin.name,
+            role: 'SUPER_ADMIN',
+            canSend: false,
             lastMessage: conv?.lastMessage ?? 'No messages yet',
             lastMessageAt: conv?.lastMessageAt ?? '',
             direction: conv?.direction ?? ('received' as const),
@@ -113,6 +178,7 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
     );
 
     const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
+    const canSendToSelected = selectedItem?.canSend ?? false;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;
@@ -161,12 +227,12 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
                     {/* Sidebar */}
                     <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
                         <div className="p-4 border-b border-gray-200">
-                            <h2 className="text-lg font-bold text-gray-800 mb-3">Students</h2>
+                            <h2 className="text-lg font-bold text-gray-800 mb-3">Conversations</h2>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
                                 <input
                                     type="text"
-                                    placeholder="Search students..."
+                                    placeholder="Search..."
                                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm text-gray-800"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -177,9 +243,7 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
                         <div className="flex-1 overflow-y-auto">
                             {sidebarItems.length === 0 ? (
                                 <div className="text-center py-8 text-gray-400 text-sm">
-                                    {students.length === 0
-                                        ? 'No students in this class'
-                                        : 'No conversations yet — select a student from the list below'}
+                                    No conversations available
                                 </div>
                             ) : (
                                 filteredItems.map((item) => (
@@ -208,7 +272,13 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-xs text-gray-500">{getRoleLabel(item.role)}</span>
-                                                {item.direction === 'sent' && (
+                                                {!item.canSend && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium flex items-center gap-1">
+                                                        <Lock size={8} />
+                                                        Read Only
+                                                    </span>
+                                                )}
+                                                {item.direction === 'sent' && item.canSend && (
                                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-medium">Sent</span>
                                                 )}
                                             </div>
@@ -236,17 +306,28 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
                                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
                                         {selectedItem.name.charAt(0).toUpperCase()}
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <h2 className="text-lg font-bold text-gray-800">{selectedItem.name}</h2>
                                         <p className="text-xs text-gray-500">{getRoleLabel(selectedItem.role)}</p>
                                     </div>
+                                    {!selectedItem.canSend && (
+                                        <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                            <Lock size={12} />
+                                            Read Only
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Messages */}
                                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                    {messages.length === 0 ? (
+                                    {isFetching && (
+                                        <div className="text-center">
+                                            <div className="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    )}
+                                    {messages.length === 0 && !isFetching ? (
                                         <div className="text-center text-gray-400 py-12">
-                                            <p className="text-sm">No messages yet. Start the conversation below.</p>
+                                            <p className="text-sm">No messages yet. {canSendToSelected ? 'Start the conversation below.' : 'You can only receive messages here.'}</p>
                                         </div>
                                     ) : (
                                         messages.map((msg) => {
@@ -280,35 +361,42 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
 
                                 {/* Input */}
                                 <div className="p-6 bg-gray-50 border-t border-gray-200">
-                                    <div className="flex items-end gap-3">
-                                        <div className="flex-1">
-                                            <textarea
-                                                rows={4}
-                                                placeholder="Type your formal reply here..."
-                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
-                                                value={messageText}
-                                                onChange={(e) => setMessageText(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        handleSendMessage();
-                                                    }
-                                                }}
-                                            />
+                                    {canSendToSelected ? (
+                                        <div className="flex items-end gap-3">
+                                            <div className="flex-1">
+                                                <textarea
+                                                    rows={4}
+                                                    placeholder="Type your formal reply here..."
+                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
+                                                    value={messageText}
+                                                    onChange={(e) => setMessageText(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            handleSendMessage();
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleSendMessage}
+                                                disabled={!messageText.trim() || isSending}
+                                                className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
+                                                    messageText.trim() && !isSending
+                                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                <Send size={16} />
+                                                {isSending ? 'Sending...' : 'Send Message'}
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={handleSendMessage}
-                                            disabled={!messageText.trim() || isSending}
-                                            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
-                                                messageText.trim() && !isSending
-                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            <Send size={16} />
-                                            {isSending ? 'Sending...' : 'Send Message'}
-                                        </button>
-                                    </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center text-gray-400 text-sm">
+                                            <Lock size={16} className="mr-2" />
+                                            Messaging is disabled for {getRoleLabel(selectedItem.role)}. Only receive mode available.
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         ) : (
