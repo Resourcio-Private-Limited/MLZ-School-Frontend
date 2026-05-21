@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetSuperAdminProfileQuery } from "@/redux/api/superAdminApi";
 
@@ -15,17 +15,52 @@ export default function SuperAdminLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isAuthChecked, setIsAuthChecked] = useState(false);
     const dispatch = useDispatch();
     const router = useRouter();
-    const { data: profile } = useGetSuperAdminProfileQuery();
+    const { data: profile, isLoading } = useGetSuperAdminProfileQuery();
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem("accessToken");
+            const authUser = localStorage.getItem("authUser");
+            if (!token || !authUser) {
+                router.push("/login/super-admin");
+            } else {
+                try {
+                    const user = JSON.parse(authUser);
+                    if (user.role !== 'SUPER_ADMIN') {
+                        router.push("/login/super-admin");
+                    }
+                } catch {
+                    router.push("/login/super-admin");
+                }
+            }
+            setIsAuthChecked(true);
+        }
+    }, [router]);
 
     const handleLogout = () => {
         dispatch(logout());
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("authUser");
+        localStorage.removeItem("userRole");
         router.push("/login/super-admin");
     };
 
     const displayName = profile?.fullName ?? "Super Admin";
     const displayEmail = profile?.userEmail ?? profile?.email ?? "superadmin@school.com";
+
+    if (!isAuthChecked || (isLoading && isAuthChecked)) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-rose-600 mb-4" />
+                    <p className="text-gray-500">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-gray-50">
