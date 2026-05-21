@@ -4,6 +4,7 @@ import { use, useState, useEffect } from "react";
 import { ArrowLeft, Calendar, Plus, Users, Download, CheckCircle, Loader2, History } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { useGetClassStudentsQuery, useGetTeacherProfileQuery, useMarkAttendanceMutation } from "@/redux/api/teacherApi";
 
 export default function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
@@ -73,6 +74,27 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
 
     const presentCount = students.filter(s => localAttendance[s.id] !== false).length;
     const totalStudents = students.length;
+
+    const handleDownloadTodayAttendance = () => {
+        const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const worksheetData = [
+            ['SL No', 'Roll No', 'Student Name', 'Attendance Status', 'Date']
+        ];
+        students.forEach((student, index) => {
+            worksheetData.push([
+                index + 1,
+                student.rollNumber ?? '—',
+                student.fullName,
+                student.attendance ?? 'Not Marked',
+                today
+            ]);
+        });
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
+        XLSX.writeFile(workbook, `Attendance_${today.replace(/,/g, '').replace(/ /g, '_')}.xlsx`);
+        toast.success('Attendance sheet downloaded!');
+    };
 
     return (
         <div className="space-y-6 relative">
@@ -296,7 +318,11 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                         >
                             <option>{selectedMonth}</option>
                         </select>
-                        <button className="p-2 text-gray-500 hover:text-emerald-500 transition-colors">
+                        <button
+                            onClick={handleDownloadTodayAttendance}
+                            className="p-2 text-gray-500 hover:text-emerald-500 transition-colors"
+                            title="Download Today's Attendance"
+                        >
                             <Download size={20} />
                         </button>
                     </div>

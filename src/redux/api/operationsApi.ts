@@ -74,7 +74,7 @@ export interface ClassroomSection {
   section: string;
   capacity: number;
   total: number;
-  classTeacher: { id: string; fullName: string } | null;
+  classTeacher: { id: string; fullName: string; userId?: string } | null;
 }
 
 export interface GradeSections {
@@ -110,10 +110,12 @@ export const operationsApi = baseApi.injectEndpoints({
 
     sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { senderId: string; receiverId: string; content: string }>({
       query: (body) => ({ url: '/operations/message', method: 'POST', body }),
+      invalidatesTags: ['Conversations', 'Messages'],
     }),
 
     getConversations: builder.query<ConversationItem[], string>({
       query: (userId) => ({ url: `/operations/conversations?userId=${encodeURIComponent(userId)}`, method: 'GET' }),
+      providesTags: ['Conversations'],
     }),
 
     getConversation: builder.query<MessageItem[], { userId: string; otherUserId: string }>({
@@ -121,6 +123,7 @@ export const operationsApi = baseApi.injectEndpoints({
         url: `/operations/conversation?userId=${encodeURIComponent(userId)}&otherUserId=${encodeURIComponent(otherUserId)}`,
         method: 'GET',
       }),
+      providesTags: (result, error, { otherUserId }) => [{ type: 'Messages', id: otherUserId }],
     }),
 
     createNotice: builder.mutation<Notice, CreateNoticePayload>({

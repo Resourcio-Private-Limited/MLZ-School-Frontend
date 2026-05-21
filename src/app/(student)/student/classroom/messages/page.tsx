@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Send } from "lucide-react";
+import { ArrowLeft, Search, Send, Lock } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
@@ -37,6 +37,9 @@ function getRoleLabel(role: string): string {
     return labels[role] ?? role;
 }
 
+const CAN_SEND_ROLES = ['TEACHER', 'PRINCIPAL'];
+const READ_ONLY_ROLES = ['ACCOUNTANT', 'SUPER_ADMIN'];
+
 export default function StudentMessagesPage() {
     const [authUser, setAuthUser] = useState<Record<string, any>>({});
 
@@ -66,19 +69,25 @@ export default function StudentMessagesPage() {
         { skip: !currentUserId || !selectedUserId }
     );
 
-    // Get the name and role for a given userId from recipients
-    const getRecipientInfo = (userId: string) => {
-        const r = recipients.find(r => r.id === userId);
-        return r ? { name: r.name, role: r.role } : { name: 'User', role: '' };
-    };
+    // Poll for new messages every 3 seconds when a conversation is selected
+    useEffect(() => {
+        if (!selectedUserId) return;
+        const interval = setInterval(() => {
+            refetchMessages();
+            refetchConversations();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [selectedUserId, refetchMessages, refetchConversations]);
 
     // Build sidebar items: always show all recipients, merge with conversation data
     const sidebarItems = recipients.map(r => {
         const conv = conversations.find(c => c.otherUserId === r.id);
+        const canSend = CAN_SEND_ROLES.includes(r.role);
         return {
             userId: r.id,
             name: r.name,
             role: r.role,
+            canSend,
             lastMessage: conv?.lastMessage ?? 'No messages yet',
             lastMessageAt: conv?.lastMessageAt ?? '',
             direction: conv?.direction ?? ('received' as const),
@@ -92,7 +101,7 @@ export default function StudentMessagesPage() {
     );
 
     const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
-    const activeMessages = messages;
+    const canSendToSelected = selectedItem?.canSend ?? false;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;
@@ -184,7 +193,13 @@ export default function StudentMessagesPage() {
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-xs text-gray-500">{getRoleLabel(item.role)}</span>
-                                                {item.direction === 'sent' && (
+                                                {!item.canSend && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium flex items-center gap-1">
+                                                        <Lock size={8} />
+                                                        Read Only
+                                                    </span>
+                                                )}
+                                                {item.direction === 'sent' && item.canSend && (
                                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-medium">Sent</span>
                                                 )}
                                             </div>
@@ -212,20 +227,26 @@ export default function StudentMessagesPage() {
                                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
                                         {selectedItem.name.charAt(0)}
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <h2 className="text-lg font-bold text-gray-800">{selectedItem.name}</h2>
                                         <p className="text-xs text-gray-500">{getRoleLabel(selectedItem.role)}</p>
                                     </div>
+                                    {!selectedItem.canSend && (
+                                        <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                            <Lock size={12} />
+                                            Read Only
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Messages */}
                                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                    {activeMessages.length === 0 ? (
+                                    {messages.length === 0 ? (
                                         <div className="text-center text-gray-400 py-12">
-                                            <p className="text-sm">No messages yet. Start the conversation below.</p>
+                                            <p className="text-sm">No messages yet. {canSendToSelected ? 'Start the conversation below.' : 'You can only receive messages here.'}</p>
                                         </div>
                                     ) : (
-                                        activeMessages.map((msg) => {
+                                        messages.map((msg) => {
                                             const isMine = msg.senderId === currentUserId;
                                             return (
                                                 <div key={msg.id} className="flex flex-col">
@@ -256,35 +277,42 @@ export default function StudentMessagesPage() {
 
                                 {/* Input */}
                                 <div className="p-6 bg-gray-50 border-t border-gray-200">
-                                    <div className="flex items-end gap-3">
-                                        <div className="flex-1">
-                                            <textarea
-                                                rows={3}
-                                                placeholder="Type your message here..."
-                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
-                                                value={messageText}
-                                                onChange={(e) => setMessageText(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        handleSendMessage();
-                                                    }
-                                                }}
-                                            />
+                                    {canSendToSelected ? (
+                                        <div className="flex items-end gap-3">
+                                            <div className="flex-1">
+                                                <textarea
+                                                    rows={3}
+                                                    placeholder="Type your message here..."
+                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
+                                                    value={messageText}
+                                                    onChange={(e) => setMessageText(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            handleSendMessage();
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleSendMessage}
+                                                disabled={!messageText.trim() || isSending}
+                                                className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
+                                                    messageText.trim() && !isSending
+                                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                <Send size={16} />
+                                                {isSending ? 'Sending...' : 'Send'}
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={handleSendMessage}
-                                            disabled={!messageText.trim() || isSending}
-                                            className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
-                                                messageText.trim() && !isSending
-                                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            <Send size={16} />
-                                            {isSending ? 'Sending...' : 'Send'}
-                                        </button>
-                                    </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center text-gray-400 text-sm">
+                                            <Lock size={16} className="mr-2" />
+                                            Messaging is disabled for {getRoleLabel(selectedItem.role)}. Only receive mode available.
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         ) : (
