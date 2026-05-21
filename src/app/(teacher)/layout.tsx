@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Bell, User, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Bell, User, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useGetTeacherProfileQuery } from "@/redux/api/teacherApi";
 
 export default function TeacherLayout({
@@ -13,8 +13,29 @@ export default function TeacherLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isAuthChecked, setIsAuthChecked] = useState(false);
     const router = useRouter();
-    const { data: teacherProfile } = useGetTeacherProfileQuery();
+    const { data: teacherProfile, isLoading } = useGetTeacherProfileQuery();
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem("accessToken");
+            const authUser = localStorage.getItem("authUser");
+            if (!token || !authUser) {
+                router.push("/login/teacher");
+            } else {
+                try {
+                    const user = JSON.parse(authUser);
+                    if (user.role !== 'TEACHER') {
+                        router.push("/login/teacher");
+                    }
+                } catch {
+                    router.push("/login/teacher");
+                }
+            }
+            setIsAuthChecked(true);
+        }
+    }, [router]);
 
     const teacherName = teacherProfile?.fullName ?? "Teacher";
     const teacherEmail = teacherProfile?.userEmail ?? "";
@@ -22,8 +43,20 @@ export default function TeacherLayout({
     const handleLogout = () => {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("authUser");
+        localStorage.removeItem("userRole");
         router.push("/login/teacher");
     };
+
+    if (!isAuthChecked || (isLoading && isAuthChecked)) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-emerald-600 mb-4" />
+                    <p className="text-gray-500">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-gray-50">

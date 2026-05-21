@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon, LogOut, ChevronLeft, ChevronRight, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon, LogOut, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
 
 export default function AccountantLayout({
     children,
@@ -11,13 +12,51 @@ export default function AccountantLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isAuthChecked, setIsAuthChecked] = useState(false);
+    const [accountantName, setAccountantName] = useState("Accountant");
+    const [accountantEmail, setAccountantEmail] = useState("accountant@school.com");
+    const router = useRouter();
 
-    // TODO: Connect to new backend API for authentication
-    // For now, layout is accessible without authentication
-    const mockUser = {
-        name: "Accountant User",
-        email: "accountant@school.com"
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem("accessToken");
+            const authUser = localStorage.getItem("authUser");
+            if (!token || !authUser) {
+                router.push("/login/accounts");
+            } else {
+                try {
+                    const user = JSON.parse(authUser);
+                    if (user.role !== 'ACCOUNTANT') {
+                        router.push("/login/accounts");
+                    } else {
+                        setAccountantName(user.name ?? user.fullName ?? "Accountant");
+                        setAccountantEmail(user.email ?? "accountant@school.com");
+                    }
+                } catch {
+                    router.push("/login/accounts");
+                }
+            }
+            setIsAuthChecked(true);
+        }
+    }, [router]);
+
+    const handleLogout = () => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("authUser");
+        localStorage.removeItem("userRole");
+        router.push("/login/accounts");
     };
+
+    if (!isAuthChecked) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-orange-600 mb-4" />
+                    <p className="text-gray-500">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -74,26 +113,33 @@ export default function AccountantLayout({
                         <>
                             <div className="flex items-center space-x-3 mb-3">
                                 <div className="w-10 h-10 rounded-full bg-orange-900/50 border border-orange-700/50 flex items-center justify-center text-orange-400 font-bold">
-                                    {mockUser.name?.[0] || "A"}
+                                    {accountantName?.[0] || "A"}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-sm text-slate-200">{mockUser.name}</p>
-                                    <p className="text-xs text-slate-500">{mockUser.email}</p>
+                                    <p className="font-medium text-sm text-slate-200">{accountantName}</p>
+                                    <p className="text-xs text-slate-500">{accountantEmail}</p>
                                 </div>
                             </div>
-                            <Link href="/" className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full">
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full"
+                            >
                                 <LogOut size={18} />
                                 <span>Logout</span>
-                            </Link>
+                            </button>
                         </>
                     ) : (
                         <div className="flex flex-col items-center space-y-3">
                             <div className="w-10 h-10 rounded-full bg-orange-900/50 border border-orange-700/50 flex items-center justify-center text-orange-400 font-bold">
-                                {mockUser.name?.[0] || "A"}
+                                {accountantName?.[0] || "A"}
                             </div>
-                            <Link href="/" className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50" title="Logout">
+                            <button
+                                onClick={handleLogout}
+                                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
+                                title="Logout"
+                            >
                                 <LogOut size={18} />
-                            </Link>
+                            </button>
                         </div>
                     )}
                 </div>
