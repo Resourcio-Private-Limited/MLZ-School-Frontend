@@ -79,8 +79,8 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-6 border-b bg-gray-50 sticky top-0">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-10">
+                <div className="flex justify-between items-center p-6 border-b bg-gray-50 sticky top-0 z-20">
                     <h2 className="text-xl font-bold text-gray-800">Admit New Student</h2>
                     <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-700">
                         <X />
@@ -245,7 +245,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                         </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end space-x-3">
+                    <div className="pt-4 flex justify-end space-x-3 z-20 relative">
                         <button
                             type="button"
                             onClick={() => setIsOpen(false)}

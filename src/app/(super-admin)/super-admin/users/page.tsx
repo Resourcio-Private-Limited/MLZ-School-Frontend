@@ -529,20 +529,20 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
                                         <input type="text" value={newUser.fullName}
                                             onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
                                         <input type="email" value={newUser.email}
                                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
                                         <div className="relative">
                                             <input type={showPassword ? "text" : "password"} value={newUser.password}
                                                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                                                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                             <button type="button" onClick={() => setShowPassword(!showPassword)}
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -553,7 +553,7 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">User Type <span className="text-red-500">*</span></label>
                                         <select value={newUser.role}
                                             onChange={(e) => setNewUser({ ...newUser, role: e.target.value as NewUserForm['role'], customRole: '' })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
                                             <option value="TEACHER">Teacher</option>
                                             <option value="PRINCIPAL">Principal</option>
                                             <option value="ACCOUNTANT">Accountant</option>
@@ -566,7 +566,7 @@ export default function UserManagementPage() {
                                             <input type="text" value={newUser.customRole}
                                                 onChange={(e) => setNewUser({ ...newUser, customRole: e.target.value })}
                                                 placeholder="e.g., Gardener, Sweeper, Receptionist"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                     )}
                                 </div>
@@ -583,19 +583,19 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
                                         <input type="tel" value={newUser.primaryContact}
                                             onChange={(e) => setNewUser({ ...newUser, primaryContact: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth</label>
                                         <input type="date" value={newUser.dob}
                                             onChange={(e) => setNewUser({ ...newUser, dob: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
                                         <select value={newUser.gender}
                                             onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
@@ -606,7 +606,7 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Residential Address</label>
                                         <input type="text" value={newUser.residentialAddress}
                                             onChange={(e) => setNewUser({ ...newUser, residentialAddress: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             </div>
@@ -623,21 +623,21 @@ export default function UserManagementPage() {
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID <span className="text-red-500">*</span></label>
                                             <input type="text" value={newUser.employeeId}
                                                 onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification <span className="text-red-500">*</span></label>
                                             <input type="text" value={newUser.highestQualification}
                                                 onChange={(e) => setNewUser({ ...newUser, highestQualification: e.target.value })}
                                                 placeholder="e.g., M.Sc., B.Ed., Ph.D."
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹) <span className="text-red-500">*</span></label>
                                             <input type="number" value={newUser.salary}
                                                 onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
                                                 placeholder="e.g., 50000"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                     </div>
                                 </div>
@@ -701,19 +701,19 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
                                         <input type="text" value={editForm.fullName}
                                             onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
                                         <input type="email" value={editForm.email}
                                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
                                         <input type="tel" value={editForm.primaryContact}
                                             onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             </div>
@@ -729,13 +729,13 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth</label>
                                         <input type="date" value={editForm.dob}
                                             onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
                                         <select value={editForm.gender}
                                             onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
@@ -746,7 +746,7 @@ export default function UserManagementPage() {
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Residential Address</label>
                                         <input type="text" value={editForm.residentialAddress}
                                             onChange={(e) => setEditForm({ ...editForm, residentialAddress: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             </div>
@@ -763,21 +763,21 @@ export default function UserManagementPage() {
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
                                             <input type="text" value={editForm.employeeId}
                                                 onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification</label>
                                             <input type="text" value={editForm.highestQualification}
                                                 onChange={(e) => setEditForm({ ...editForm, highestQualification: e.target.value })}
                                                 placeholder="e.g., M.Sc., B.Ed., Ph.D."
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹)</label>
                                             <input type="number" value={editForm.salary}
                                                 onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
                                                 placeholder="e.g., 50000"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
                                     </div>
                                 </div>
@@ -795,7 +795,7 @@ export default function UserManagementPage() {
                                         <input type="text" value={editForm.customRole}
                                             onChange={(e) => setEditForm({ ...editForm, customRole: e.target.value })}
                                             placeholder="e.g., Gardener, Sweeper, Receptionist"
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             )}
@@ -845,7 +845,7 @@ export default function UserManagementPage() {
                                     <div className="relative">
                                         <input type={showCurrentPassword ? "text" : "password"} value={passwordForm.currentPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                                             {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -857,7 +857,7 @@ export default function UserManagementPage() {
                                     <div className="relative">
                                         <input type={showNewPassword ? "text" : "password"} value={passwordForm.newPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none" />
+                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                                             {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
