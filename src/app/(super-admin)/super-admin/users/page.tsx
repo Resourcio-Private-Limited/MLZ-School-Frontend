@@ -111,19 +111,22 @@ export default function UserManagementPage() {
     );
 
     const handleAddUser = async () => {
-        // Validate age for non-student roles (must be at least 20 years old)
-        if (newUser.dob) {
-            const birthDate = new Date(newUser.dob);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            if (age < 20) {
-                toast.error(`Age must be at least 20 years. Current age: ${age} years.`);
-                return;
-            }
+        // Validate age for all non-student roles (must be at least 20 years old)
+        if (!newUser.dob) {
+            toast.error("Date of Birth is required for all users. Please enter the DOB.");
+            return;
+        }
+
+        const birthDate = new Date(newUser.dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        if (age < 20) {
+            toast.error(`Age must be at least 20 years. Current age: ${age} years.`);
+            return;
         }
 
         // Check if adding a PRINCIPAL and there's already an active principal
@@ -366,6 +369,7 @@ export default function UserManagementPage() {
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Password</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                             </tr>
@@ -373,7 +377,7 @@ export default function UserManagementPage() {
                         <tbody className="divide-y divide-gray-200">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                                    <td colSpan={8} className="px-6 py-10 text-center text-gray-500">
                                         <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                                         <p>Loading users...</p>
                                     </td>
@@ -397,6 +401,11 @@ export default function UserManagementPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={roleBadge(user.role)}>{roleLabel(user.role)}</span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <code className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
+                                                {user.password || '-'}
+                                            </code>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
@@ -450,7 +459,7 @@ export default function UserManagementPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
+                                    <td colSpan={8} className="px-6 py-12 text-center">
                                         <Users className="mx-auto text-gray-300 mb-2" size={48} />
                                         <p className="text-gray-500 font-medium">No {selectedTab.toLowerCase()} found</p>
                                     </td>

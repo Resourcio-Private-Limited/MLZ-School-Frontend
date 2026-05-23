@@ -51,6 +51,7 @@ export interface UserSummary {
     highestQualification?: string;
     salary?: string;
     customRole?: string;
+    password?: string;
 }
 
 export interface AllUsersResponse {
