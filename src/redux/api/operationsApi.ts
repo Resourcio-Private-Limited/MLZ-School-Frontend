@@ -108,7 +108,7 @@ export const operationsApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/operations/announcements', method: 'POST', body }),
     }),
 
-    sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { senderId: string; receiverId: string; content: string }>({
+    sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { receiverId: string; content: string }>({
       query: (body) => ({ url: '/operations/message', method: 'POST', body }),
       invalidatesTags: ['Conversations', 'Messages'],
     }),

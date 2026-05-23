@@ -190,7 +190,6 @@ export default function SuperAdminMessagesPage() {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;
         try {
             await sendMessage({
-                senderId: currentUserId,
                 receiverId: selectedUserId,
                 content: messageText.trim(),
             }).unwrap();

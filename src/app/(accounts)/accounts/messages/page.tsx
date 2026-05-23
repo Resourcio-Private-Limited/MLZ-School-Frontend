@@ -260,7 +260,6 @@ export default function AccountantMessages() {
 
         try {
             await sendMessage({
-                senderId: currentUserId,
                 receiverId: selectedItem.userId,
                 content: messageText.trim(),
             }).unwrap();

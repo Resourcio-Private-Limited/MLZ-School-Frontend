@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetSuperAdminProfileQuery } from "@/redux/api/superAdminApi";
 
@@ -107,6 +107,7 @@ export default function SuperAdminLayout({
                     <NavLink href="/super-admin" icon={<LayoutDashboard size={20} />} label="Dashboard" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/users" icon={<Users size={20} />} label="User Management" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
+                    <NavLink href="/super-admin/messages" icon={<MessageSquare size={20} />} label="Messages" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/financial" icon={<BarChart3 size={20} />} label="Financial Overview" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/profile" icon={<Users size={20} />} label="Profile" isCollapsed={isCollapsed} />
                 </nav>
