@@ -108,7 +108,6 @@ export default function StudentMessagesPage() {
 
         try {
             await sendMessage({
-                senderId: currentUserId,
                 receiverId: selectedUserId,
                 content: messageText.trim(),
             }).unwrap();

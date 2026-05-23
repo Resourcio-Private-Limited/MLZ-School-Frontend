@@ -185,7 +185,6 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
 
         try {
             await sendMessage({
-                senderId: currentUserId,
                 receiverId: selectedUserId,
                 content: messageText.trim(),
             }).unwrap();
