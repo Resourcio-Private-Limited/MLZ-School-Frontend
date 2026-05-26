@@ -125,7 +125,6 @@ export const ICON_TOOLTIPS: Record<string, string> = {
   ShieldX: "Unverified Student",
   Briefcase: "Teacher",
   GraduationCap: "Student",
-  Users: "Students",
   Key: "Reset Password",
   Lock: "Lock/Unlock",
 
@@ -153,13 +152,10 @@ export const ICON_TOOLTIPS: Record<string, string> = {
   AlertTriangle: "Warning",
   Info: "Information",
   Trophy: "Rankings",
-  TrendingUp: "Rank Up",
-  TrendingDown: "Rank Down",
 
   // Messages
   MessageSquare: "Messages",
   MessageCircleIcon: "Messages",
-  Send: "Send Message",
   Link2: "External Link",
   Paperclip: "Attachment",
 
