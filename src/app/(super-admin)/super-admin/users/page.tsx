@@ -12,6 +12,7 @@ import {
     useChangeUserPasswordMutation,
     UserSummary,
 } from "@/redux/api/superAdminApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
 
@@ -414,20 +415,23 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <div className="flex items-center space-x-1">
+                                                <Tooltip content="Edit User" side="top">
                                                 <button
                                                     onClick={() => openEditModal(user)}
                                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                    title="Edit User"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
+                                                </Tooltip>
+                                                <Tooltip content="Change Password" side="top">
                                                 <button
                                                     onClick={() => openPasswordModal(user)}
                                                     className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                                    title="Change Password"
                                                 >
                                                     <Key size={16} />
                                                 </button>
+                                                </Tooltip>
+                                                <Tooltip content={user.isActive ? "Deactivate User" : "Activate User"} side="top">
                                                 <button
                                                     onClick={() => {
                                                         if (user.isActive) {
@@ -442,10 +446,9 @@ export default function UserManagementPage() {
                                                     }}
                                                     className={`p-1.5 rounded transition-colors ${
                                                         user.isActive
-                                                            ? 'text-gray-500 hover:bg-gray-100 title="Deactivate"'
-                                                            : 'text-green-600 hover:bg-green-50 title="Activate"'
+                                                            ? 'text-gray-500 hover:bg-gray-100'
+                                                            : 'text-green-600 hover:bg-green-50'
                                                     }`}
-                                                    title={user.isActive ? "Deactivate" : "Activate"}
                                                 >
                                                     {user.isActive ? (
                                                         <span className="text-xs font-medium">Off</span>
@@ -453,6 +456,7 @@ export default function UserManagementPage() {
                                                         <span className="text-xs font-medium">On</span>
                                                     )}
                                                 </button>
+                                                </Tooltip>
                                             </div>
                                         </td>
                                     </tr>

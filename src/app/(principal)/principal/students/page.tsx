@@ -5,6 +5,7 @@ import { Eye, Edit, Key, X, EyeOff, RefreshCw } from "lucide-react";
 import toast from 'react-hot-toast';
 import { MOCK_STUDENTS_LIST, mockAction } from "@/lib/mocks";
 import CreateStudentForm from "./CreateStudentForm";
+import { Tooltip } from "@/components/ui/tooltip";
 
 // Extended mock student data with passwords and additional details
 const MOCK_STUDENTS_WITH_DETAILS = MOCK_STUDENTS_LIST.map((s, i) => ({
@@ -105,27 +106,30 @@ export default function StudentsPage() {
                                 <td className="p-4 text-gray-800">{student.parentContact}</td>
                                 <td className="p-4">
                                     <div className="flex items-center space-x-2">
+                                        <Tooltip content="View Details" side="top">
                                         <button
                                             onClick={() => setViewingStudent(student)}
                                             className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                            title="View Details"
                                         >
                                             <Eye size={18} />
                                         </button>
+                                        </Tooltip>
+                                        <Tooltip content="Edit Student" side="top">
                                         <button
                                             onClick={() => setEditingStudent(student)}
                                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                            title="Edit Student"
                                         >
                                             <Edit size={18} />
                                         </button>
+                                        </Tooltip>
+                                        <Tooltip content="Reset Password" side="top">
                                         <button
                                             onClick={() => handleResetPassword(student.id)}
                                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Reset Password"
                                         >
                                             <Key size={18} />
                                         </button>
+                                        </Tooltip>
                                     </div>
                                 </td>
                             </tr>
@@ -173,12 +177,14 @@ export default function StudentsPage() {
                                             <p className="text-gray-800 font-mono text-sm">
                                                 {showPassword ? viewingStudent.user.password : '••••••••'}
                                             </p>
+                                            <Tooltip content={showPassword ? "Hide Password" : "Show Password"} side="top">
                                             <button
                                                 onClick={() => setShowPassword(!showPassword)}
                                                 className="p-1 text-purple-600 hover:bg-purple-100 rounded"
                                             >
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 </div>
@@ -312,19 +318,22 @@ export default function StudentsPage() {
                                                 })}
                                                 className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800"
                                             />
+                                            <Tooltip content={showEditPassword ? "Hide Password" : "Show Password"} side="top">
                                             <button
                                                 onClick={() => setShowEditPassword(!showEditPassword)}
                                                 className="p-2 text-purple-600 hover:bg-purple-100 rounded-lg"
                                             >
                                                 {showEditPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                             </button>
+                                            </Tooltip>
+                                            <Tooltip content="Generate New Password" side="top">
                                             <button
                                                 onClick={generateNewPassword}
                                                 className="p-2 text-green-600 hover:bg-green-100 rounded-lg"
-                                                title="Generate New Password"
                                             >
                                                 <RefreshCw size={18} />
                                             </button>
+                                            </Tooltip>
                                         </div>
                                     </div>
                                 </div>

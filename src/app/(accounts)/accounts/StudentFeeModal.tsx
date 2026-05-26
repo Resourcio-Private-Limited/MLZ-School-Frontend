@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Save, IndianRupee, Edit2, Check, Loader2, DollarSign, Search, User } from "lucide-react";
+import toast from 'react-hot-toast';
 import {
     useGetStudentFeesQuery,
     useSearchStudentsFeesQuery,
@@ -90,11 +91,12 @@ export default function StudentFeeModal({ classroom, onClose }: StudentFeeModalP
                 otherFeesRemarks: editedRemarks || undefined,
                 discount: editedDiscount,
             }).unwrap();
+            toast.success("Fees updated successfully!");
             setEditingStudent(null);
             if (searchMode) refetchSearch();
             else refetch();
         } catch {
-            // silent fail
+            toast.error("Failed to update fees.");
         }
     };
 

@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BookOpen, Users, Settings, X, Save, IndianRupee } from "lucide-react";
 import { useGetClassroomsWithFeesQuery, useUpsertClassroomFeesMutation } from "@/redux/api/accountsApi";
-import StudentFeeModal from "./StudentFeeModal";
+import toast from "react-hot-toast";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const GRADE_LEVELS: Record<string, string> = {
     'Nursery': 'Pre-Primary',
@@ -19,9 +22,9 @@ export default function AccountantHomePage() {
     const [upsertClassroomFees] = useUpsertClassroomFeesMutation();
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [showStudentModal, setShowStudentModal] = useState(false);
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [editedClassroom, setEditedClassroom] = useState<any>(null);
+    const router = useRouter();
 
     const classrooms = apiClassrooms.map(cls => ({
         id: cls.classroomId,
@@ -57,20 +60,15 @@ export default function AccountantHomePage() {
                 lateFees: editedClassroom.lateFees,
                 annualCharges: editedClassroom.annualCharges,
             }).unwrap();
+            toast.success("Fee settings saved successfully!");
         } catch {
-            // silent fail
+            toast.error("Failed to save fee settings.");
         }
         handleCloseSettings();
     };
 
     const handleOpenStudentModal = (classroom: any) => {
-        setSelectedClassroom(classroom);
-        setShowStudentModal(true);
-    };
-
-    const handleCloseStudentModal = () => {
-        setShowStudentModal(false);
-        setSelectedClassroom(null);
+        router.push(`/accounts/student/${classroom.id}`);
     };
 
     return (
@@ -105,13 +103,14 @@ export default function AccountantHomePage() {
                                         <div className="p-3 rounded-lg bg-gray-50 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
                                             <BookOpen size={24} />
                                         </div>
+                                        <Tooltip content="Fee Settings" side="left">
                                         <button
                                             onClick={(e) => handleOpenSettings(classroom, e)}
                                             className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-500 transition-colors"
-                                            title="Fee Settings"
                                         >
                                             <Settings size={16} />
                                         </button>
+                                        </Tooltip>
                                     </div>
 
                                     <h3 className="text-xl font-bold text-gray-800 mb-1">{classroom.name}</h3>
@@ -235,13 +234,6 @@ export default function AccountantHomePage() {
                 </div>
             )}
 
-            {/* Student Fee Modal */}
-            {showStudentModal && selectedClassroom && (
-                <StudentFeeModal
-                    classroom={selectedClassroom}
-                    onClose={handleCloseStudentModal}
-                />
-            )}
         </div>
     );
 }

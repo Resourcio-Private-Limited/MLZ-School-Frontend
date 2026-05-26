@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation } from "@/redux/api/principalApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const EXAM_TYPES = [
     { value: "HALF_YEARLY", label: "Half Yearly Examination", svg: "/admit/Admit Card-Half Year.svg" },
@@ -20,6 +21,7 @@ export default function AdmitCardPage() {
     const [generating, setGenerating] = useState(false);
     const [examScheduleDates, setExamScheduleDates] = useState<Record<string, string>>({});
     const [scheduleSaved, setScheduleSaved] = useState(false);
+    const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
     const { data: classrooms = [], isLoading: loadingClassrooms } = useGetAllClassroomsQuery();
     const { data: students = [], isLoading: loadingStudents } = useGetClassroomStudentsQuery(selectedClassroomId, { skip: !selectedClassroomId });
@@ -45,31 +47,52 @@ export default function AdmitCardPage() {
     useEffect(() => {
         setExamScheduleDates({});
         setScheduleSaved(false);
+        setIsEditingSchedule(false);
     }, [selectedClassroomId, selectedExamType]);
 
     useEffect(() => {
-        if (!loadingExamSchedule && subjects.length > 0 && examSchedule.length > 0) {
+        if (loadingExamSchedule) return;
+
+        if (subjects.length > 0 && examSchedule.length > 0) {
             const initialDates: Record<string, string> = {};
             subjects.forEach((subject) => {
                 const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
                 initialDates[subject.id] = existing?.examDate ?? '';
             });
             setExamScheduleDates(initialDates);
-            setScheduleSaved(subjects.every((subject) => Boolean(initialDates[subject.id])));
+            const allSaved = subjects.every((subject) => Boolean(initialDates[subject.id]));
+            setScheduleSaved(allSaved);
+            setIsEditingSchedule(false);
+        } else if (subjects.length > 0 && (!examSchedule || examSchedule.length === 0)) {
+            const emptyDates: Record<string, string> = {};
+            subjects.forEach((subject) => {
+                emptyDates[subject.id] = '';
+            });
+            setExamScheduleDates(emptyDates);
+            setScheduleSaved(false);
+            setIsEditingSchedule(false);
         }
     }, [examSchedule, loadingExamSchedule, subjects]);
 
     const handleSelectAll = () => {
-        if (selectAll || selectedStudentIds.length === students.length) {
+        const eligibleStudents = students.filter(s => s.examEligibility === true);
+        if (selectAll || selectedStudentIds.length === eligibleStudents.length) {
             setSelectedStudentIds([]);
             setSelectAll(false);
         } else {
-            setSelectedStudentIds(students.map(s => s.id));
+            setSelectedStudentIds(eligibleStudents.map(s => s.id));
             setSelectAll(true);
         }
     };
 
     const handleStudentToggle = (studentId: string) => {
+        const student = students.find(s => s.id === studentId);
+        // Prevent selecting students who are not exam eligible
+        if (!selectedStudentIds.includes(studentId) && student && student.examEligibility !== true) {
+            toast.error(`${student.fullName} is not eligible for exam.`);
+            return;
+        }
+
         if (selectedStudentIds.includes(studentId)) {
             setSelectedStudentIds(selectedStudentIds.filter(id => id !== studentId));
         } else {
@@ -92,6 +115,8 @@ export default function AdmitCardPage() {
                     examDate: examScheduleDates[subject.id],
                 })),
             }).unwrap();
+            setScheduleSaved(true);
+            setIsEditingSchedule(false);
             toast.success('Exam dates saved. You can now generate admit cards.');
         } catch (err) {
             console.error('Failed to save exam schedule:', err);
@@ -101,6 +126,18 @@ export default function AdmitCardPage() {
 
     const handleGenerateAdmitCards = async () => {
         if (!canGenerate) return;
+
+        // Check for ineligible students - only allow students with examEligibility === true
+        const ineligibleStudents = students.filter(s =>
+            selectedStudentIds.includes(s.id) && s.examEligibility !== true
+        );
+
+        if (ineligibleStudents.length > 0) {
+            const names = ineligibleStudents.map(s => s.fullName).join(', ');
+            toast.error(`Cannot generate admit cards: ${names} ${ineligibleStudents.length === 1 ? 'is' : 'are'} not eligible for exam. Please deselect ${ineligibleStudents.length === 1 ? 'them' : 'them'} and try again.`);
+            return;
+        }
+
         setGenerating(true);
         try {
             for (const studentId of selectedStudentIds) {
@@ -202,11 +239,21 @@ export default function AdmitCardPage() {
                                     <h3 className="text-lg font-semibold text-gray-800">Exam Schedule</h3>
                                     <p className="text-sm text-gray-500">Set the date for each subject before generating admit cards.</p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-sm font-medium text-slate-700">Schedule status</p>
-                                    <p className={`text-sm ${scheduleSaved ? 'text-emerald-600' : scheduleComplete ? 'text-amber-600' : 'text-slate-500'}`}>
-                                        {scheduleStatus}
-                                    </p>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                        <p className="text-sm font-medium text-slate-700">Schedule status</p>
+                                        <p className={`text-sm ${scheduleSaved ? 'text-emerald-600' : scheduleComplete ? 'text-amber-600' : 'text-slate-500'}`}>
+                                            {scheduleStatus}
+                                        </p>
+                                    </div>
+                                    {scheduleSaved && !isEditingSchedule && (
+                                        <button
+                                            onClick={() => setIsEditingSchedule(true)}
+                                            className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -220,43 +267,75 @@ export default function AdmitCardPage() {
                                     No subjects found for this classroom.
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {subjects.map((subject) => (
-                                        <div key={subject.id} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg">
-                                            <p className="text-sm font-medium text-gray-800">{subject.name}</p>
-                                            <input
-                                                type="date"
-                                                value={examScheduleDates[subject.id] ?? ''}
-                                                onChange={(e) => {
-                                                    setScheduleSaved(false);
-                                                    setExamScheduleDates((prev) => ({ ...prev, [subject.id]: e.target.value }));
-                                                }}
-                                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {subjects.map((subject) => (
+                                            <div key={subject.id} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg">
+                                                <p className="text-sm font-medium text-gray-800">{subject.name}</p>
+                                                <input
+                                                    type="date"
+                                                    value={examScheduleDates[subject.id] ?? ''}
+                                                    onChange={(e) => {
+                                                        setScheduleSaved(false);
+                                                        setExamScheduleDates((prev) => ({ ...prev, [subject.id]: e.target.value }));
+                                                    }}
+                                                    disabled={scheduleSaved && !isEditingSchedule}
+                                                    className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                                                        scheduleSaved && !isEditingSchedule ? 'bg-gray-100 cursor-not-allowed' : ''
+                                                    }`}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
 
-                            <div className="mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                <button
-                                    onClick={handleSaveExamSchedule}
-                                    disabled={!scheduleComplete || savingSchedule}
-                                    className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
-                                        scheduleComplete && !savingSchedule
-                                            ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                    }`}
-                                >
-                                    {savingSchedule ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                                    <span>{savingSchedule ? 'Saving Schedule...' : 'Save Exam Dates'}</span>
-                                </button>
-                                <p className="text-sm text-gray-500">
-                                    {scheduleSaved
-                                        ? 'Exam schedule has been saved and is ready for admit card generation.'
-                                        : 'All subjects must have an exam date before you can generate admit cards.'}
-                                </p>
-                            </div>
+                                    <div className="mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                        {isEditingSchedule || !scheduleSaved ? (
+                                            <>
+                                                <button
+                                                    onClick={handleSaveExamSchedule}
+                                                    disabled={!scheduleComplete || savingSchedule}
+                                                    className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+                                                        scheduleComplete && !savingSchedule
+                                                            ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
+                                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {savingSchedule ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                                                    <span>{savingSchedule ? 'Saving Schedule...' : 'Save Exam Dates'}</span>
+                                                </button>
+                                                {scheduleSaved && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsEditingSchedule(false);
+                                                            // Restore original saved dates
+                                                            const initialDates: Record<string, string> = {};
+                                                            subjects.forEach((subject) => {
+                                                                const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
+                                                                initialDates[subject.id] = existing?.examDate ?? '';
+                                                            });
+                                                            setExamScheduleDates(initialDates);
+                                                            setScheduleSaved(true);
+                                                        }}
+                                                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center space-x-2 text-emerald-600">
+                                                <CheckCircle size={16} />
+                                                <span className="text-sm">Exam schedule saved</span>
+                                            </div>
+                                        )}
+                                        <p className="text-sm text-gray-500">
+                                            {scheduleSaved && !isEditingSchedule
+                                                ? 'Click Edit to modify exam dates.'
+                                                : 'All subjects must have an exam date before you can generate admit cards.'}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -273,7 +352,7 @@ export default function AdmitCardPage() {
                                     disabled={students.length === 0}
                                     className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors disabled:opacity-50"
                                 >
-                                    {selectAll || selectedStudentIds.length === students.length ? "Deselect All" : "Select All"}
+                                    {selectAll || selectedStudentIds.length === students.filter(s => s.examEligibility === true).length ? "Deselect All" : "Select All (Eligible Only)"}
                                 </button>
                             </div>
 
@@ -289,7 +368,9 @@ export default function AdmitCardPage() {
                                             className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all ${
                                                 selectedStudentIds.includes(student.id)
                                                     ? 'border-purple-500 bg-purple-50'
-                                                    : 'border-gray-200 hover:bg-purple-50 hover:border-purple-300'
+                                                    : student.examEligibility !== true
+                                                        ? 'border-red-200 bg-red-50 opacity-70'
+                                                        : 'border-gray-200 hover:bg-purple-50 hover:border-purple-300'
                                             }`}
                                         >
                                             <input
@@ -299,8 +380,18 @@ export default function AdmitCardPage() {
                                                 className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                                             />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-800 truncate">{student.fullName}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-medium text-gray-800 truncate">{student.fullName}</p>
+                                                    {student.examEligibility !== true && (
+                                                        <span title="Not eligible for exam" className="shrink-0">
+                                                            <AlertTriangle size={14} className="text-red-500" />
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-gray-500">Adm: {student.admissionNo}</p>
+                                                {student.examEligibility !== true && (
+                                                    <p className="text-xs text-red-500 mt-1">Not eligible</p>
+                                                )}
                                             </div>
                                         </label>
                                     ))}
@@ -310,7 +401,7 @@ export default function AdmitCardPage() {
                             {selectedStudentIds.length > 0 && (
                                 <div className="mt-4 flex items-center space-x-2 text-sm text-purple-600 bg-purple-50 p-3 rounded-lg">
                                     <CheckCircle size={16} />
-                                    <span className="font-medium">{selectedStudentIds.length} student(s) selected</span>
+                                    <span className="font-medium">{selectedStudentIds.length} eligible student(s) selected</span>
                                 </div>
                             )}
                         </div>

@@ -33,11 +33,12 @@ function getRoleLabel(role: string): string {
         PRINCIPAL: 'Principal',
         ACCOUNTANT: 'Accountant',
         SUPER_ADMIN: 'Super Admin',
+        'Class Teacher': 'Class Teacher',
     };
     return labels[role] ?? role;
 }
 
-const CAN_SEND_ROLES = ['TEACHER', 'PRINCIPAL'];
+const CAN_SEND_ROLES = ['TEACHER', 'PRINCIPAL', 'Class Teacher'];
 const READ_ONLY_ROLES = ['ACCOUNTANT', 'SUPER_ADMIN'];
 
 export default function StudentMessagesPage() {

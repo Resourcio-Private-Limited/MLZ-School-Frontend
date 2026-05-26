@@ -1,6 +1,7 @@
 import { MOCK_FEE_STRUCTURES, MockAcademicYearService } from "@/lib/mocks";
 // Import form component
 import CreateFeeForm from "./CreateFeeForm";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default async function FeesPage() {
     const activeYear = await MockAcademicYearService.getActive();
@@ -14,7 +15,11 @@ export default async function FeesPage() {
                     <h1 className="text-2xl font-bold text-gray-800">Fee Management</h1>
                     <p className="text-sm text-gray-500">Academic Year: {activeYear?.name || "N/A"}</p>
                 </div>
-                {activeYear && <CreateFeeForm academicYearId={activeYear.id} />}
+                {activeYear && (
+                <Tooltip content="Add New Fee Structure" side="left">
+                <CreateFeeForm academicYearId={activeYear.id} />
+                </Tooltip>
+                )}
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">

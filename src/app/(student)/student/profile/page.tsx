@@ -32,11 +32,37 @@ export default function ProfilePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Compress image before uploading
         const reader = new FileReader();
         reader.onload = async () => {
             try {
-                const imageUrl = reader.result as string;
-                await uploadProfileImage({ imageUrl }).unwrap();
+                const img = new window.Image();
+                img.src = reader.result as string;
+                await new Promise((resolve) => { img.onload = resolve; });
+
+                const canvas = document.createElement('canvas');
+                const maxSize = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = (height / width) * maxSize;
+                        width = maxSize;
+                    } else {
+                        width = (width / height) * maxSize;
+                        height = maxSize;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
+                await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                setProfileImage(compressedImageUrl);
                 refetch();
             } catch (err) {
                 console.error('Failed to upload image:', err);
@@ -112,7 +138,7 @@ export default function ProfilePage() {
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={isUploading}
-                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-50"
                                 title="Upload Photo"
                             >
                                 {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}

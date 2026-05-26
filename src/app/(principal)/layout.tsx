@@ -8,6 +8,7 @@ import { useDispatch } from "react-redux";
 import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function PrincipalLayout({
     children,
@@ -135,13 +136,14 @@ export default function PrincipalLayout({
                             <div className="w-10 h-10 rounded-full bg-purple-900/50 border border-purple-700/50 flex items-center justify-center text-purple-400 font-bold">
                                 {displayName?.[0] ?? "P"}
                             </div>
+                            <Tooltip content="Logout" side="right">
                             <button
                                 onClick={handleLogout}
                                 className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
-                                title="Logout"
                             >
                                 <LogOut size={18} />
                             </button>
+                            </Tooltip>
                         </div>
                     )}
                 </div>
@@ -160,9 +162,10 @@ function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React
         <Link
             href={href}
             className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} p-3 rounded-lg text-slate-400 hover:bg-purple-600 hover:text-white transition-all duration-200 group`}
-            title={isCollapsed ? label : undefined}
         >
-            <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
+            <Tooltip content={label} side="right">
+                <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
+            </Tooltip>
             {!isCollapsed && <span className="font-medium">{label}</span>}
         </Link>
     );

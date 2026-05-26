@@ -15,6 +15,7 @@ import {
     useDeleteSubjectMutation,
     ClassroomSummary,
 } from "@/redux/api/principalApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 function getLevel(grade: string): string {
     if (grade === "Nursery" || grade === "KG") return "Pre-Primary";
@@ -250,13 +251,14 @@ export default function PrincipalHomePage() {
                                                             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                                 Active
                                                             </span>
+                                                            <Tooltip className="z-50" content="Classroom Settings" side="top">
                                                             <button
                                                                 onClick={(e) => handleOpenSettings(cls, e)}
                                                                 className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600 transition-colors"
-                                                                title="Classroom Settings"
                                                             >
                                                                 <Settings size={16} />
                                                             </button>
+                                                            </Tooltip>
                                                         </div>
                                                     </div>
 
@@ -392,21 +394,23 @@ export default function PrincipalHomePage() {
                                                                 ))}
                                                             </select>
                                                             <div className="flex items-center gap-2">
+                                                                <Tooltip content="Save" side="top">
                                                                 <button
                                                                     onClick={handleSaveSubjectEdit}
                                                                     disabled={saving}
                                                                     className="p-1.5 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
-                                                                    title="Save"
                                                                 >
                                                                     <Save size={14} />
                                                                 </button>
+                                                                </Tooltip>
+                                                                <Tooltip content="Cancel" side="top">
                                                                 <button
                                                                     onClick={() => { setEditingSubjectId(null); setEditingSubjectName(""); setEditingSubjectTeacherId(""); }}
                                                                     className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                                                                    title="Cancel"
                                                                 >
                                                                     <X size={14} />
                                                                 </button>
+                                                                </Tooltip>
                                                             </div>
                                                         </div>
                                                     ) : (
@@ -423,20 +427,22 @@ export default function PrincipalHomePage() {
                                                 <div className="flex items-center gap-2 ml-4">
                                                     {editingSubjectId !== subj.id && (
                                                         <>
+                                                            <Tooltip content="Edit Subject" side="top">
                                                             <button
                                                                 onClick={() => handleEditSubject(subj)}
                                                                 className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                title="Edit Subject Name"
                                                             >
                                                                 <Edit2 size={14} />
                                                             </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Delete Subject" side="top">
                                                             <button
                                                                 onClick={() => handleDeleteSubject(subj.id, subj.name)}
                                                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                title="Delete Subject"
                                                             >
                                                                 <Trash2 size={14} />
                                                             </button>
+                                                            </Tooltip>
                                                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                                                 {subj.teachers.length} teacher{subj.teachers.length !== 1 ? "s" : ""}
                                                             </span>

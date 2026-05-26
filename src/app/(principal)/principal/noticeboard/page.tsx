@@ -12,6 +12,7 @@ import {
     NoticeTag,
     Notice,
 } from "@/redux/api/operationsApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
@@ -293,7 +294,8 @@ export default function PrincipalNoticeBoardPage() {
                         </div>
                     ) : filteredNotices.length > 0 ? (
                         filteredNotices.map((notice) => (
-                            <div key={notice.id} className="group border border-gray-100 rounded-xl p-5 hover:bg-gray-50 transition-all duration-200 hover:shadow-sm relative">
+                            <div key={notice.id} className="group flex w-full justify-between border border-gray-100 rounded-xl p-5 hover:bg-gray-50 transition-all duration-200 hover:shadow-sm relative">
+                                <div className="flex flex-col">
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="space-y-1 flex-1">
                                         <div className="flex items-center space-x-3 flex-wrap gap-1">
@@ -304,13 +306,10 @@ export default function PrincipalNoticeBoardPage() {
                                         </div>
                                         <p className="text-sm font-medium text-gray-600">{notice.title}</p>
                                     </div>
-                                    <div className="text-right ml-4 shrink-0">
-                                        <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
-                                    </div>
+                                    
                                 </div>
                                 <p className="text-gray-600 text-sm leading-relaxed mb-4">{notice.content}</p>
-
+                                </div>
                                 {notice.link && (
                                     <a
                                         href={notice.link}
@@ -322,24 +321,29 @@ export default function PrincipalNoticeBoardPage() {
                                         {notice.link}
                                     </a>
                                 )}
-
                                 {/* Admin Actions */}
-                                <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex flex-col items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
+                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
+                                    </div>
                                     <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleOpenEdit(notice)}
-                                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                            title="Edit Notice"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => setDeletingNotice(notice)}
-                                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                                            title="Delete Notice"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                    <Tooltip content="Edit Notice" side="top">
+                                    <button
+                                        onClick={() => handleOpenEdit(notice)}
+                                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    </Tooltip>
+                                    <Tooltip content="Delete Notice" side="top">
+                                    <button
+                                        onClick={() => setDeletingNotice(notice)}
+                                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                    </Tooltip>
                                     </div>
                                 </div>
                             </div>

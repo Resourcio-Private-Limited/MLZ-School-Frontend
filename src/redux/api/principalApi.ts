@@ -68,6 +68,7 @@ export interface ClassroomStudent {
     admissionNo: string;
     fullName: string;
     email: string;
+    password?: string;
     isActive: boolean;
     dob: Date;
     gender: string;
@@ -77,6 +78,7 @@ export interface ClassroomStudent {
     parentContact?: string;
     rollNumber?: string | null;
     profileImage?: string | null;
+    examEligibility: boolean;
     classroom?: { id: string; name: string; grade: string; section: string };
     attendancePercentage?: number;
     averageMarks?: number;
