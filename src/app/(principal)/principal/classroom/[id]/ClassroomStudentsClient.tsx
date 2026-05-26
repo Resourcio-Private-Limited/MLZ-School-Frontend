@@ -14,6 +14,7 @@ type Student = {
     admissionNo: string;
     fullName: string;
     email: string;
+    password: string;
     isActive: boolean;
     dob: Date;
     gender: string;
@@ -316,8 +317,8 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                     <table className="w-full text-left">
                         <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th className="p-4 font-semibold text-gray-600">Admission No</th>
                                 <th className="p-4 font-semibold text-gray-600">Name</th>
+                                <th className="p-4 font-semibold text-gray-600">Password</th>
                                 <th className="p-4 font-semibold text-gray-600">Attendance</th>
                                 <th className="p-4 font-semibold text-gray-600">Avg Marks</th>
                                 <th className="p-4 font-semibold text-gray-600">Fee Status</th>
@@ -327,7 +328,6 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                         <tbody className="divide-y">
                             {filteredStudents.map((student) => (
                                 <tr key={student.id} className="hover:bg-gray-50">
-                                    <td className="p-4 font-mono text-sm text-gray-800">{student.admissionNo}</td>
                                     <td className="p-4">
                                         <div className="flex items-center space-x-3">
                                             <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold text-sm">
@@ -338,6 +338,11 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                                 <p className="text-xs text-gray-500">{student.email}</p>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-700">
+                                            {student.password || 'N/A'}
+                                        </span>
                                     </td>
                                     <td className="p-4">
                                         {student.attendancePercentage !== undefined ? (

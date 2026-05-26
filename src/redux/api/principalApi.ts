@@ -68,6 +68,7 @@ export interface ClassroomStudent {
     admissionNo: string;
     fullName: string;
     email: string;
+    password?: string;
     isActive: boolean;
     dob: Date;
     gender: string;
