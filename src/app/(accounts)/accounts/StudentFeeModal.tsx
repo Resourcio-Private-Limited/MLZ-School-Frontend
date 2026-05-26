@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, Save, IndianRupee, Edit2, Check, Loader2, DollarSign, Search, User } from "lucide-react";
+import toast from 'react-hot-toast';
 import {
     useGetStudentFeesQuery,
     useSearchStudentsFeesQuery,
