@@ -30,6 +30,7 @@ export interface StudentFeeRecord {
     totalAmount: number;
     isPaid: boolean;
     paidAmount: number;
+    examEligibility: boolean;
     classroomId?: string;
     classroomName?: string;
 }
@@ -210,6 +211,10 @@ export const accountsApi = baseApi.injectEndpoints({
                 method: 'PATCH',
                 body: { examEligibility },
             }),
+            async onQueryStarted({ studentId }, { dispatch, queryFulfilled }) {
+                await queryFulfilled;
+                dispatch(accountsApi.util.invalidateTags([{ type: 'StudentDetail', id: studentId }]));
+            },
         }),
 
         // Income

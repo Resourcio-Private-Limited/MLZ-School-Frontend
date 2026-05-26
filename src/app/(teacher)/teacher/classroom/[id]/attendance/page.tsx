@@ -286,7 +286,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                     <div>
                         <p className="text-sm text-gray-500 font-medium">Class Teacher</p>
                         <p className="text-lg font-bold text-gray-800">
-                            {profile?.classTeacherOf?.name ?? '—'}
+                            {profile?.fullName ?? '—'}
                         </p>
                     </div>
                     <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -309,7 +309,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
             {/* Attendance History Table */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-                    <h2 className="text-lg font-bold text-gray-800">Attendance History</h2>
+                    <h2 className="text-lg font-bold text-gray-800">Today's Attendance</h2>
                     <div className="flex items-center space-x-3">
                         <select
                             value={selectedMonth}

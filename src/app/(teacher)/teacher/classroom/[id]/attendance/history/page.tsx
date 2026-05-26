@@ -1,8 +1,10 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
-import { ArrowLeft, Calendar, Users, CheckCircle, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Users, CheckCircle, X, Loader2, Download } from "lucide-react";
 import Link from "next/link";
+import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 import { useGetAttendanceHistoryQuery, useGetAttendanceByDateQuery } from "@/redux/api/teacherApi";
 
 const MONTHS = [
@@ -51,10 +53,44 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
 
     const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label ?? '';
 
+    const handleDownloadAttendance = () => {
+        if (!history) return;
+        const worksheetData: (string | number)[][] = [
+            ['Date', 'Day', 'Total Students', 'Present', 'Absent', 'Status']
+        ];
+
+        history.days.forEach((day) => {
+            const dayDate = new Date(day.date);
+            const isFuture = dayDate > now;
+            worksheetData.push([
+                formatDate(day.date),
+                day.dayName,
+                day.totalStudents,
+                day.present,
+                day.absent,
+                isFuture ? 'Future' : day.isMarked ? 'Marked' : 'Not Marked'
+            ]);
+        });
+
+        // Add summary row
+        worksheetData.push([]);
+        worksheetData.push(['Summary']);
+        worksheetData.push(['Average Attendance', `${history.avgAttendance}%`]);
+        worksheetData.push(['Total Working Days', history.totalWorkingDays]);
+        worksheetData.push(['Total Students', history.totalStudents]);
+        worksheetData.push(['Month', `${monthLabel} ${selectedYear}`]);
+
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
+        XLSX.writeFile(workbook, `Attendance_${monthLabel}_${selectedYear}.xlsx`);
+        toast.success('Attendance history downloaded!');
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center space-x-4">
                     <Link href={`/teacher/classroom/${classroomId}`}>
                         <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-500 transition-colors">
@@ -65,6 +101,15 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                     <div className="h-6 w-px bg-gray-300"></div>
                     <h1 className="text-3xl font-bold text-gray-800">Attendance History</h1>
                 </div>
+                {history && (
+                    <button
+                        onClick={handleDownloadAttendance}
+                        className="px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 bg-emerald-500 text-white shadow-emerald-200 hover:bg-emerald-600"
+                    >
+                        <Download size={18} />
+                        <span>Download Excel</span>
+                    </button>
+                )}
             </div>
 
             {/* Month Selector */}

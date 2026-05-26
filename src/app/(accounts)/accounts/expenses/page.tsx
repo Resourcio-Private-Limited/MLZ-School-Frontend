@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TrendingDown, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2, Download } from "lucide-react";
+import toast from "react-hot-toast";
 import {
     useGetExpensesQuery,
     useCreateExpenseMutation,
@@ -149,13 +150,15 @@ export default function ExpensesPage() {
             };
             if (editingExpense) {
                 await updateExpense({ id: editingExpense.id, body: payload }).unwrap();
+                toast.success("Expense updated successfully!");
             } else {
                 await createExpense(payload).unwrap();
+                toast.success("Expense created successfully!");
             }
             refetch();
             handleCloseModal();
         } catch {
-            // silent fail
+            toast.error("Failed to save expense.");
         } finally {
             setSaving(false);
         }
@@ -165,9 +168,10 @@ export default function ExpensesPage() {
         if (confirm("Are you sure you want to delete this expense entry?")) {
             try {
                 await deleteExpense(id).unwrap();
+                toast.success("Expense deleted successfully!");
                 refetch();
             } catch {
-                // silent fail
+                toast.error("Failed to delete expense.");
             }
         }
     };

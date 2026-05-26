@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Users, Plus, BookOpen, User as UserIcon, Filter, X, Search, UserCheck } from "lucide-react";
 import { useGetClassroomStudentsQuery, useGetClassroomQuery, useAddStudentMutation } from "@/redux/api/principalApi";
+import { useGetStudentDetailQuery } from "@/redux/api/accountsApi";
 import ClassroomAdmissionForm from "./ClassroomAdmissionForm";
 import StudentDetailModal from "./StudentDetailModal";
 import PromotionModal from "./PromotionModal";
@@ -48,7 +49,7 @@ type FilterState = {
 
 export default function ClassroomStudentsClient({ classroom, classroomId }: { classroom: Classroom; classroomId: string }) {
     const [showAdmissionForm, setShowAdmissionForm] = useState(false);
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [showPromotionModal, setShowPromotionModal] = useState(false);
     const [filters, setFilters] = useState<FilterState>({
@@ -63,6 +64,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
 
     const { data: classroomData } = useGetClassroomQuery(classroomId);
     const { data: students = [], isLoading, refetch } = useGetClassroomStudentsQuery(classroomId);
+    const { data: selectedStudentDetail } = useGetStudentDetailQuery(selectedStudentId!, { skip: !selectedStudentId });
 
     const activeClassroom = classroomData ?? classroom;
     const totalStudents = students.length;
@@ -374,7 +376,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                     </td>
                                     <td className="p-4">
                                         <button
-                                            onClick={() => setSelectedStudent(student as any)}
+                                            onClick={() => setSelectedStudentId(student.id)}
                                             className="text-purple-600 text-sm hover:underline font-medium"
                                         >
                                             View Details
@@ -418,10 +420,10 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
             )}
 
             {/* Student Detail Modal */}
-            {selectedStudent && (
+            {selectedStudentId && (
                 <StudentDetailModal
-                    student={selectedStudent as any}
-                    onClose={() => setSelectedStudent(null)}
+                    studentId={selectedStudentId}
+                    onClose={() => setSelectedStudentId(null)}
                     onStudentUpdate={handleStudentUpdated}
                 />
             )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PlusCircle, Edit2, Trash2, X, Save, IndianRupee, Calendar, Search, Loader2, Download } from "lucide-react";
+import toast from "react-hot-toast";
 import {
     useGetIncomesQuery,
     useCreateIncomeMutation,
@@ -140,13 +141,15 @@ export default function IncomePage() {
             };
             if (editingIncome) {
                 await updateIncome({ id: editingIncome.id, body: payload }).unwrap();
+                toast.success("Income updated successfully!");
             } else {
                 await createIncome(payload).unwrap();
+                toast.success("Income created successfully!");
             }
             refetch();
             handleCloseModal();
         } catch {
-            // silent fail
+            toast.error("Failed to save income.");
         } finally {
             setSaving(false);
         }
@@ -156,9 +159,10 @@ export default function IncomePage() {
         if (confirm("Are you sure you want to delete this income entry?")) {
             try {
                 await deleteIncome(id).unwrap();
+                toast.success("Income deleted successfully!");
                 refetch();
             } catch {
-                // silent fail
+                toast.error("Failed to delete income.");
             }
         }
     };

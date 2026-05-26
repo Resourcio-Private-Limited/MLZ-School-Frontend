@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { BookOpen, Users, Settings, X, Save, IndianRupee } from "lucide-react";
 import { useGetClassroomsWithFeesQuery, useUpsertClassroomFeesMutation } from "@/redux/api/accountsApi";
-import StudentFeeModal from "./StudentFeeModal";
+import toast from "react-hot-toast";
 
 const GRADE_LEVELS: Record<string, string> = {
     'Nursery': 'Pre-Primary',
@@ -19,9 +21,9 @@ export default function AccountantHomePage() {
     const [upsertClassroomFees] = useUpsertClassroomFeesMutation();
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [showStudentModal, setShowStudentModal] = useState(false);
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [editedClassroom, setEditedClassroom] = useState<any>(null);
+    const router = useRouter();
 
     const classrooms = apiClassrooms.map(cls => ({
         id: cls.classroomId,
@@ -57,20 +59,15 @@ export default function AccountantHomePage() {
                 lateFees: editedClassroom.lateFees,
                 annualCharges: editedClassroom.annualCharges,
             }).unwrap();
+            toast.success("Fee settings saved successfully!");
         } catch {
-            // silent fail
+            toast.error("Failed to save fee settings.");
         }
         handleCloseSettings();
     };
 
     const handleOpenStudentModal = (classroom: any) => {
-        setSelectedClassroom(classroom);
-        setShowStudentModal(true);
-    };
-
-    const handleCloseStudentModal = () => {
-        setShowStudentModal(false);
-        setSelectedClassroom(null);
+        router.push(`/accounts/student/${classroom.id}`);
     };
 
     return (
@@ -235,13 +232,6 @@ export default function AccountantHomePage() {
                 </div>
             )}
 
-            {/* Student Fee Modal */}
-            {showStudentModal && selectedClassroom && (
-                <StudentFeeModal
-                    classroom={selectedClassroom}
-                    onClose={handleCloseStudentModal}
-                />
-            )}
         </div>
     );
 }

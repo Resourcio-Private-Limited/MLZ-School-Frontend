@@ -77,6 +77,7 @@ export interface ClassroomStudent {
     parentContact?: string;
     rollNumber?: string | null;
     profileImage?: string | null;
+    examEligibility: boolean;
     classroom?: { id: string; name: string; grade: string; section: string };
     attendancePercentage?: number;
     averageMarks?: number;

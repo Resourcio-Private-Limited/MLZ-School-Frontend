@@ -66,17 +66,17 @@ export default function CreateExamForm({ subjects }: { subjects: any[] }) {
 
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Date</label>
-                <input name="date" type="date" required className="w-full border rounded p-2" />
+                <input name="date" type="date" required className="w-full border rounded p-2 text-gray-900" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Total Marks</label>
-                    <input name="totalMarks" type="number" required className="w-full border rounded p-2" defaultValue={100} />
+                    <input name="totalMarks" type="number" required className="w-full border rounded p-2 text-gray-900" defaultValue={100} />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Passing Marks</label>
-                    <input name="passingMarks" type="number" required className="w-full border rounded p-2" defaultValue={33} />
+                    <input name="passingMarks" type="number" required className="w-full border rounded p-2 text-gray-900" defaultValue={33} />
                 </div>
             </div>
 

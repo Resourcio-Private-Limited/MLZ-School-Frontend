@@ -89,7 +89,7 @@ export default function ClassroomAdmissionForm({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center justify-between">
+                <div className="sticky absolute z-50 top-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold">Admit New Student</h2>
                         <p className="text-purple-100 text-sm mt-1">{classroom.name} &mdash; Grade {classroom.grade}</p>

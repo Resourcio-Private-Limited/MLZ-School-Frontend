@@ -90,11 +90,12 @@ export default function StudentFeeModal({ classroom, onClose }: StudentFeeModalP
                 otherFeesRemarks: editedRemarks || undefined,
                 discount: editedDiscount,
             }).unwrap();
+            toast.success("Fees updated successfully!");
             setEditingStudent(null);
             if (searchMode) refetchSearch();
             else refetch();
         } catch {
-            // silent fail
+            toast.error("Failed to update fees.");
         }
     };
 
