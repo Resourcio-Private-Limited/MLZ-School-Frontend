@@ -111,10 +111,12 @@ export default function SuperAdminProfilePage() {
                 ctx?.drawImage(img, 0, 0, width, height);
 
                 const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
-                await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                const result = await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                console.log('Upload result:', result);
                 refetch();
-            } catch (err) {
-                console.error('Failed to upload image:', err);
+            } catch (err: any) {
+                console.error('Failed to upload image:', err?.data || err?.message || err);
+                alert(err?.data?.message || err?.message || 'Failed to upload image');
             }
         };
         reader.readAsDataURL(file);
