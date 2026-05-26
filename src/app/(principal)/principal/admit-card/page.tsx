@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation } from "@/redux/api/principalApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const EXAM_TYPES = [
     { value: "HALF_YEARLY", label: "Half Yearly Examination", svg: "/admit/Admit Card-Half Year.svg" },
@@ -50,19 +51,19 @@ export default function AdmitCardPage() {
     }, [selectedClassroomId, selectedExamType]);
 
     useEffect(() => {
-        if (!loadingExamSchedule && subjects.length > 0 && examSchedule.length > 0) {
+        if (loadingExamSchedule) return;
+
+        if (subjects.length > 0 && examSchedule.length > 0) {
             const initialDates: Record<string, string> = {};
             subjects.forEach((subject) => {
                 const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
                 initialDates[subject.id] = existing?.examDate ?? '';
             });
             setExamScheduleDates(initialDates);
-            // Mark as saved if all subjects have dates in the existing schedule
             const allSaved = subjects.every((subject) => Boolean(initialDates[subject.id]));
             setScheduleSaved(allSaved);
             setIsEditingSchedule(false);
-        } else if (!loadingExamSchedule && (!examSchedule || examSchedule.length === 0)) {
-            // No existing schedule, reset to empty
+        } else if (subjects.length > 0 && (!examSchedule || examSchedule.length === 0)) {
             const emptyDates: Record<string, string> = {};
             subjects.forEach((subject) => {
                 emptyDates[subject.id] = '';

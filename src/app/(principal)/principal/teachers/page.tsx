@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import CreateTeacherForm from "./CreateTeacherForm";
 import { useGetAllTeachersQuery } from "@/redux/api/principalApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function TeachersPage() {
     const { data: teachers = [], isLoading } = useGetAllTeachersQuery();
@@ -20,7 +21,9 @@ export default function TeachersPage() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Teachers ({teachers.length})</h1>
+                <Tooltip content="Add New Teacher" side="left">
                 <CreateTeacherForm />
+                </Tooltip>
             </div>
 
             {teachers.length === 0 ? (

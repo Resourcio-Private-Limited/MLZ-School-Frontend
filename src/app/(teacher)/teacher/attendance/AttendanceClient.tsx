@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { mockAction } from "@/lib/mocks";
 import { Save, Loader2, CheckCircle } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
@@ -77,6 +78,7 @@ export default function AttendanceClient({
                 </div>
                 <div className="flex items-center space-x-4">
                     {msg && <span className="text-green-600 font-medium text-sm flex items-center"><CheckCircle size={16} className="mr-1" /> {msg}</span>}
+                    <Tooltip content="Save Attendance" side="left">
                     <button
                         onClick={handleSave}
                         disabled={saving || loading}
@@ -85,6 +87,7 @@ export default function AttendanceClient({
                         {saving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
                         <span>Save Attendance</span>
                     </button>
+                    </Tooltip>
                 </div>
             </div>
 

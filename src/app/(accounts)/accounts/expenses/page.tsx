@@ -11,6 +11,7 @@ import {
     type ExpenseCategory,
     type PaymentMode,
 } from "@/redux/api/accountsApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const UI_EXPENSE_CATEGORIES = ['Salaries', 'Utilities', 'Maintenance', 'Supplies', 'Other'] as const;
 const UI_PAYMENT_MODES = ['Cash', 'NEFT', 'Cheque', 'Online', 'Card'] as const;
@@ -202,6 +203,7 @@ export default function ExpensesPage() {
                     <p className="text-gray-500 mt-1">Track and manage all school expenses</p>
                 </div>
                 <div className="flex gap-3">
+                    <Tooltip content="Export to Excel" side="left">
                     <button
                         onClick={() => exportToExcel(filteredExpenses, `expenses-${new Date().toISOString().split('T')[0]}`)}
                         className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
@@ -209,6 +211,8 @@ export default function ExpensesPage() {
                         <Download size={18} />
                         <span>Export Excel</span>
                     </button>
+                    </Tooltip>
+                    <Tooltip content="Add New Expense" side="left">
                     <button
                         onClick={() => handleOpenModal()}
                         className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
@@ -216,6 +220,7 @@ export default function ExpensesPage() {
                         <TrendingDown size={20} />
                         <span>Add Expense</span>
                     </button>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -310,20 +315,22 @@ export default function ExpensesPage() {
                                         <td className="p-4 text-sm text-gray-600">{expense.addedBy}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
+                                                <Tooltip content="Edit" side="top">
                                                 <button
                                                     onClick={() => handleOpenModal(expense)}
                                                     className="p-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors"
-                                                    title="Edit"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
+                                                </Tooltip>
+                                                <Tooltip content="Delete" side="top">
                                                 <button
                                                     onClick={() => handleDelete(expense.id)}
                                                     className="p-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded transition-colors"
-                                                    title="Delete"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
+                                                </Tooltip>
                                             </div>
                                         </td>
                                     </tr>

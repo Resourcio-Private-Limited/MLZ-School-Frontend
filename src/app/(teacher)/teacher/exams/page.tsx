@@ -5,6 +5,7 @@ import { ArrowLeft, FileText, Calendar, Trophy, Users, TrendingUp, TrendingDown,
 import Link from "next/link";
 import toast from 'react-hot-toast';
 import { useGetExamTypesForTeacherQuery, useGetExamMarksQuery, useUpdateStudentMarksMutation } from "@/redux/api/academicApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 function formatDate(dateStr: string) {
     try {
@@ -400,6 +401,7 @@ export default function TeacherExamsPage() {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <Tooltip content={currentExam?.submissionOpen ? 'Edit Marks' : 'Marks entry closed'} side="top">
                                                 <button
                                                     onClick={() => setEditingStudent({
                                                         studentId: record.studentId,
@@ -413,10 +415,10 @@ export default function TeacherExamsPage() {
                                                             ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
                                                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                     }`}
-                                                    title={currentExam?.submissionOpen ? 'Edit Marks' : 'Marks entry closed'}
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
+                                                </Tooltip>
                                             </td>
                                         </tr>
                                     ))}

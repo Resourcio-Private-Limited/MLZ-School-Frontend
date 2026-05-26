@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Home, Bell, CreditCard, User, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useGetProfileQuery } from "@/redux/api/studentApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function StudentLayout({
     children,
@@ -134,13 +135,14 @@ export default function StudentLayout({
                             <div className="w-10 h-10 rounded-full bg-blue-900/50 border border-blue-700/50 flex items-center justify-center text-blue-400 font-bold">
                                 {studentName?.[0] ?? "S"}
                             </div>
+                            <Tooltip content="Logout" side="right">
                             <button
                                 onClick={handleLogout}
                                 className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
-                                title="Logout"
                             >
                                 <LogOut size={18} />
                             </button>
+                            </Tooltip>
                         </div>
                     )}
                 </div>
@@ -159,9 +161,10 @@ function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React
         <Link
             href={href}
             className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} p-3 rounded-lg text-slate-400 hover:bg-blue-600 hover:text-white transition-all duration-200 group`}
-            title={isCollapsed ? label : undefined}
         >
-            <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
+            <Tooltip content={label} side="right">
+                <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
+            </Tooltip>
             {!isCollapsed && <span className="font-medium">{label}</span>}
         </Link>
     );

@@ -11,6 +11,7 @@ import {
     type IncomeCategory,
     type PaymentMode,
 } from "@/redux/api/accountsApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const UI_INCOME_CATEGORIES = ['Donations', 'Events', 'Other'] as const;
 
@@ -192,6 +193,7 @@ export default function IncomePage() {
                     <p className="text-gray-500 mt-1">Track income sources other than student fees</p>
                 </div>
                 <div className="flex gap-3">
+                    <Tooltip content="Export to Excel" side="left">
                     <button
                         onClick={() => exportToExcel(filteredIncomes, `income-${new Date().toISOString().split('T')[0]}`)}
                         className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
@@ -199,6 +201,8 @@ export default function IncomePage() {
                         <Download size={18} />
                         <span>Export Excel</span>
                     </button>
+                    </Tooltip>
+                    <Tooltip content="Add New Income" side="left">
                     <button
                         onClick={() => handleOpenModal()}
                         className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium shadow-md hover:shadow-lg"
@@ -206,6 +210,7 @@ export default function IncomePage() {
                         <PlusCircle size={20} />
                         <span>Add Income</span>
                     </button>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -298,20 +303,22 @@ export default function IncomePage() {
                                         <td className="p-4 text-sm text-gray-600">{income.addedBy}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
+                                                <Tooltip content="Edit" side="top">
                                                 <button
                                                     onClick={() => handleOpenModal(income)}
                                                     className="p-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors"
-                                                    title="Edit"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
+                                                </Tooltip>
+                                                <Tooltip content="Delete" side="top">
                                                 <button
                                                     onClick={() => handleDelete(income.id)}
                                                     className="p-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded transition-colors"
-                                                    title="Delete"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
+                                                </Tooltip>
                                             </div>
                                         </td>
                                     </tr>

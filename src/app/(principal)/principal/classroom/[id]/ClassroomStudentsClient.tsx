@@ -8,6 +8,7 @@ import { useGetStudentDetailQuery } from "@/redux/api/accountsApi";
 import ClassroomAdmissionForm from "./ClassroomAdmissionForm";
 import StudentDetailModal from "./StudentDetailModal";
 import PromotionModal from "./PromotionModal";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type Student = {
     id: string;

@@ -3,6 +3,7 @@
 import { Users, BookOpen, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useGetTeacherClassesQuery } from "@/redux/api/teacherApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function TeacherHomePage() {
     const { data: classes = [], isLoading } = useGetTeacherClassesQuery();
@@ -28,7 +29,8 @@ export default function TeacherHomePage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {classes.map((cls) => (
-                        <Link href={`/teacher/classroom/${cls.id}`} key={cls.id} className="block group">
+                        <Tooltip content="Manage Class" side="top" key={cls.id}>
+                        <Link href={`/teacher/classroom/${cls.id}`} className="block group">
                             <div className={`bg-white rounded-xl shadow-md overflow-hidden border-t-4 transition-all duration-300 relative h-full ${cls.isClassTeacher ? "border-emerald-500 shadow-lg" : "border-gray-200 hover:border-emerald-400 hover:shadow-lg"}`}>
                                 <div className="p-6">
                                     <div className="flex justify-between items-start mb-4">
@@ -65,6 +67,7 @@ export default function TeacherHomePage() {
                                 </div>
                             </div>
                         </Link>
+                        </Tooltip>
                     ))}
                 </div>
             )}

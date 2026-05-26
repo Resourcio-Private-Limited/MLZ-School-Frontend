@@ -12,6 +12,7 @@ import {
     NoticeTag,
     Notice,
 } from "@/redux/api/operationsApi";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
@@ -327,20 +328,22 @@ export default function PrincipalNoticeBoardPage() {
                                         <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                    <Tooltip content="Edit Notice" side="top">
                                     <button
                                         onClick={() => handleOpenEdit(notice)}
                                         className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                        title="Edit Notice"
                                     >
                                         <Edit2 size={16} />
                                     </button>
+                                    </Tooltip>
+                                    <Tooltip content="Delete Notice" side="top">
                                     <button
                                         onClick={() => setDeletingNotice(notice)}
                                         className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                                        title="Delete Notice"
                                     >
                                         <Trash2 size={16} />
                                     </button>
+                                    </Tooltip>
                                     </div>
                                 </div>
                             </div>
