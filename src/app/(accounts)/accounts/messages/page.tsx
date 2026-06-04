@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Search, Send, Lock, ChevronDown, Users, GraduationCap, Loader2 } from "lucide-react";
 import Link from "next/link";
 import toast from 'react-hot-toast';
-import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation, useGetSectionsByGradeQuery } from "@/redux/api/operationsApi";
+import { useGetConversationsQuery, useGetConversationQuery, useGetUserByRoleQuery, useSendMessageMutation, useGetSectionsByGradeQuery } from "@/redux/api/operationsApi";
 import { useLazyGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
 function formatTime(dateStr: string) {
@@ -86,26 +86,13 @@ export default function AccountantMessages() {
     const { data: sectionsData = [] } = useGetSectionsByGradeQuery();
     const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
     const [getClassStudents] = useLazyGetClassStudentsQuery();
+    const { data: principalUser } = useGetUserByRoleQuery("PRINCIPAL");
+    const { data: superAdminUser } = useGetUserByRoleQuery("SUPER_ADMIN");
 
     const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [messageText, setMessageText] = useState("");
-
-    const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
-        { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
-        { skip: !currentUserId || !selectedUserId }
-    );
-
-    // Poll for new messages every 3 seconds
-    useEffect(() => {
-        if (!selectedUserId) return;
-        const interval = setInterval(() => {
-            refetchMessages();
-            refetchConversations();
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [selectedUserId, refetchMessages, refetchConversations]);
 
     // Build conversation maps - one by otherUserId, one by otherUserRole
     const conversationByUserId = new Map(
@@ -183,16 +170,53 @@ export default function AccountantMessages() {
         item.grade.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Resolve the actual otherUserId for the active conversation.
+    // selectedUserId is a synthetic sidebar key like 'PRINCIPAL',
+    // 'TEACHER_<classId>', or 'STUDENT_<classId>_<userId>' — but the
+    // backend GET /operations/conversation expects the real User.id of
+    // the other party. We resolve it here so the query always carries a
+    // valid id.
+    const activeOtherUserId: string | null = (() => {
+        if (!selectedUserId) return null;
+        if (selectedUserId === 'PRINCIPAL') return principalConv?.otherUserId ?? principalUser?.id ?? null;
+        if (selectedUserId === 'SUPER_ADMIN') return superAdminConv?.otherUserId ?? superAdminUser?.id ?? null;
+        if (selectedUserId.startsWith('TEACHER_')) {
+            const classId = selectedUserId.replace('TEACHER_', '');
+            return classItems.find(c => c.id === classId)?.classTeacherUserId ?? null;
+        }
+        if (selectedUserId.startsWith('STUDENT_')) {
+            const parts = selectedUserId.split('_');
+            if (parts.length >= 3) return parts[2];
+        }
+        return null;
+    })();
+
+    const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
+        { userId: currentUserId ?? "", otherUserId: activeOtherUserId ?? "" },
+        { skip: !currentUserId || !activeOtherUserId }
+    );
+
+    // Poll for new messages every 3 seconds
+    useEffect(() => {
+        if (!activeOtherUserId) return;
+        const interval = setInterval(() => {
+            refetchMessages();
+            refetchConversations();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [activeOtherUserId, refetchMessages, refetchConversations]);
+
     // Find selected item
     let selectedItem: (SidebarItem & { userId: string; name: string; role: string; canSend: boolean }) | null = null;
 
     // Check if selected is Principal
     if (selectedUserId === 'PRINCIPAL') {
+        const principalUserId = principalConv?.otherUserId ?? principalUser?.id ?? null;
         selectedItem = {
-            userId: 'PRINCIPAL',
-            name: principalConv?.otherUserId ? 'Principal' : 'Principal',
+            userId: principalUserId ?? 'PRINCIPAL',
+            name: 'Principal',
             role: 'PRINCIPAL',
-            canSend: true,
+            canSend: !!principalUserId,
             lastMessage: principalConv?.lastMessage ?? 'No messages yet',
             lastMessageAt: principalConv?.lastMessageAt ?? '',
             direction: principalConv?.direction ?? 'received',
@@ -201,11 +225,12 @@ export default function AccountantMessages() {
     }
     // Check if selected is Super Admin
     else if (selectedUserId === 'SUPER_ADMIN') {
+        const superAdminUserId = superAdminConv?.otherUserId ?? superAdminUser?.id ?? null;
         selectedItem = {
-            userId: 'SUPER_ADMIN',
+            userId: superAdminUserId ?? 'SUPER_ADMIN',
             name: 'Super Admin',
             role: 'SUPER_ADMIN',
-            canSend: false,
+            canSend: !!superAdminUserId,
             lastMessage: superAdminConv?.lastMessage ?? 'No messages yet',
             lastMessageAt: superAdminConv?.lastMessageAt ?? '',
             direction: superAdminConv?.direction ?? 'received',
