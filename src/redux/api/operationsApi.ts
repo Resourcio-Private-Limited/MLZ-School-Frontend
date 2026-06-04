@@ -126,6 +126,13 @@ export const operationsApi = baseApi.injectEndpoints({
       providesTags: (result, error, { otherUserId }) => [{ type: 'Messages', id: otherUserId }],
     }),
 
+    getUserByRole: builder.query<{ id: string; role: string; email: string } | null, 'PRINCIPAL' | 'SUPER_ADMIN' | 'ACCOUNTANT'>({
+      query: (role) => ({
+        url: `/operations/user-by-role?role=${encodeURIComponent(role)}`,
+        method: 'GET',
+      }),
+    }),
+
     createNotice: builder.mutation<Notice, CreateNoticePayload>({
       query: (body) => ({ url: '/operations/notices', method: 'POST', body }),
       invalidatesTags: ['Notices'],
@@ -152,6 +159,7 @@ export const {
   useSendMessageMutation,
   useGetConversationsQuery,
   useGetConversationQuery,
+  useGetUserByRoleQuery,
   useCreateNoticeMutation,
   useUpdateNoticeMutation,
   useDeleteNoticeMutation,
