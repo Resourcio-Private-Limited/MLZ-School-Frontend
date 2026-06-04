@@ -38,20 +38,33 @@ export interface UserSummary {
     id: string;
     userId: string;
     fullName: string;
-    employeeId?: string;
+    employeeId?: string | null;
     admissionNumber?: string;
     classroom?: string;
     isActive: boolean;
     email: string;
-    role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
+    role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF' | 'OTHER';
     primaryContact?: string;
+    secondaryContact?: string | null;
     dob?: string | null;
     gender?: string;
     residentialAddress?: string;
+    nationality?: string | null;
+    caste?: string | null;
+    isPwd?: boolean;
+    aadharNo?: string | null;
+    identificationMark?: string | null;
     highestQualification?: string;
     salary?: string;
     customRole?: string;
     password?: string;
+    designation?: string | null;
+    department?: string | null;
+    joiningDate?: string | null;
+    status?: string | null;
+    officialDocType?: string | null;
+    officialDocNumber?: string | null;
+    employmentType?: string | null;
 }
 
 export interface AllUsersResponse {
@@ -62,23 +75,38 @@ export interface AllUsersResponse {
 }
 
 export interface AddUserPayload {
-    role: 'TEACHER' | 'STUDENT' | 'ACCOUNTANT' | 'PRINCIPAL';
+    role: 'TEACHER' | 'STUDENT' | 'ACCOUNTANT' | 'PRINCIPAL' | 'STAFF';
     email: string;
     password: string;
     fullName: string;
     employeeId?: string;
     department?: string;
+    designation?: string;
+    highestQualification?: string;
+    salary?: string | number;
+    joiningDate?: string;
+    status?: string;
+    officialDocType?: string;
+    officialDocNumber?: string;
+    employmentType?: string;
     admissionNumber?: string;
     admissionYear?: number;
     rollNumber?: string;
+    transportOpted?: boolean;
     dob?: string;
     gender?: string;
     residentialAddress?: string;
     primaryContact?: string;
+    secondaryContact?: string;
     parentName?: string;
     parentContact?: string;
     classroomId?: string;
-    designation?: string;
+    nationality?: string;
+    caste?: string;
+    isPwd?: boolean;
+    aadharNo?: string;
+    identificationMark?: string;
+    customRole?: string;
 }
 
 export interface UpdateUserPayload {
@@ -86,13 +114,26 @@ export interface UpdateUserPayload {
     email?: string;
     fullName?: string;
     primaryContact?: string;
+    secondaryContact?: string;
     dob?: string;
     gender?: string;
     residentialAddress?: string;
+    nationality?: string;
+    caste?: string;
+    isPwd?: boolean;
+    aadharNo?: string;
+    identificationMark?: string;
     employeeId?: string;
     highestQualification?: string;
     salary?: string;
     customRole?: string;
+    designation?: string;
+    department?: string;
+    joiningDate?: string;
+    status?: string;
+    officialDocType?: string;
+    officialDocNumber?: string;
+    employmentType?: string;
 }
 
 export interface UpdateSuperAdminProfilePayload {

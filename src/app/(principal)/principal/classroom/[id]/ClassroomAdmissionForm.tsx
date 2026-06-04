@@ -51,8 +51,21 @@ export default function ClassroomAdmissionForm({
         const gender = formData.get("gender") as string;
         const residentialAddress = formData.get("residentialAddress") as string;
         const primaryContact = formData.get("primaryContact") as string;
-        const parentName = formData.get("parentName") as string;
-        const parentContact = formData.get("parentContact") as string;
+        const secondaryContact = formData.get("secondaryContact") as string;
+        const nationality = formData.get("nationality") as string;
+        const caste = formData.get("caste") as string;
+        const isPwd = formData.get("isPwd") === "yes";
+        const aadharNo = formData.get("aadharNo") as string;
+        const identificationMark = formData.get("identificationMark") as string;
+        const rollNumber = formData.get("rollNumber") as string;
+
+        const fatherName = formData.get("fatherName") as string;
+        const fatherContact = formData.get("fatherContact") as string;
+        const motherName = formData.get("motherName") as string;
+        const motherContact = formData.get("motherContact") as string;
+
+        // Transportation: "yes" → opted-in, "no" → not opted-in
+        const transportOpted = (formData.get("transportOpted") as string) === "yes";
 
         const password = formData.get("password") as string;
         if (!password) {
@@ -62,19 +75,35 @@ export default function ClassroomAdmissionForm({
 
         const email = (formData.get("email") as string) || `${fullName.toLowerCase().replace(/\s+/g, '.')}@student.mlzs.edu.in`;
 
+        // Combine parents into parentName / parentContact columns
+        const combinedParentName = [fatherName, motherName].filter(Boolean).join(" / ");
+        const combinedParentContact = [fatherContact, motherContact].filter(Boolean).join(" / ");
+
+        const rollNumberFormatted = rollNumber
+            ? (rollNumber.startsWith("EZNK") ? rollNumber : `EZNK${rollNumber}`)
+            : undefined;
+
         try {
             await addStudent({
                 userEmail: email,
                 password,
                 admissionNumber,
                 admissionYear: currentYear,
+                rollNumber: rollNumberFormatted,
                 fullName,
                 dob,
                 gender,
                 residentialAddress,
                 primaryContact,
-                parentName: parentName || undefined,
-                parentContact: parentContact || undefined,
+                secondaryContact: secondaryContact || undefined,
+                nationality: nationality || "Indian",
+                caste: caste || undefined,
+                isPwd,
+                aadharNo: aadharNo || undefined,
+                identificationMark: identificationMark || undefined,
+                parentName: combinedParentName || undefined,
+                parentContact: combinedParentContact || undefined,
+                transportOpted,
                 classroomId,
             }).unwrap();
 
@@ -89,7 +118,7 @@ export default function ClassroomAdmissionForm({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="sticky absolute z-50 top-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center justify-between">
+                <div className="sticky top-0 z-50 bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold">Admit New Student</h2>
                         <p className="text-purple-100 text-sm mt-1">{classroom.name} &mdash; Grade {classroom.grade}</p>
@@ -108,8 +137,8 @@ export default function ClassroomAdmissionForm({
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="label">Student Email</label>
-                                <input name="email" type="email" className="input" placeholder="student@mlzs.edu.in" />
+                                <label className="label">Student Email<span className="text-red-500">*</span></label>
+                                <input name="email" type="email" required className="input" placeholder="student@mlzs.edu.in" />
                             </div>
                             <div>
                                 <label className="label">Password <span className="text-red-500">*</span></label>
@@ -158,8 +187,35 @@ export default function ClassroomAdmissionForm({
                                 </select>
                             </div>
                             <div>
+                                <label className="label">Nationality</label>
+                                <input name="nationality" className="input" placeholder="Nationality" defaultValue="Indian" />
+                            </div>
+                            <div>
+                                <label className="label">Caste</label>
+                                <input name="caste" className="input" placeholder="Caste" />
+                            </div>
+                            <div>
+                                <label className="label">PWD (Yes/No)</label>
+                                <select name="isPwd" className="input">
+                                    <option value="no">No</option>
+                                    <option value="yes">Yes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="label">Aadhar No.</label>
+                                <input name="aadharNo" className="input" placeholder="12-digit Aadhar" />
+                            </div>
+                            <div>
+                                <label className="label">Identification Mark (if any)</label>
+                                <input name="identificationMark" className="input" placeholder="e.g., mole on left cheek" />
+                            </div>
+                            <div>
                                 <label className="label">Primary Contact <span className="text-red-500">*</span></label>
                                 <input name="primaryContact" required className="input" placeholder="+91 XXXXX XXXXX" />
+                            </div>
+                            <div>
+                                <label className="label">Secondary / Emergency Contact</label>
+                                <input name="secondaryContact" className="input" placeholder="+91 XXXXX XXXXX" />
                             </div>
                             <div className="col-span-2">
                                 <label className="label">Residential Address <span className="text-red-500">*</span></label>
@@ -168,17 +224,78 @@ export default function ClassroomAdmissionForm({
                         </div>
                     </div>
 
-                    {/* Parent Details */}
-                    <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3">Parent Details</h3>
+                    {/* Academic Details */}
+                    {/* <div className="border-t pt-4">
+                        <h3 className="font-semibold text-gray-700 mb-3">Academic Details</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="label">Parent/Guardian Name <span className="text-red-500">*</span></label>
-                                <input name="parentName" required className="input" placeholder="Parent or Guardian name" />
+                                <label className="label">Roll Number (EZNK)</label>
+                                <div className="flex">
+                                    <span className="inline-flex items-center px-2 rounded-l border border-r-0 border-gray-300 bg-gray-100 text-gray-600 text-xs font-mono">EZNK</span>
+                                    <input name="rollNumber" className="input rounded-l-none" placeholder="0001" />
+                                </div>
+                            </div>
+                        </div>
+                    </div> */}
+
+                    {/* Parent / Guardian Details */}
+                    <div className="border-t pt-4">
+                        <h3 className="font-semibold text-gray-700 mb-3">Parent / Guardian Details</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="label">Father's Name</label>
+                                <input name="fatherName" className="input" placeholder="e.g. Mr. Rajesh Kumar" />
                             </div>
                             <div>
-                                <label className="label">Parent Contact <span className="text-red-500">*</span></label>
-                                <input name="parentContact" required className="input" placeholder="+91 XXXXX XXXXX" />
+                                <label className="label">Father's Contact No.</label>
+                                <input name="fatherContact" type="tel" className="input" placeholder="+91..." />
+                            </div>
+                            <div>
+                                <label className="label">Mother's Name</label>
+                                <input name="motherName" className="input" placeholder="e.g. Mrs. Priya Kumar" />
+                            </div>
+                            <div>
+                                <label className="label">Mother's Contact No.</label>
+                                <input name="motherContact" type="tel" className="input" placeholder="+91..." />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Transportation Service */}
+                    <div className="border-t pt-4">
+                        <h3 className="font-semibold text-gray-700 mb-3">Transportation Service</h3>
+                        <div className="grid grid-cols-1 gap-4">
+                            <div>
+                                <label className="label">
+                                    Do you need transportation service? <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex items-center gap-6 mt-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="transportOpted"
+                                            value="yes"
+                                            required
+                                            defaultChecked={false}
+                                            className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                                        />
+                                        <span className="text-gray-700 font-medium">Yes</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="transportOpted"
+                                            value="no"
+                                            required
+                                            defaultChecked
+                                            className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                                        />
+                                        <span className="text-gray-700 font-medium">No</span>
+                                    </label>
+                                </div>
+                                {/* <p className="text-xs text-gray-500 mt-2">
+                                    If Yes, the school transport office will assign a bus route and stop after admission.
+                                </p> */}
                             </div>
                         </div>
                     </div>

@@ -324,6 +324,7 @@ export default function PrincipalHomePage() {
                                     <span className="w-2 h-2 rounded-full bg-purple-500" />
                                     Class Teacher
                                 </h3>
+
                                 <div className="flex items-end gap-3">
                                     <div className="flex-1">
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -545,6 +546,7 @@ export default function PrincipalHomePage() {
                     </div>
                 </div>
             )}
+
         </div>
     );
 }

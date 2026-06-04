@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import toast from 'react-hot-toast';
-import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation } from "@/redux/api/principalApi";
+import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation, AdmitCardPreview as AdmitCardPreviewData } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
 const EXAM_TYPES = [
@@ -140,13 +140,39 @@ export default function AdmitCardPage() {
 
         setGenerating(true);
         try {
+            let successCount = 0;
             for (const studentId of selectedStudentIds) {
-                await createAdmitCard({
-                    studentId,
-                    examType: selectedExamType,
-                }).unwrap();
+                try {
+                    const blob = await createAdmitCard({
+                        studentId,
+                        examType: selectedExamType as 'HALF_YEARLY' | 'FINAL',
+                    }).unwrap();
+
+                    // Determine filename from selected student (if available)
+                    const student = students.find(s => s.id === studentId);
+                    const safeName = (student?.fullName ?? studentId)
+                        .replace(/[^\w\-]+/g, '_').slice(0, 40);
+                    const filename = `AdmitCard_${safeName}_${selectedExamType}.pdf`;
+
+                    // Trigger a browser download for this PDF
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    successCount += 1;
+                } catch (innerErr) {
+                    console.error('Failed to generate admit card for student', studentId, innerErr);
+                }
             }
-            toast.success(`Admit cards generated for ${selectedStudentIds.length} student(s)!`);
+            if (successCount > 0) {
+                toast.success(`Generated & downloaded ${successCount} admit card(s).`);
+            } else {
+                toast.error('Failed to generate any admit cards.');
+            }
             setSelectedStudentIds([]);
             setSelectAll(false);
         } catch (err) {
@@ -407,71 +433,15 @@ export default function AdmitCardPage() {
                         </div>
                     )}
 
-                    {/* Admit Card Preview */}
+                    {/* Admit Card Preview (true HTML — matches the Puppeteer PDF) */}
                     {canGenerate && selectedExamType && (
                         <div className="border border-purple-200 bg-purple-50 rounded-lg p-6">
                             <h3 className="text-lg font-semibold text-gray-800 mb-4">Admit Card Preview</h3>
-                            <div className="relative bg-white border-2 border-purple-600 rounded-lg overflow-hidden" style={{ aspectRatio: '3/4', maxHeight: '400px', margin: '0 auto' }}>
-                                <Image
-                                    src={EXAM_TYPES.find(e => e.value === selectedExamType)?.svg || ''}
-                                    alt="Admit Card Template"
-                                    fill
-                                    className="object-contain"
-                                />
-                                <div className="absolute inset-0 pointer-events-none">
-                                    <div className="absolute left-[74.1%] top-[23.6%] w-[18.85%] h-[14.8%] rounded-lg overflow-hidden border border-slate-300 bg-white/80 flex items-center justify-center">
-                                        {admitCardPreview?.profileImage ? (
-                                            <img src={admitCardPreview.profileImage} alt="Student photo" className="object-cover w-full h-full" />
-                                        ) : (
-                                            <span className="text-[8px] text-slate-500">Photo</span>
-                                        )}
-                                    </div>
-
-                                    <div className="absolute left-[5.2%] top-[41%] w-[21.2%] text-[9px] leading-tight text-slate-900">
-                                        <p className="font-semibold">{admitCardPreview?.studentName ?? 'Student Full Name'}</p>
-                                    </div>
-
-                                    <div className="absolute left-[26.4%] top-[41%] w-[47.1%] text-[9px] leading-tight text-slate-900">
-                                        <p className="font-semibold">{admitCardPreview ? `${admitCardPreview.classroom.grade} ${admitCardPreview.classroom.section}` : 'Grade Section'}</p>
-                                    </div>
-
-                                    <div className="absolute left-[73.5%] top-[41%] w-[21.2%] text-[9px] leading-tight text-slate-900">
-                                        <p className="font-semibold">{admitCardPreview?.rollNumber ?? 'Roll No.'}</p>
-                                    </div>
-
-                                    <div className="absolute left-[26.4%] top-[45.7%] w-[47.1%] text-[8px] leading-[1.3] text-slate-900">
-                                        {loadingPreview ? (
-                                            <p className="text-[8px] text-slate-500">Loading schedule...</p>
-                                        ) : admitCardPreview?.examSchedule?.length ? (
-                                            admitCardPreview.examSchedule.slice(0, 12).map((entry, index) => (
-                                                <p key={index} className="text-[8px] truncate">{entry.subjectName}</p>
-                                            ))
-                                        ) : admitCardPreview?.subjects?.length ? (
-                                            admitCardPreview.subjects.slice(0, 12).map((subject, index) => (
-                                                <p key={index} className="text-[8px] truncate text-slate-500">{subject}</p>
-                                            ))
-                                        ) : (
-                                            <p className="text-[8px] text-slate-500">Subjects will be fetched from backend</p>
-                                        )}
-                                    </div>
-
-                                    <div className="absolute left-[73.5%] top-[45.7%] w-[21.2%] text-[8px] leading-[1.3] text-slate-900 text-right">
-                                        {loadingPreview ? (
-                                            <p className="text-[8px] text-slate-500">Loading schedule...</p>
-                                        ) : admitCardPreview?.examSchedule?.length ? (
-                                            admitCardPreview.examSchedule.slice(0, 12).map((entry, index) => (
-                                                <p key={index} className="text-[8px]">{entry.examDate ? new Date(entry.examDate).toLocaleDateString() : 'TBD'}</p>
-                                            ))
-                                        ) : admitCardPreview?.subjects?.length ? (
-                                            admitCardPreview.subjects.slice(0, 12).map((subject, index) => (
-                                                <p key={index} className="text-[8px] text-slate-500">TBD</p>
-                                            ))
-                                        ) : (
-                                            <p className="text-[8px] text-slate-500">TBD</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <AdmitCardPreview
+                                preview={admitCardPreview ?? null}
+                                loading={loadingPreview}
+                                examLabel={EXAM_TYPES.find(e => e.value === selectedExamType)?.label ?? ''}
+                            />
                             <p className="text-xs text-gray-500 text-center mt-3">
                                 {selectedClassroom?.name} — {EXAM_TYPES.find(e => e.value === selectedExamType)?.label}
                             </p>
@@ -493,6 +463,129 @@ export default function AdmitCardPage() {
                             <span>{generating ? "Generating..." : "Generate Admit Cards"}</span>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── HTML Admit Card Preview ────────────────────────────────────────────
+// Mirrors the backend Puppeteer template (admit-card-template.ts) so the
+// user sees exactly what will be downloaded. Always renders 10 table rows
+// (empty cells if fewer subjects are scheduled).
+function AdmitCardPreview({
+    preview,
+    loading,
+    examLabel,
+}: {
+    preview: AdmitCardPreviewData | null;
+    loading: boolean;
+    examLabel: string;
+}) {
+    const ROWS = 10;
+    const schedule = preview?.examSchedule?.length ? preview.examSchedule : [];
+    const sessionYear = preview?.examDate
+        ? (() => {
+              const d = new Date(preview.examDate);
+              const start = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+              const end = String((start + 1) % 100).padStart(2, '0');
+              return `${start}-${end}`;
+          })()
+        : `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`;
+
+    const fmt = (iso: string | null | undefined) => {
+        if (!iso) return 'TBD';
+        try { return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+        catch { return 'TBD'; }
+    };
+
+    return (
+        <div className="bg-white border-2 border-blue-900 rounded-lg overflow-hidden max-w-2xl mx-auto shadow-lg">
+            <style jsx>{`
+                .ac-header { display: flex; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+                .ac-header img { width: 56px; height: 56px; object-fit: contain; }
+                .ac-school { flex: 1; text-align: center; font-weight: 700; font-size: 14px; line-height: 1.25; color: #0f172a; }
+                .ac-school small { display: block; font-size: 10px; font-weight: 500; color: #475569; margin-top: 2px; }
+                .ac-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 2px; margin: 12px 0 4px; color: #1e3a8a; }
+                .ac-exam { text-align: center; font-size: 12px; margin-bottom: 14px; color: #334155; }
+                .ac-exam strong { color: #1e3a8a; }
+                .ac-row { display: flex; gap: 14px; margin: 12px 0 6px; }
+                .ac-text { flex: 1; }
+                .ac-label { font-weight: 700; font-size: 11px; color: #475569; margin-top: 4px; }
+                .ac-value { font-size: 13px; border-bottom: 1px dotted #94a3b8; padding: 0 0 2px 0; color: #0f172a; }
+                .ac-photo { width: 90px; height: 110px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; }
+                .ac-photo img { width: 100%; height: 100%; object-fit: cover; }
+                .ac-photo-ph { font-size: 10px; color: #94a3b8; font-weight: 600; }
+                .ac-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                .ac-table th, .ac-table td { border: 1px solid #1e3a8a; padding: 6px 8px; font-size: 11px; text-align: left; }
+                .ac-table th { background: #f1f5f9; text-align: center; color: #1e3a8a; }
+                .ac-table td:nth-child(1) { width: 28%; }
+                .ac-table td:nth-child(2) { width: 56%; }
+                .ac-table td:nth-child(3) { width: 16%; }
+                .ac-sig { text-align: center; margin-top: 24px; font-size: 11px; }
+                .ac-sig .line { display: inline-block; border-top: 1px solid #1e293b; padding-top: 3px; min-width: 180px; font-weight: 600; }
+            `}</style>
+
+            <div className="p-5">
+                <div className="ac-header">
+                    <Image src="/MLZS_contents/Horizontal MLZS Logo.png" alt="MLZS" width={56} height={56} />
+                    <div className="ac-school">
+                        Mount Litera Zee School
+                        <small>North Kolkata, Barrackpore</small>
+                    </div>
+                </div>
+
+                <div className="ac-title">ADMIT CARD</div>
+                <div className="ac-exam">
+                    <strong>{examLabel || 'Examination'}</strong><br />
+                    Session: <strong>{sessionYear}</strong>
+                </div>
+
+                <div className="ac-row">
+                    <div className="ac-text">
+                        <div className="ac-label">Name:</div>
+                        <div className="ac-value">{preview?.studentName ?? '—'}</div>
+                        <div className="ac-label">Class:</div>
+                        <div className="ac-value">{preview ? `${preview.classroom.grade} ${preview.classroom.section}` : '—'}</div>
+                        <div className="ac-label">Section:</div>
+                        <div className="ac-value">{preview?.classroom.section ?? '—'}</div>
+                        <div className="ac-label">Roll No.:</div>
+                        <div className="ac-value">{preview?.rollNumber ?? '—'}</div>
+                    </div>
+                    <div className="ac-photo">
+                        {preview?.profileImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={preview.profileImage} alt="Photo" />
+                        ) : (
+                            <span className="ac-photo-ph">PHOTO</span>
+                        )}
+                    </div>
+                </div>
+
+                <table className="ac-table">
+                    <thead>
+                        <tr><th>DATE</th><th>SUBJECT</th><th>SIGN</th></tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            <tr><td colSpan={3} className="text-center text-slate-500">Loading schedule…</td></tr>
+                        ) : (
+                            Array.from({ length: ROWS }).map((_, i) => {
+                                const entry = schedule[i];
+                                return (
+                                    <tr key={i}>
+                                        <td>{entry ? fmt(entry.examDate) : ' '}</td>
+                                        <td>{entry?.subjectName ?? ' '}</td>
+                                        <td>{' '}</td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+
+                <div className="ac-sig">
+                    <div className="line">Signature of Principal</div>
                 </div>
             </div>
         </div>
