@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, Plus, BookOpen, User as UserIcon, Filter, X, Search, UserCheck } from "lucide-react";
-import { useGetClassroomStudentsQuery, useGetClassroomQuery, useAddStudentMutation } from "@/redux/api/principalApi";
+import { ArrowLeft, Users, Plus, BookOpen, User as UserIcon, Filter, X, Search, UserCheck, ListOrdered, AlertCircle } from "lucide-react";
+import toast from "react-hot-toast";
+import { useGetClassroomStudentsQuery, useGetClassroomQuery, useAddStudentMutation, useRollArrangeByNameMutation } from "@/redux/api/principalApi";
 import { useGetStudentDetailQuery } from "@/redux/api/accountsApi";
 import ClassroomAdmissionForm from "./ClassroomAdmissionForm";
 import StudentDetailModal from "./StudentDetailModal";
@@ -54,6 +55,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [showPromotionModal, setShowPromotionModal] = useState(false);
+    const [showRollArrangeModal, setShowRollArrangeModal] = useState(false);
     const [filters, setFilters] = useState<FilterState>({
         search: '',
         minMarks: '',
@@ -67,6 +69,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
     const { data: classroomData } = useGetClassroomQuery(classroomId);
     const { data: students = [], isLoading, refetch } = useGetClassroomStudentsQuery(classroomId);
     const { data: selectedStudentDetail } = useGetStudentDetailQuery(selectedStudentId!, { skip: !selectedStudentId });
+    const [rollArrangeByName, { isLoading: isArranging }] = useRollArrangeByNameMutation();
 
     const activeClassroom = classroomData ?? classroom;
     const totalStudents = students.length;
@@ -145,6 +148,26 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
         refetch();
     };
 
+    const handleOpenRollArrange = () => {
+        if (students.length === 0) {
+            toast.error("No students in this class to re-number.");
+            return;
+        }
+        setShowRollArrangeModal(true);
+    };
+
+    const confirmRollArrange = async () => {
+        try {
+            const result = await rollArrangeByName({ classroomId }).unwrap();
+            toast.success(`Re-numbered ${result.count} students alphabetically by name.`);
+            setShowRollArrangeModal(false);
+            refetch();
+        } catch (err: unknown) {
+            const error = err as { data?: { message?: string }; message?: string };
+            toast.error(error?.data?.message ?? "Failed to re-number class rolls.");
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -172,6 +195,15 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                     >
                         <UserCheck size={20} />
                         <span>Promote Students</span>
+                    </button>
+                    <button
+                        onClick={handleOpenRollArrange}
+                        disabled={students.length === 0}
+                        className="flex items-center space-x-2 bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md hover:shadow-lg"
+                        title="Re-number every student's ClassRoll (1, 2, 3…) in alphabetical order by full name"
+                    >
+                        <ListOrdered size={20} />
+                        <span>Arrange Roll</span>
                     </button>
                     <button
                         onClick={() => setShowAdmissionForm(true)}
@@ -442,6 +474,41 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                     onClose={() => setShowPromotionModal(false)}
                     onSuccess={handleStudentUpdated}
                 />
+            )}
+
+            {/* Roll-Arrange Confirmation Modal */}
+            {showRollArrangeModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex items-center justify-center mb-4">
+                                <div className="p-3 rounded-full bg-amber-100">
+                                    <AlertCircle size={24} className="text-amber-600" />
+                                </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Arrange ClassRolls Alphabetically?</h3>
+                            <p className="text-gray-600 text-center mb-6">
+                                This will overwrite the <strong>ClassRoll</strong> for every student in <strong>{activeClassroom.name}</strong> — assigning 1 to the first name alphabetically, 2 to the second, and so on. The Admission Roll (EZNK…) and the order of records stay unchanged.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowRollArrangeModal(false)}
+                                    disabled={isArranging}
+                                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmRollArrange}
+                                    disabled={isArranging}
+                                    className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
+                                >
+                                    {isArranging ? "Re-numbering..." : "Yes, Re-number"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

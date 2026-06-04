@@ -77,6 +77,7 @@ export interface ClassroomStudent {
     parentName?: string;
     parentContact?: string;
     rollNumber?: string | null;
+    classRoll?: number | null;
     profileImage?: string | null;
     examEligibility: boolean;
     classroom?: { id: string; name: string; grade: string; section: string };
@@ -223,11 +224,19 @@ export const principalApi = baseApi.injectEndpoints({
             admissionNumber: string;
             admissionYear: number;
             rollNumber?: string;
+            classRoll?: number;
             fullName: string;
             dob: string;
             gender: string;
             residentialAddress: string;
             primaryContact: string;
+            secondaryContact?: string;
+            nationality?: string;
+            caste?: string;
+            isPwd?: boolean;
+            aadharNo?: string;
+            identificationMark?: string;
+            transportOpted?: boolean;
             parentName?: string;
             parentContact?: string;
             classroomId: string;
@@ -250,8 +259,23 @@ export const principalApi = baseApi.injectEndpoints({
             }),
         }),
 
-        createAdmitCard: builder.mutation<AdmitCardPreview, { studentId: string; examType: string }>({
-            query: (body) => ({ url: '/principal/admit-cards', method: 'POST', body }),
+        createAdmitCard: builder.mutation<Blob, { studentId: string; examType: 'HALF_YEARLY' | 'FINAL' }>({
+            query: (body) => ({
+                url: '/principal/admit-cards',
+                method: 'POST',
+                body,
+                // RTK Query's TypeScript types don't include 'blob' as a literal
+                // for `responseHandler` in some versions — cast through any to
+                // keep the public API typed. The runtime behaviour is correct.
+                responseHandler: 'blob' as any,
+            }),
+        }),
+
+        rollArrangeByName: builder.mutation<{ count: number }, { classroomId: string }>({
+            query: ({ classroomId }) => ({
+                url: `/principal/classrooms/${classroomId}/roll-arrange`,
+                method: 'POST',
+            }),
         }),
     }),
 });
@@ -277,4 +301,5 @@ export const {
     useUploadProfileImageMutation,
     useGetStudentAdmitCardPreviewQuery,
     useCreateAdmitCardMutation,
+    useRollArrangeByNameMutation,
 } = principalApi;

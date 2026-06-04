@@ -23,6 +23,7 @@ export interface StudentAcademic {
   admissionYear: number;
   admissionDate: string;
   rollNumber: string | null;
+  classRoll: number | null;
   passingYear: number | null;
   transportOpted: boolean;
   parentName: string | null;

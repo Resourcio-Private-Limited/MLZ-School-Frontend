@@ -16,8 +16,12 @@ import {
     ArrowLeft,
     Camera,
     Loader2,
+    Globe,
+    CheckCircle2,
+    FileText,
+    Award,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useRef } from "react";
 import { useGetTeacherProfileQuery, useUploadProfileImageMutation } from "@/redux/api/teacherApi";
 
 function formatDate(dateStr: string | null | undefined) {
@@ -45,7 +49,6 @@ export default function TeacherProfilePage() {
         const reader = new FileReader();
         reader.onload = async () => {
             try {
-                // Compress image before uploading
                 const img = new window.Image();
                 img.src = reader.result as string;
                 await new Promise((resolve) => { img.onload = resolve; });
@@ -96,6 +99,21 @@ export default function TeacherProfilePage() {
         );
     }
 
+    const employeeId = profile.employeeId ?? '—';
+    const joiningDate = (profile as any).joiningDate ? formatDate((profile as any).joiningDate) : '—';
+    const designation = (profile as any).designation ?? 'Teacher';
+    const department = (profile as any).department ?? '—';
+    const currentSalary = (profile as any).salary;
+    const status = profile.status ?? 'Active';
+    const officialDocType = (profile as any).officialDocType ?? '—';
+    const officialDocNumber = (profile as any).officialDocNumber ?? '—';
+    const secondaryContact = (profile as any).secondaryContact ?? '—';
+    const nationality = (profile as any).nationality ?? 'Indian';
+    const caste = (profile as any).caste ?? '—';
+    const isPwd = (profile as any).isPwd ?? false;
+    const aadharNo = (profile as any).aadharNo ?? '—';
+    const identificationMark = (profile as any).identificationMark ?? '—';
+
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
             {/* Hero Section */}
@@ -145,15 +163,15 @@ export default function TeacherProfilePage() {
                             <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
                                 <span className="flex items-center gap-1">
                                     <Briefcase size={18} className="text-blue-400" />
-                                    {profile.designation ?? "Teacher"}
+                                    {designation}
                                 </span>
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 font-mono">
                                     <IdCard size={18} className="text-blue-400" />
-                                    ID: {profile.employeeId}
+                                    ID: {employeeId}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Calendar size={18} className="text-blue-400" />
-                                    {profile.status ?? "Active"}
+                                    {status}
                                 </span>
                                 {profile.classTeacherOf && (
                                     <span className="flex items-center gap-1">
@@ -187,8 +205,14 @@ export default function TeacherProfilePage() {
                             <InfoField label="Date of Birth" value={formatDate(profile.dob)} icon={<Calendar size={16} />} />
                             <InfoField label="Gender" value={profile.gender} icon={<User size={16} />} />
                             <InfoField label="Email ID" value={profile.email ?? "—"} icon={<Mail size={16} />} />
-                            <InfoField label="Contact No." value={profile.primaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={profile.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-3" />
+                            <InfoField label="Primary Contact" value={profile.primaryContact ?? "—"} icon={<Phone size={16} />} />
+                            <InfoField label="Secondary / Emergency Contact" value={secondaryContact} icon={<Phone size={16} />} />
+                            <InfoField label="Nationality" value={nationality} icon={<Globe size={16} />} />
+                            <InfoField label="Caste" value={caste} icon={<FileText size={16} />} />
+                            <InfoField label="PWD" value={isPwd ? 'Yes' : 'No'} icon={<CheckCircle2 size={16} />} />
+                            <InfoField label="Aadhar No." value={aadharNo} icon={<IdCard size={16} />} />
+                            <InfoField label="Identification Mark" value={identificationMark} icon={<FileText size={16} />} className="md:col-span-2 lg:col-span-3" />
+                            <InfoField label="Residential Address" value={profile.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-2 lg:col-span-3" />
                         </div>
                     </div>
                 </div>
@@ -207,17 +231,21 @@ export default function TeacherProfilePage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <InfoField label="Employee ID" value={profile.employeeId} icon={<IdCard size={16} />} />
+                            <InfoField label="Employee ID" value={employeeId} icon={<IdCard size={16} />} />
+                            <InfoField label="Designation" value={designation} icon={<Briefcase size={16} />} />
+                            <InfoField label="Department / Subject(s)" value={department} icon={<Book size={16} />} />
                             <InfoField label="Highest Qualification" value={profile.highestQualification ?? "—"} icon={<GraduationCap size={16} />} />
-
-                            <div className="group md:col-span-2 lg:col-span-3">
+                            <InfoField label="Date of Joining" value={joiningDate} icon={<Calendar size={16} />} />
+                            <InfoField label="Current Salary" value={currentSalary != null && currentSalary !== '' ? `₹ ${Number(currentSalary).toLocaleString('en-IN')}` : '—'} icon={<IndianRupee size={16} />} />
+                            <div>
                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                    <Book size={14} /> Status
+                                    <Award size={14} /> Status
                                 </label>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${profile.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-red-100 text-red-800"}`}>
-                                    {profile.status ?? "—"}
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status === 'Active' || status === 'ACTIVE' ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-red-100 text-red-800"}`}>
+                                    {status}
                                 </span>
                             </div>
+                            <InfoField label="Official Document" value={`${officialDocType} - ${officialDocNumber}`} icon={<FileText size={16} />} className="md:col-span-2" />
                         </div>
                     </div>
                 </div>

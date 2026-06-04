@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { MOCK_STUDENTS_LIST, mockAction } from "@/lib/mocks";
 import CreateStudentForm from "./CreateStudentForm";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useGetAllClassroomsQuery } from "@/redux/api/principalApi";
 
 // Extended mock student data with passwords and additional details
 const MOCK_STUDENTS_WITH_DETAILS = MOCK_STUDENTS_LIST.map((s, i) => ({
@@ -74,11 +75,13 @@ export default function StudentsPage() {
         });
     };
 
+    const { data: classrooms = [] } = useGetAllClassroomsQuery();
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Students</h1>
-                <CreateStudentForm classrooms={[]} />
+                <CreateStudentForm classrooms={classrooms} />
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">

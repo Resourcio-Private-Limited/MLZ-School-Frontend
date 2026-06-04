@@ -14,22 +14,42 @@ import {
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
-type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
+type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
 
 interface NewUserForm {
-    role: 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'OTHER';
+    role: 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
     customRole: string;
     email: string;
     password: string;
     fullName: string;
     employeeId: string;
+    // Personal
     dob: string;
     gender: string;
     residentialAddress: string;
     primaryContact: string;
+    secondaryContact: string;
+    nationality: string;
+    caste: string;
+    isPwd: boolean;
+    aadharNo: string;
+    identificationMark: string;
+    // Teacher specific
     highestQualification: string;
+    designation: string;
+    department: string;
+    joiningDate: string;
     salary: string;
+    status: string;
+    officialDocType: string;
+    officialDocNumber: string;
+    // Staff/Accountant
+    employmentType: string;
 }
+
+const DOC_TYPES = ['Aadhar', 'PAN', 'Driving License'];
+const EMPLOYMENT_TYPES = ['Permanent', 'Contract', 'Temporary', 'Part-time'];
+const STATUSES = ['Active', 'Inactive', 'Left Service'];
 
 const emptyForm: NewUserForm = {
     role: 'TEACHER',
@@ -42,13 +62,26 @@ const emptyForm: NewUserForm = {
     gender: '',
     residentialAddress: '',
     primaryContact: '',
+    secondaryContact: '',
+    nationality: 'Indian',
+    caste: '',
+    isPwd: false,
+    aadharNo: '',
+    identificationMark: '',
     highestQualification: '',
+    designation: '',
+    department: '',
+    joiningDate: '',
     salary: '',
+    status: 'Active',
+    officialDocType: 'Aadhar',
+    officialDocNumber: '',
+    employmentType: 'Permanent',
 };
 
 const TAB_ROLE_MAP: Record<string, Role[]> = {
     Teachers: ['TEACHER'],
-    Staff: ['PRINCIPAL', 'ACCOUNTANT', 'OTHER'],
+    Staff: ['PRINCIPAL', 'ACCOUNTANT', 'STAFF'],
 };
 
 export default function UserManagementPage() {
@@ -68,12 +101,25 @@ export default function UserManagementPage() {
         fullName: '',
         email: '',
         primaryContact: '',
+        secondaryContact: '',
         dob: '',
         gender: '',
         residentialAddress: '',
+        nationality: '',
+        caste: '',
+        isPwd: false,
+        aadharNo: '',
+        identificationMark: '',
         employeeId: '',
         highestQualification: '',
+        designation: '',
+        department: '',
+        joiningDate: '',
         salary: '',
+        status: 'Active',
+        officialDocType: 'Aadhar',
+        officialDocNumber: '',
+        employmentType: 'Permanent',
         customRole: '',
     });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
@@ -134,7 +180,6 @@ export default function UserManagementPage() {
         if (newUser.role === 'PRINCIPAL') {
             const activePrincipal = allUsers?.principals.find(p => p.isActive);
             if (activePrincipal) {
-                // Show warning modal that creating this principal will deactivate the current one
                 setPendingPrincipalActivation({ userId: '', userName: newUser.fullName, action: 'add' });
                 setShowPrincipalWarningModal(true);
                 return;
@@ -188,12 +233,25 @@ export default function UserManagementPage() {
             fullName: user.fullName,
             email: user.email,
             primaryContact: user.primaryContact ?? '',
+            secondaryContact: (user as any).secondaryContact ?? '',
             dob: formattedDob,
             gender: user.gender ?? '',
             residentialAddress: user.residentialAddress ?? '',
+            nationality: (user as any).nationality ?? 'Indian',
+            caste: (user as any).caste ?? '',
+            isPwd: (user as any).isPwd ?? false,
+            aadharNo: (user as any).aadharNo ?? '',
+            identificationMark: (user as any).identificationMark ?? '',
             employeeId: user.employeeId ?? '',
             highestQualification: user.highestQualification ?? '',
+            designation: (user as any).designation ?? '',
+            department: (user as any).department ?? '',
+            joiningDate: (user as any).joiningDate ? new Date((user as any).joiningDate).toISOString().split('T')[0] : '',
             salary: user.salary ?? '',
+            status: (user as any).status ?? 'Active',
+            officialDocType: (user as any).officialDocType ?? 'Aadhar',
+            officialDocNumber: (user as any).officialDocNumber ?? '',
+            employmentType: (user as any).employmentType ?? 'Permanent',
             customRole: user.customRole ?? '',
         });
         setShowEditModal(true);
@@ -212,26 +270,27 @@ export default function UserManagementPage() {
                 fullName: editForm.fullName,
                 email: editForm.email,
                 primaryContact: editForm.primaryContact,
+                secondaryContact: editForm.secondaryContact,
+                dob: editForm.dob,
+                gender: editForm.gender,
+                residentialAddress: editForm.residentialAddress,
+                nationality: editForm.nationality,
+                caste: editForm.caste,
+                isPwd: editForm.isPwd,
+                aadharNo: editForm.aadharNo,
+                identificationMark: editForm.identificationMark,
+                employeeId: editForm.employeeId,
+                highestQualification: editForm.highestQualification,
+                designation: editForm.designation,
+                department: editForm.department,
+                joiningDate: editForm.joiningDate,
+                salary: editForm.salary,
+                status: editForm.status,
+                officialDocType: editForm.officialDocType,
+                officialDocNumber: editForm.officialDocNumber,
+                employmentType: editForm.employmentType,
+                customRole: editForm.customRole,
             };
-
-            // Add role-specific fields
-            if (selectedUser.role === 'TEACHER') {
-                updateData.employeeId = editForm.employeeId;
-                updateData.highestQualification = editForm.highestQualification;
-                updateData.salary = editForm.salary;
-                updateData.dob = editForm.dob;
-                updateData.gender = editForm.gender;
-                updateData.residentialAddress = editForm.residentialAddress;
-            } else if (selectedUser.role === 'OTHER') {
-                updateData.customRole = editForm.customRole;
-                updateData.dob = editForm.dob;
-                updateData.gender = editForm.gender;
-                updateData.residentialAddress = editForm.residentialAddress;
-            } else {
-                updateData.dob = editForm.dob;
-                updateData.gender = editForm.gender;
-                updateData.residentialAddress = editForm.residentialAddress;
-            }
 
             await updateUser({ userId: selectedUser.userId, data: updateData }).unwrap();
             setShowEditModal(false);
@@ -264,7 +323,6 @@ export default function UserManagementPage() {
 
     const handleToggleUserStatus = (user: UserSummary) => {
         if (user.role === 'PRINCIPAL' && !user.isActive) {
-            // Check if there's an active principal
             const hasActivePrincipal = allUsers?.principals.some(p => p.isActive && p.userId !== user.userId);
             if (hasActivePrincipal) {
                 setPendingPrincipalActivation({ userId: user.userId, userName: user.fullName, action: 'activate' });
@@ -272,7 +330,6 @@ export default function UserManagementPage() {
                 return;
             }
         }
-        // For non-principal users or activating principal with no active principal, proceed directly
         confirmToggleStatus(user.userId, true);
     };
 
@@ -289,14 +346,14 @@ export default function UserManagementPage() {
     };
 
     const roleLabel = (role: string) =>
-        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant', OTHER: 'Other' }[role] ?? role);
+        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant', STAFF: 'Staff' }[role] ?? role);
 
     const roleBadge = (role: string) => {
         const styles: Record<string, string> = {
             TEACHER: 'bg-emerald-100 text-emerald-700',
             PRINCIPAL: 'bg-purple-100 text-purple-700',
             ACCOUNTANT: 'bg-amber-100 text-amber-700',
-            OTHER: 'bg-gray-100 text-gray-700',
+            STAFF: 'bg-gray-100 text-gray-700',
         };
         return `px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[role] ?? 'bg-gray-100 text-gray-700'}`;
     };
@@ -378,7 +435,7 @@ export default function UserManagementPage() {
                         <tbody className="divide-y divide-gray-200">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-10 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
                                         <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                                         <p>Loading users...</p>
                                     </td>
@@ -401,7 +458,7 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={roleBadge(user.role)}>{roleLabel(user.role)}</span>
+                                            <span className={roleBadge(user.role)}>{roleLabel(user.role)}{user.role === 'STAFF' && user.customRole ? ` (${user.customRole})` : ''}</span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <code className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
@@ -435,12 +492,10 @@ export default function UserManagementPage() {
                                                 <button
                                                     onClick={() => {
                                                         if (user.isActive) {
-                                                            // Deactivate
                                                             updateUser({ userId: user.userId, data: { isActive: false } }).unwrap()
                                                                 .then(() => { toast.success("User deactivated."); refetch(); })
                                                                 .catch(() => toast.error("Failed to deactivate user."));
                                                         } else {
-                                                            // Try to activate - may show warning for principal
                                                             handleToggleUserStatus(user);
                                                         }
                                                     }}
@@ -463,7 +518,7 @@ export default function UserManagementPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <Users className="mx-auto text-gray-300 mb-2" size={48} />
                                         <p className="text-gray-500 font-medium">No {selectedTab.toLowerCase()} found</p>
                                     </td>
@@ -519,11 +574,11 @@ export default function UserManagementPage() {
             {/* Add User Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
-                                <p className="text-sm text-gray-500 mt-1">Create a new user account</p>
+                                <p className="text-sm text-gray-500 mt-1">Create a new user account. Employee ID will be auto-generated.</p>
                             </div>
                             <button onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={24} className="text-gray-600" />
@@ -562,26 +617,24 @@ export default function UserManagementPage() {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="md:col-span-2">
+                                    <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">User Type <span className="text-red-500">*</span></label>
                                         <select value={newUser.role}
-                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as NewUserForm['role'], customRole: '' })}
+                                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as NewUserForm['role'], customRole: '', designation: '', department: '' })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
                                             <option value="TEACHER">Teacher</option>
                                             <option value="PRINCIPAL">Principal</option>
                                             <option value="ACCOUNTANT">Accountant</option>
-                                            <option value="OTHER">Other (Non-portal staff)</option>
+                                            <option value="STAFF">Other Staff (Non-portal)</option>
                                         </select>
                                     </div>
-                                    {newUser.role === 'OTHER' && (
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Custom Role <span className="text-red-500">*</span></label>
-                                            <input type="text" value={newUser.customRole}
-                                                onChange={(e) => setNewUser({ ...newUser, customRole: e.target.value })}
-                                                placeholder="e.g., Gardener, Sweeper, Receptionist"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        </div>
-                                    )}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
+                                        <input type="text" value={newUser.employeeId} readOnly
+                                            placeholder="Auto-generated (MLZS/BKP/...)"
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono cursor-not-allowed" />
+                                        <p className="text-xs text-gray-400 mt-1">Auto-generated based on role & joining year.</p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -593,13 +646,7 @@ export default function UserManagementPage() {
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
-                                        <input type="tel" value={newUser.primaryContact}
-                                            onChange={(e) => setNewUser({ ...newUser, primaryContact: e.target.value })}
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth <span className="text-red-500">*</span></label>
                                         <input type="date" value={newUser.dob}
                                             onChange={(e) => setNewUser({ ...newUser, dob: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
@@ -615,55 +662,169 @@ export default function UserManagementPage() {
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
+                                        <input type="tel" value={newUser.primaryContact}
+                                            onChange={(e) => setNewUser({ ...newUser, primaryContact: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Secondary / Emergency Contact</label>
+                                        <input type="tel" value={newUser.secondaryContact}
+                                            onChange={(e) => setNewUser({ ...newUser, secondaryContact: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Nationality</label>
+                                        <input type="text" value={newUser.nationality}
+                                            onChange={(e) => setNewUser({ ...newUser, nationality: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Caste</label>
+                                        <input type="text" value={newUser.caste}
+                                            onChange={(e) => setNewUser({ ...newUser, caste: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">PWD</label>
+                                        <select value={newUser.isPwd ? 'yes' : 'no'}
+                                            onChange={(e) => setNewUser({ ...newUser, isPwd: e.target.value === 'yes' })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            <option value="no">No</option>
+                                            <option value="yes">Yes</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Aadhar No.</label>
+                                        <input type="text" value={newUser.aadharNo}
+                                            onChange={(e) => setNewUser({ ...newUser, aadharNo: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Residential Address</label>
-                                        <input type="text" value={newUser.residentialAddress}
+                                        <textarea value={newUser.residentialAddress}
                                             onChange={(e) => setNewUser({ ...newUser, residentialAddress: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white"
+                                            rows={2}></textarea>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Identification Mark (if any)</label>
+                                        <input type="text" value={newUser.identificationMark}
+                                            onChange={(e) => setNewUser({ ...newUser, identificationMark: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Teacher Fields */}
-                            {newUser.role === 'TEACHER' && (
-                                <div className="border-b border-gray-200 pb-5">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                        <Briefcase size={18} className="text-emerald-600" />
-                                        Teacher Details
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID <span className="text-red-500">*</span></label>
-                                            <input type="text" value={newUser.employeeId}
-                                                onChange={(e) => setNewUser({ ...newUser, employeeId: e.target.value })}
+                            {/* Professional Details */}
+                            <div className="border-b border-gray-200 pb-5">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Briefcase size={18} className="text-rose-600" />
+                                    {newUser.role === 'TEACHER' ? 'Teacher' : newUser.role === 'PRINCIPAL' ? 'Principal' : 'Staff / Accountant'} Professional Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {newUser.role === 'STAFF' && (
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Designation / Role <span className="text-red-500">*</span></label>
+                                            <input type="text" value={newUser.customRole || newUser.designation}
+                                                onChange={(e) => setNewUser({ ...newUser, customRole: e.target.value, designation: e.target.value })}
+                                                placeholder="e.g. Receptionist, Gardener, Driver"
                                                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
+                                    )}
+                                    {newUser.role !== 'STAFF' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-1">Designation {newUser.role === 'TEACHER' ? <span className="text-red-500">*</span> : null}</label>
+                                                <input type="text" value={newUser.designation}
+                                                    onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
+                                                    placeholder={newUser.role === 'TEACHER' ? "e.g. Subject Teacher, Class Teacher" : "e.g. Principal"}
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-1">Department / Subject(s)</label>
+                                                <input type="text" value={newUser.department}
+                                                    onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                                                    placeholder={newUser.role === 'TEACHER' ? "e.g. Mathematics, Science" : "e.g. Administration, Academics"}
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                            </div>
+                                        </>
+                                    )}
+                                    {newUser.role === 'STAFF' && (
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification <span className="text-red-500">*</span></label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Department / Category</label>
+                                            <input type="text" value={newUser.department}
+                                                onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                                                placeholder="e.g. Teaching, Administrative, Support"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Joining <span className="text-red-500">*</span></label>
+                                        <input type="date" value={newUser.joiningDate}
+                                            onChange={(e) => setNewUser({ ...newUser, joiningDate: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Current Salary (₹) {newUser.role === 'TEACHER' || newUser.role === 'PRINCIPAL' ? <span className="text-red-500">*</span> : null}</label>
+                                        <input type="number" value={newUser.salary}
+                                            onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    {(newUser.role === 'TEACHER' || newUser.role === 'PRINCIPAL') && (
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Qualification <span className="text-red-500">*</span></label>
                                             <input type="text" value={newUser.highestQualification}
                                                 onChange={(e) => setNewUser({ ...newUser, highestQualification: e.target.value })}
                                                 placeholder="e.g., M.Sc., B.Ed., Ph.D."
                                                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
+                                    )}
+                                    {(newUser.role === 'ACCOUNTANT' || newUser.role === 'STAFF') && (
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹) <span className="text-red-500">*</span></label>
-                                            <input type="number" value={newUser.salary}
-                                                onChange={(e) => setNewUser({ ...newUser, salary: e.target.value })}
-                                                placeholder="e.g., 50000"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Employment Type</label>
+                                            <select value={newUser.employmentType}
+                                                onChange={(e) => setNewUser({ ...newUser, employmentType: e.target.value })}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                                {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                                            </select>
                                         </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                                        <select value={newUser.status}
+                                            onChange={(e) => setNewUser({ ...newUser, status: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                        </select>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
-                            {(newUser.role === 'PRINCIPAL' || newUser.role === 'ACCOUNTANT') && (
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                        <Briefcase size={18} className="text-purple-600" />
-                                        {roleLabel(newUser.role)} Details
-                                    </h3>
+                            {/* Official Document */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <Briefcase size={18} className="text-rose-600" />
+                                    Official Document
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Document Type <span className="text-red-500">*</span></label>
+                                        <select value={newUser.officialDocType}
+                                            onChange={(e) => setNewUser({ ...newUser, officialDocType: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            {DOC_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Document Number <span className="text-red-500">*</span></label>
+                                        <input type="text" value={newUser.officialDocNumber}
+                                            onChange={(e) => setNewUser({ ...newUser, officialDocNumber: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
 
                         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
@@ -673,7 +834,7 @@ export default function UserManagementPage() {
                             </button>
                             <button
                                 onClick={handleAddUser}
-                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password || (newUser.role === 'OTHER' && !newUser.customRole) || (newUser.role === 'TEACHER' && (!newUser.employeeId || !newUser.highestQualification || !newUser.salary))}
+                                disabled={isAdding || !newUser.fullName || !newUser.email || !newUser.password || !newUser.dob || !newUser.joiningDate || (newUser.role === 'STAFF' && !newUser.customRole) || (newUser.role === 'TEACHER' && (!newUser.highestQualification || !newUser.salary)) || !newUser.officialDocNumber}
                                 className="flex items-center space-x-2 px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors font-medium"
                             >
                                 <UserPlus size={18} />
@@ -687,14 +848,14 @@ export default function UserManagementPage() {
             {/* Edit User Modal */}
             {showEditModal && selectedUser && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                                     <Edit2 size={20} className="text-blue-600" />
                                     Edit User
                                 </h2>
-                                <p className="text-sm text-gray-500 mt-1">{roleLabel(selectedUser.role)} — {selectedUser.fullName}</p>
+                                <p className="text-sm text-gray-500 mt-1">{roleLabel(selectedUser.role)} — {selectedUser.fullName} {selectedUser.employeeId ? `(ID: ${selectedUser.employeeId})` : ''}</p>
                             </div>
                             <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -703,12 +864,8 @@ export default function UserManagementPage() {
                         </div>
 
                         <div className="p-6 space-y-5">
-                            {/* Common Fields */}
                             <div className="border-b border-gray-200 pb-5">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <User size={18} className="text-rose-600" />
-                                    Account Details
-                                </h3>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Account Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
@@ -723,20 +880,27 @@ export default function UserManagementPage() {
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
+                                        <input type="text" value={editForm.employeeId} readOnly
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono cursor-not-allowed" />
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Primary Contact</label>
                                         <input type="tel" value={editForm.primaryContact}
                                             onChange={(e) => setEditForm({ ...editForm, primaryContact: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Secondary / Emergency Contact</label>
+                                        <input type="tel" value={editForm.secondaryContact}
+                                            onChange={(e) => setEditForm({ ...editForm, secondaryContact: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Personal Details */}
                             <div className="border-b border-gray-200 pb-5">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <Briefcase size={18} className="text-rose-600" />
-                                    Personal Details
-                                </h3>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Personal Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Birth</label>
@@ -755,63 +919,129 @@ export default function UserManagementPage() {
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Nationality</label>
+                                        <input type="text" value={editForm.nationality}
+                                            onChange={(e) => setEditForm({ ...editForm, nationality: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Caste</label>
+                                        <input type="text" value={editForm.caste}
+                                            onChange={(e) => setEditForm({ ...editForm, caste: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">PWD</label>
+                                        <select value={editForm.isPwd ? 'yes' : 'no'}
+                                            onChange={(e) => setEditForm({ ...editForm, isPwd: e.target.value === 'yes' })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            <option value="no">No</option>
+                                            <option value="yes">Yes</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Aadhar No.</label>
+                                        <input type="text" value={editForm.aadharNo}
+                                            onChange={(e) => setEditForm({ ...editForm, aadharNo: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-semibold text-gray-700 mb-1">Residential Address</label>
-                                        <input type="text" value={editForm.residentialAddress}
+                                        <textarea value={editForm.residentialAddress}
                                             onChange={(e) => setEditForm({ ...editForm, residentialAddress: e.target.value })}
+                                            rows={2}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white"></textarea>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Identification Mark (if any)</label>
+                                        <input type="text" value={editForm.identificationMark}
+                                            onChange={(e) => setEditForm({ ...editForm, identificationMark: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Teacher Fields */}
-                            {selectedUser.role === 'TEACHER' && (
-                                <div className="border-b border-gray-200 pb-5">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                        <Briefcase size={18} className="text-emerald-600" />
-                                        Teacher Details
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
-                                            <input type="text" value={editForm.employeeId}
-                                                onChange={(e) => setEditForm({ ...editForm, employeeId: e.target.value })}
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Highest Educational Qualification</label>
+                            {/* Professional Details */}
+                            <div className="border-b border-gray-200 pb-5">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Professional Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Designation / Role</label>
+                                        <input type="text" value={editForm.designation || editForm.customRole}
+                                            onChange={(e) => setEditForm({ ...editForm, designation: e.target.value, customRole: e.target.value })}
+                                            placeholder={selectedUser.role === 'TEACHER' ? "e.g. Subject Teacher, Class Teacher" : selectedUser.role === 'PRINCIPAL' ? "e.g. Principal" : "e.g. Receptionist, Gardener"}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Department / Subject(s)</label>
+                                        <input type="text" value={editForm.department}
+                                            onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                                            placeholder={selectedUser.role === 'TEACHER' ? "e.g. Mathematics, Science" : selectedUser.role === 'PRINCIPAL' ? "e.g. Administration, Academics" : "e.g. Teaching, Administrative, Support"}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Date of Joining</label>
+                                        <input type="date" value={editForm.joiningDate}
+                                            onChange={(e) => setEditForm({ ...editForm, joiningDate: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Current Salary (₹)</label>
+                                        <input type="number" value={editForm.salary}
+                                            onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                    </div>
+                                    {(selectedUser.role === 'TEACHER' || selectedUser.role === 'PRINCIPAL') && (
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Qualification</label>
                                             <input type="text" value={editForm.highestQualification}
                                                 onChange={(e) => setEditForm({ ...editForm, highestQualification: e.target.value })}
                                                 placeholder="e.g., M.Sc., B.Ed., Ph.D."
                                                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                         </div>
+                                    )}
+                                    {(selectedUser.role === 'ACCOUNTANT' || selectedUser.role === 'STAFF') && (
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Salary (₹)</label>
-                                            <input type="number" value={editForm.salary}
-                                                onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
-                                                placeholder="e.g., 50000"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1">Employment Type</label>
+                                            <select value={editForm.employmentType}
+                                                onChange={(e) => setEditForm({ ...editForm, employmentType: e.target.value })}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                                {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                                            </select>
                                         </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                                        <select value={editForm.status}
+                                            onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                        </select>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
-                            {/* Other Role Fields */}
-                            {selectedUser.role === 'OTHER' && (
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                        <Briefcase size={18} className="text-gray-600" />
-                                        Other Staff Details
-                                    </h3>
+                            {/* Official Document */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Official Document</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Custom Role</label>
-                                        <input type="text" value={editForm.customRole}
-                                            onChange={(e) => setEditForm({ ...editForm, customRole: e.target.value })}
-                                            placeholder="e.g., Gardener, Sweeper, Receptionist"
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Document Type</label>
+                                        <select value={editForm.officialDocType}
+                                            onChange={(e) => setEditForm({ ...editForm, officialDocType: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white text-gray-900">
+                                            {DOC_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Document Number</label>
+                                        <input type="text" value={editForm.officialDocNumber}
+                                            onChange={(e) => setEditForm({ ...editForm, officialDocNumber: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
                                     </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
 
                         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">

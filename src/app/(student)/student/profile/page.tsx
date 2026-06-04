@@ -12,6 +12,12 @@ import {
     History,
     Camera,
     Loader2,
+    IdCard,
+    Users,
+    Globe,
+    FileText,
+    CheckCircle2,
+    Book,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useGetProfileQuery, useUploadProfileImageMutation } from "@/redux/api/studentApi";
@@ -105,7 +111,7 @@ export default function ProfilePage() {
     };
 
     // Format date helper
-    const formatDate = (dateStr: string | null) => {
+    const formatDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return "—";
         const d = new Date(dateStr);
         return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -192,9 +198,14 @@ export default function ProfilePage() {
                             <InfoField label="Full Name" value={personal.fullName} icon={<User size={16} />} />
                             <InfoField label="Date of Birth" value={formatDate(personal.dob)} icon={<Calendar size={16} />} />
                             <InfoField label="Gender" value={genderLabel} icon={<User size={16} />} />
-                            
+                            <InfoField label="Nationality & Caste" value={`${personal.nationality ?? '—'}${personal.caste ? ` / ${personal.caste}` : ''}`} icon={<Globe size={16} />} />
+                            <InfoField label="PWD" value={personal.isPwd ? 'Yes' : 'No'} icon={<CheckCircle2 size={16} />} />
+                            <InfoField label="Aadhar No." value={personal.aadharNo ?? '—'} icon={<IdCard size={16} />} />
+                            <InfoField label="Identification Mark" value={personal.identificationMark ?? '—'} icon={<FileText size={16} />} className="md:col-span-2 lg:col-span-3" />
+                            <InfoField label="Email ID" value={personal.email ?? '—'} icon={<Mail size={16} />} />
                             <InfoField label="Primary Contact No." value={personal.primaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} />
+                            <InfoField label="Secondary / Emergency Contact" value={personal.secondaryContact ?? '—'} icon={<Phone size={16} />} />
+                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-2 lg:col-span-3" />
                         </div>
                     </div>
                 </div>
@@ -215,9 +226,12 @@ export default function ProfilePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <InfoField label="Admission No." value={academic.admissionNumber} icon={<Award size={16} />} />
                             <InfoField label="Admission Year" value={String(academic.admissionYear)} icon={<Calendar size={16} />} />
+                            <InfoField label="Date of Admission" value={formatDate(academic.admissionDate)} icon={<Calendar size={16} />} />
                             <InfoField label="Current Class" value={currentClass.name} icon={<GraduationCap size={16} />} />
                             <InfoField label="Current Section" value={currentClass.section} icon={<Award size={16} />} />
                             <InfoField label="Roll No." value={academic.rollNumber ?? "—"} icon={<Award size={16} />} />
+                            <InfoField label="Class Roll" value={academic.classRoll != null ? String(academic.classRoll) : "—"} icon={<Award size={16} />} />
+                            <InfoField label="Avail Transportation" value={academic.transportOpted ? 'Yes' : 'No'} icon={<Users size={16} />} />
                             <InfoField label="Parent Name" value={academic.parentName ?? "—"} icon={<User size={16} />} />
                             <InfoField label="Parent Contact" value={academic.parentContact ?? "—"} icon={<Phone size={16} />} />
                         </div>
