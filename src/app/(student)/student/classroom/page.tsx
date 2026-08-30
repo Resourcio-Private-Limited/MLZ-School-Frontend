@@ -48,7 +48,7 @@ export default function ClassroomPage() {
                                 <p className="font-bold text-lg">{classroom?.classTeacher ?? "—"}</p>
                             </div>
                         </div>
-                        <div className="flex items-center space-x-4">
+                        {/* <div className="flex items-center space-x-4">
                             <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
                                 <Users size={24} />
                             </div>
@@ -56,7 +56,7 @@ export default function ClassroomPage() {
                                 <p className="text-sm text-blue-100 font-medium">Total Students</p>
                                 <p className="font-bold text-lg">{classroom?.studentCount ?? "—"}</p>
                             </div>
-                        </div>
+                        </div> */}
                         <div className="flex items-center space-x-4">
                             <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
                                 <BookOpen size={24} />

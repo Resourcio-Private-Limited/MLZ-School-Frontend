@@ -17,7 +17,7 @@ export default function StudentDetailModal({
     onStudentUpdate?: () => void;
 }) {
     const [activeTab, setActiveTab] = useState<Tab>('personal');
-    const { data: student, isLoading, error, refetch } = useGetStudentDetailQuery(studentId);
+    const { data: student, isLoading, error, refetch } = useGetStudentDetailQuery({ studentId });
     const [updateEligibility] = useUpdateExamEligibilityMutation();
 
     const handleToggleEligibility = async () => {

@@ -68,7 +68,10 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
 
     const { data: classroomData } = useGetClassroomQuery(classroomId);
     const { data: students = [], isLoading, refetch } = useGetClassroomStudentsQuery(classroomId);
-    const { data: selectedStudentDetail } = useGetStudentDetailQuery(selectedStudentId!, { skip: !selectedStudentId });
+    const { data: selectedStudentDetail } = useGetStudentDetailQuery(
+        { studentId: selectedStudentId! },
+        { skip: !selectedStudentId }
+    );
     const [rollArrangeByName, { isLoading: isArranging }] = useRollArrangeByNameMutation();
 
     const activeClassroom = classroomData ?? classroom;

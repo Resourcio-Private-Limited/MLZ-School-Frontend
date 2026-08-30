@@ -110,7 +110,7 @@ export default function SuperAdminLayout({
                     <NavLink href="/super-admin/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/messages" icon={<MessageSquare size={20} />} label="Messages" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/financial" icon={<BarChart3 size={20} />} label="Financial Overview" isCollapsed={isCollapsed} />
-                    <NavLink href="/super-admin/profile" icon={<Users size={20} />} label="Profile" isCollapsed={isCollapsed} />
+                    {/* <NavLink href="/super-admin/profile" icon={<Users size={20} />} label="Profile" isCollapsed={isCollapsed} /> */}
                 </nav>
 
                 <div className="p-4 border-t border-slate-800 bg-slate-900/50 space-y-3">

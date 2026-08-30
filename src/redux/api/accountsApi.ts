@@ -31,6 +31,7 @@ export interface StudentFeeRecord {
     isPaid: boolean;
     paidAmount: number;
     examEligibility: boolean;
+    transportOpted: boolean;
     classroomId?: string;
     classroomName?: string;
 }
@@ -55,17 +56,54 @@ export interface StudentDetailFeeHistory {
     receiptUrl: string | null;
 }
 
+export interface MonthlyBreakdown {
+    month: number;
+    year: number;
+    recordId: string | null;
+    tuitionFees: number;
+    transportFees: number;
+    annualCharges: number;
+    annualChargesApplicable: boolean;
+    otherFees: number;
+    otherFeesRemarks: string | null;
+    penalty: number;
+    previousAmount: number;
+    discount: number;
+    totalAmount: number;
+    isPaid: boolean;
+    paidAmount: number;
+    paidAt: string | null;
+    paymentMode: string | null;
+}
+
+export interface StudentKpis {
+    totalTuition: number;
+    totalTransport: number;
+    totalAnnual: number;
+    totalOther: number;
+    totalDiscount: number;
+    totalPrevDue: number;
+    totalPaid: number;
+    totalDue: number;
+    totalOverall: number;
+    paidMonths: number;
+    unpaidMonths: number;
+}
+
 export interface StudentDetailResponse {
     studentId: string;
     fullName: string;
     rollNumber: string;
+    classRoll: number | null;
     admissionNumber: string;
     dob: string;
     gender: string;
     parentName: string | null;
     parentContact: string | null;
     primaryContact: string;
+    secondaryContact: string | null;
     email: string | null;
+    residentialAddress: string | null;
     classroom: {
         id: string;
         name: string;
@@ -73,18 +111,14 @@ export interface StudentDetailResponse {
         section: string;
     };
     examEligibility: boolean;
+    transportOpted: boolean;
     feeStructure: {
         tuitionFees: number;
         annualCharges: number;
         transportOpted: boolean;
     };
-    paymentSummary: {
-        totalPaid: number;
-        totalDue: number;
-        paidMonths: number;
-        unpaidMonths: number;
-    };
-    feeHistory: StudentDetailFeeHistory[];
+    kpis: StudentKpis;
+    monthlyBreakdown: MonthlyBreakdown[];
 }
 
 export interface IncomeRecord {
@@ -201,8 +235,16 @@ export const accountsApi = baseApi.injectEndpoints({
         }),
 
         // Student Detail
-        getStudentDetail: builder.query<StudentDetailResponse, string>({
-            query: (studentId) => ({ url: `/accounts/students/${studentId}`, method: 'GET' }),
+        getStudentDetail: builder.query<StudentDetailResponse, { studentId: string; year?: number }>({
+            query: ({ studentId, year }) => {
+                const params = new URLSearchParams();
+                if (year) params.set('year', String(year));
+                const qs = params.toString();
+                return {
+                    url: `/accounts/students/${studentId}${qs ? `?${qs}` : ''}`,
+                    method: 'GET',
+                };
+            },
         }),
 
         updateExamEligibility: builder.mutation<{ id: string; fullName: string; examEligibility: boolean }, { studentId: string; examEligibility: boolean }>({
@@ -211,10 +253,33 @@ export const accountsApi = baseApi.injectEndpoints({
                 method: 'PATCH',
                 body: { examEligibility },
             }),
-            async onQueryStarted({ studentId }, { dispatch, queryFulfilled }) {
-                await queryFulfilled;
-                dispatch(accountsApi.util.invalidateTags([{ type: 'StudentDetail', id: studentId }]));
-            },
+        }),
+
+        updateTransportOpted: builder.mutation<{ id: string; fullName: string; transportOpted: boolean }, { studentId: string; transportOpted: boolean }>({
+            query: ({ studentId, transportOpted }) => ({
+                url: `/accounts/students/${studentId}/transport`,
+                method: 'PATCH',
+                body: { transportOpted },
+            }),
+        }),
+
+        upsertStudentMonthlyFee: builder.mutation<any, {
+            studentId: string;
+            classroomId: string;
+            month: number;
+            year: number;
+            transportFees?: number;
+            otherFees?: number;
+            otherFeesRemarks?: string;
+            discount?: number;
+            previousAmount?: number;
+            annualChargesApplicable?: boolean;
+        }>({
+            query: ({ studentId, ...body }) => ({
+                url: `/accounts/students/${studentId}/monthly-fee`,
+                method: 'PATCH',
+                body,
+            }),
         }),
 
         // Income
@@ -292,6 +357,8 @@ export const {
     useRecordStudentPaymentMutation,
     useGetStudentDetailQuery,
     useUpdateExamEligibilityMutation,
+    useUpdateTransportOptedMutation,
+    useUpsertStudentMonthlyFeeMutation,
     useGetIncomesQuery,
     useCreateIncomeMutation,
     useUpdateIncomeMutation,
