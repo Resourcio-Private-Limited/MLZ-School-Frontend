@@ -41,6 +41,9 @@ export interface UserSummary {
     employeeId?: string | null;
     admissionNumber?: string;
     classroom?: string;
+    classroomId?: string;
+    rollNumber?: string;
+    transportOpted?: boolean;
     isActive: boolean;
     email: string;
     role: 'TEACHER' | 'STUDENT' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF' | 'OTHER';

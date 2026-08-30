@@ -133,7 +133,7 @@ export default function UnifiedLoginPage() {
 
 
                 <div className="relative z-10 text-slate-500 text-sm">
-                    © {new Date().getFullYear()} Mount Litera Zee School. All
+                    © {new Date().getFullYear()} Rudraksh Educational Trust. All
                     rights reserved.
                 </div>
             </div>

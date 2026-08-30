@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle, IndianRupee } from "lucide-react";
 import toast from 'react-hot-toast';
 import {
     useGetUserManagementKpisQuery,
@@ -85,7 +86,7 @@ const TAB_ROLE_MAP: Record<string, Role[]> = {
 };
 
 export default function UserManagementPage() {
-    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Staff">("Teachers");
+    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Staff" | "Students">("Teachers");
     const [searchQuery, setSearchQuery] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -136,6 +137,9 @@ export default function UserManagementPage() {
 
     const getTabUsers = (): UserSummary[] => {
         if (!allUsers) return [];
+        if (selectedTab === 'Students') {
+            return allUsers.students;
+        }
         const roles = TAB_ROLE_MAP[selectedTab];
         return [
             ...allUsers.teachers.filter((u) => roles.includes(u.role as Role)),
@@ -381,6 +385,14 @@ export default function UserManagementPage() {
                     <p className="text-sm text-gray-600 font-medium">Total Teachers</p>
                     <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalTeachers ?? '—'}</p>
                 </div>
+                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                    <p className="text-sm text-gray-600 font-medium">Total Students</p>
+                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalStudents ?? '—'}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-amber-500">
+                    <p className="text-sm text-gray-600 font-medium">Total Staff</p>
+                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.staffMembers ?? '—'}</p>
+                </div>
                 <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-rose-500">
                     <p className="text-sm text-gray-600 font-medium">Total Users</p>
                     <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalUsers ?? '—'}</p>
@@ -392,7 +404,7 @@ export default function UserManagementPage() {
                 {/* Tabs */}
                 <div className="border-b border-gray-200">
                     <div className="flex space-x-8 px-6">
-                        {(["Teachers", "Staff"] as const).map((tab) => (
+                        {(["Teachers", "Staff", "Students"] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => { setSelectedTab(tab); setSearchQuery(""); setCurrentPage(1); }}
@@ -425,6 +437,15 @@ export default function UserManagementPage() {
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                                {selectedTab === 'Students' && (
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Admission No</th>
+                                )}
+                                {selectedTab !== 'Students' && (
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee ID</th>
+                                )}
+                                {selectedTab === 'Students' && (
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Class</th>
+                                )}
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Password</th>
@@ -435,7 +456,7 @@ export default function UserManagementPage() {
                         <tbody className="divide-y divide-gray-200">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                                    <td colSpan={selectedTab === 'Students' ? 8 : 7} className="px-6 py-10 text-center text-gray-500">
                                         <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                                         <p>Loading users...</p>
                                     </td>
@@ -450,12 +471,24 @@ export default function UserManagementPage() {
                                                 </div>
                                                 <div className="ml-3">
                                                     <p className="text-sm font-medium text-gray-800">{user.fullName}</p>
-                                                    {user.employeeId && (
-                                                        <p className="text-xs text-gray-400">ID: {user.employeeId}</p>
-                                                    )}
                                                 </div>
                                             </div>
                                         </td>
+                                        {selectedTab === 'Students' && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-600">
+                                                {(user as any).admissionNumber || '-'}
+                                            </td>
+                                        )}
+                                        {selectedTab !== 'Students' && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-600">
+                                                {user.employeeId || '-'}
+                                            </td>
+                                        )}
+                                        {selectedTab === 'Students' && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                {(user as any).classroom || '-'}
+                                            </td>
+                                        )}
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={roleBadge(user.role)}>{roleLabel(user.role)}{user.role === 'STAFF' && user.customRole ? ` (${user.customRole})` : ''}</span>
@@ -472,6 +505,7 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <div className="flex items-center space-x-1">
+                                                
                                                 <Tooltip content="Edit User" side="top">
                                                 <button
                                                     onClick={() => openEditModal(user)}
@@ -518,7 +552,7 @@ export default function UserManagementPage() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                    <td colSpan={selectedTab === 'Students' ? 8 : 7} className="px-6 py-12 text-center">
                                         <Users className="mx-auto text-gray-300 mb-2" size={48} />
                                         <p className="text-gray-500 font-medium">No {selectedTab.toLowerCase()} found</p>
                                     </td>

@@ -7,7 +7,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Hero Section */}
       <div className="bg-slate-900 pb-32">
-        <header className="max-w-7xl mx-auto px-6 py-6 border-b border-white/10 flex justify-between items-center">
+        <header className="max-w-7xl mx-auto px-6 py-1 border-b border-white/10 flex justify-between items-center">
           <div className="flex items-center gap-4">
             {/* White Logo for Dark Background - If not available, use filter or text */}
             <Image
@@ -110,7 +110,7 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">Support</h3>
-                <p className="text-sm text-gray-500 mt-1">Need help?amSupport available during school hours (9:00 AM – 3:00 PM, except holidays).</p>
+                <p className="text-sm text-gray-500 mt-1">Need help?Support available during school hours (9:00 AM – 3:00 PM, except holidays).</p>
                 <p className="text-sm font-medium text-blue-600 mt-1">+91 9875442599</p>
               </div>
             </div>

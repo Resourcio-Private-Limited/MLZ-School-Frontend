@@ -85,7 +85,7 @@ export default function LoginForm({
     return (
         <div className="min-h-screen flex items-stretch">
             {/* Left Side: Hero Section (Desktop Only) */}
-            <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative flex-col justify-between p-12 overflow-hidden">
+            <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative flex-col justify-between px-12 py-1 overflow-hidden">
                 <div className="absolute inset-0 z-0">
                     <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl"></div>
@@ -130,7 +130,7 @@ export default function LoginForm({
                 </div>
 
                 <div className="relative z-10 text-slate-500 text-sm">
-                    © {new Date().getFullYear()} Mount Litera Zee School. All
+                    © {new Date().getFullYear()} Rudraksh Educational Trust. All
                     rights reserved.
                 </div>
             </div>
