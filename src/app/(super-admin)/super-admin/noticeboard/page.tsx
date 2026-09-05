@@ -308,13 +308,11 @@ export default function SuperAdminNoticeBoardPage() {
                                             <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${getCategoryColor(notice.tag)}`}>
                                                 {TAG_TO_LABEL[notice.tag] ?? notice.tag}
                                             </span>
+                                                
                                         </div>
                                         <p className="text-sm font-medium text-gray-600">{notice.title}</p>
                                     </div>
-                                    <div className="text-right ml-4 shrink-0">
-                                        <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
-                                    </div>
+                                    
                                 </div>
                                 <p className="text-gray-600 text-sm leading-relaxed mb-4">{notice.content}</p>
 
@@ -329,7 +327,11 @@ export default function SuperAdminNoticeBoardPage() {
                                         {notice.link}
                                     </a>
                                 )}
-
+                                <div className="flex flex-col">
+                                <div className="text-right ml-4 shrink-0">
+                                        <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
+                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
+                                    </div>
                                 <div className="absolute top-5 right-5 flex items-center space-x-2">
                                     <button
                                         onClick={() => openEdit(notice)}
@@ -343,6 +345,7 @@ export default function SuperAdminNoticeBoardPage() {
                                     >
                                         <Trash2 size={14} />
                                     </button>
+                                </div>
                                 </div>
                             </div>
                         ))

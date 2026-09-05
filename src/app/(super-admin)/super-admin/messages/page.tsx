@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Send, MessageSquare, GraduationCap, Users, Briefcase, UserCheck } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
+import MessagesCenter from "@/components/messages/MessagesCenter";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
 
 function formatTime(dateStr: string) {
@@ -174,6 +175,8 @@ export default function SuperAdminMessagesPage() {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    if (currentUserId) return <MessagesCenter title="Super Admin Messages" recipients={allSidebarUsers.map(item => ({ id: item.userId, name: item.name, role: getRoleLabel(item.role) }))} />;
 
     // Group by role
     const groupedByRole = {

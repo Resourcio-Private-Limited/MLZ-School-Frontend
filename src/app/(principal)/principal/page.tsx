@@ -13,6 +13,10 @@ import {
     useAddSubjectWithTeacherMutation,
     useUpdateSubjectMutation,
     useDeleteSubjectMutation,
+    useCreateClassroomMutation,
+    useDeleteClassroomMutation,
+    useGetPrincipalProfileQuery,
+    useUpdateMarksEntrySettingMutation,
     ClassroomSummary,
 } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -42,6 +46,10 @@ export default function PrincipalHomePage() {
     const [addSubjectWithTeacher] = useAddSubjectWithTeacherMutation();
     const [updateSubject] = useUpdateSubjectMutation();
     const [deleteSubject] = useDeleteSubjectMutation();
+    const [createClassroom] = useCreateClassroomMutation();
+    const [deleteClassroom] = useDeleteClassroomMutation();
+    const { data: principalProfile } = useGetPrincipalProfileQuery();
+    const [updateMarksEntrySetting, { isLoading: updatingMarksSetting }] = useUpdateMarksEntrySettingMutation();
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [selectedClassroom, setSelectedClassroom] = useState<ClassroomSummary | null>(null);
@@ -54,6 +62,9 @@ export default function PrincipalHomePage() {
     const [editingSubjectTeacherId, setEditingSubjectTeacherId] = useState<string>("");
     const [showDeleteSubjectModal, setShowDeleteSubjectModal] = useState(false);
     const [subjectToDelete, setSubjectToDelete] = useState<{ id: string; name: string } | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [classroomToDelete, setClassroomToDelete] = useState<ClassroomSummary | null>(null);
+    const [newClassroom, setNewClassroom] = useState({ name: '', grade: '', section: '', capacity: '40' });
 
     const { data: classroomSubjects = [] } = useGetSubjectsByClassroomQuery(
         selectedClassroom?.id ?? "",
@@ -183,6 +194,23 @@ export default function PrincipalHomePage() {
         }
     };
 
+    const confirmDeleteClassroom = async () => {
+        if (!classroomToDelete) return;
+        setSaving(true);
+        try { await deleteClassroom(classroomToDelete.id).unwrap(); toast.success('Classroom deleted successfully'); setClassroomToDelete(null); }
+        catch (err: any) { toast.error(err?.data?.message ?? 'Failed to delete classroom'); }
+        finally { setSaving(false); }
+    };
+
+    const handleCreateClassroom = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newClassroom.name.trim() || !newClassroom.grade.trim() || !newClassroom.section.trim()) return;
+        setSaving(true);
+        try { await createClassroom({ ...newClassroom, name: newClassroom.name.trim(), grade: newClassroom.grade.trim(), section: newClassroom.section.trim(), capacity: Number(newClassroom.capacity) || 40 }).unwrap(); toast.success('Classroom created'); setShowCreateModal(false); setNewClassroom({ name: '', grade: '', section: '', capacity: '40' }); }
+        catch (err: any) { toast.error(err?.data?.message ?? 'Failed to create classroom'); }
+        finally { setSaving(false); }
+    };
+
     // Derive teachers already assigned to a subject in this classroom (to prevent duplicate assignment)
     const assignedTeacherIds = new Set<string>();
     for (const subj of classroomSubjects) {
@@ -204,15 +232,18 @@ export default function PrincipalHomePage() {
                     <h1 className="text-3xl font-bold text-gray-800">All Classrooms</h1>
                     <p className="text-gray-500 mt-1">Overview of all classes and sections</p>
                 </div>
-                <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-sm text-gray-600 font-medium">
+                <div className="flex items-center gap-3"><button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700"><Plus size={17} /> Create Classroom</button><div className="hidden sm:block bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-sm text-gray-600 font-medium">
                     {new Date().toLocaleDateString("en-US", {
                         weekday: "long",
                         year: "numeric",
                         month: "long",
                         day: "numeric",
                     })}
-                </div>
+                </div></div>
             </div>
+
+            <section className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5"><h2 className="font-bold text-slate-900">Exam marks entry permissions</h2><p className="mt-1 text-sm text-slate-600">Choose which examination teachers are allowed to enter marks for.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{([['HALF_YEARLY','Half Yearly Examination','halfYearlyMarksEntryEnabled'],['FINAL','Final Examination','finalMarksEntryEnabled']] as const).map(([examType,label,key]) => { const enabled = Boolean(principalProfile?.[key]); return <div key={examType} className="flex items-center justify-between rounded-xl bg-white p-4 ring-1 ring-indigo-100"><span className="font-semibold text-slate-800">{label}</span><button type="button" disabled={updatingMarksSetting} onClick={() => updateMarksEntrySetting({ examType, enabled: !enabled })} className={`relative h-8 w-14 shrink-0 rounded-full transition ${enabled ? 'bg-indigo-600' : 'bg-slate-300'} disabled:opacity-50`} aria-label={`Toggle ${label}`}><span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${enabled ? 'left-7' : 'left-1'}`} /></button></div> })}</div>
+            </section>
 
             {isLoading ? (
                 <div className="flex justify-center py-20">
@@ -258,6 +289,7 @@ export default function PrincipalHomePage() {
                                                             >
                                                                 <Settings size={16} />
                                                             </button>
+                                                            <Tooltip className="z-50" content="Delete Classroom" side="top"><button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setClassroomToDelete(cls); }} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={16} /></button></Tooltip>
                                                             </Tooltip>
                                                         </div>
                                                     </div>
@@ -546,6 +578,10 @@ export default function PrincipalHomePage() {
                     </div>
                 </div>
             )}
+
+            {showCreateModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={handleCreateClassroom} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-xl font-bold text-slate-900">Create classroom</h3><p className="text-sm text-slate-500">Add a new class section.</p></div><button type="button" onClick={() => setShowCreateModal(false)}><X className="text-slate-400" /></button></div><div className="space-y-3">{([['name','Classroom name','e.g. Class 1 - Section A'],['grade','Grade','e.g. 1'],['section','Section','e.g. A'],['capacity','Capacity','40']] as const).map(([key,label,placeholder]) => <label key={key} className="block text-sm font-semibold text-slate-700">{label}<input required type={key === 'capacity' ? 'number' : 'text'} min={key === 'capacity' ? 1 : undefined} value={newClassroom[key]} onChange={e => setNewClassroom(v => ({ ...v, [key]: e.target.value }))} placeholder={placeholder} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100" /></label>)}</div><button disabled={saving} className="mt-6 w-full rounded-lg bg-purple-600 py-2.5 font-semibold text-white hover:bg-purple-700 disabled:opacity-50">{saving ? 'Creating...' : 'Create Classroom'}</button></form></div>}
+
+            {classroomToDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100"><Trash2 className="text-red-600" /></div><h3 className="text-center text-xl font-bold text-slate-900">Delete classroom?</h3><p className="mt-2 text-center text-slate-600">Are you sure you want to delete <strong>{classroomToDelete.name}</strong>? This action cannot be undone.</p><div className="mt-6 flex gap-3"><button onClick={() => setClassroomToDelete(null)} className="flex-1 rounded-lg bg-slate-100 py-2.5 font-semibold text-slate-700 hover:bg-slate-200">Cancel</button><button onClick={confirmDeleteClassroom} disabled={saving} className="flex-1 rounded-lg bg-red-600 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50">{saving ? 'Deleting...' : 'Yes, delete'}</button></div></div></div>}
 
         </div>
     );

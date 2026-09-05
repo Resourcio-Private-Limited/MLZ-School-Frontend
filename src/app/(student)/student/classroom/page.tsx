@@ -13,12 +13,7 @@ export default function ClassroomPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Link href="/student">
-                        <button className="flex items-center space-x-2 text-slate-500 hover:text-blue-600 transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </button>
-                    </Link>
+                    
                     <div className="h-6 w-px bg-slate-300" />
                     <h1 className="text-3xl font-bold text-slate-800">Classroom</h1>
                 </div>

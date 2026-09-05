@@ -84,12 +84,7 @@ export default function TeacherNoticeBoardPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Link href="/teacher">
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-emerald-600 transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </button>
-                    </Link>
+                    
                     <div className="h-6 w-px bg-gray-300" />
                     <div className="flex items-center space-x-2">
                         <Megaphone className="text-emerald-500" size={28} />

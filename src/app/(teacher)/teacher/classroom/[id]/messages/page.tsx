@@ -6,6 +6,7 @@ import Link from "next/link";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetClassStudentsQuery, useGetMessageRecipientsQuery } from "@/redux/api/teacherApi";
+import MessagesCenter from "@/components/messages/MessagesCenter";
 
 function formatTime(dateStr: string) {
     try {
@@ -179,6 +180,8 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
 
     const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
     const canSendToSelected = selectedItem?.canSend ?? false;
+
+    if (currentUserId) return <MessagesCenter title="Classroom Messages" backHref={`/teacher/classroom/${classroomId}`} recipients={recipients.map(r => ({ id: r.id, name: r.name, role: getRoleLabel(r.role) }))} />;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;

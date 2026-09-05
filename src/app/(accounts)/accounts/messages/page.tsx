@@ -5,6 +5,7 @@ import { ArrowLeft, Search, Send, Lock, ChevronDown, Users, GraduationCap, Loade
 import Link from "next/link";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useGetUserByRoleQuery, useSendMessageMutation, useGetSectionsByGradeQuery } from "@/redux/api/operationsApi";
+import MessagesCenter from "@/components/messages/MessagesCenter";
 import { useLazyGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
 function formatTime(dateStr: string) {
@@ -279,6 +280,14 @@ export default function AccountantMessages() {
     }
 
     const canSendToSelected = selectedItem?.canSend ?? false;
+
+    const messageRecipients = [
+        ...(principalUser?.id ? [{ id: principalUser.id, name: 'Principal', role: 'PRINCIPAL' }] : []),
+        ...(superAdminUser?.id ? [{ id: superAdminUser.id, name: 'Super Admin', role: 'SUPER_ADMIN' }] : []),
+        ...classItems.filter(c => c.classTeacherUserId).map(c => ({ id: c.classTeacherUserId!, name: c.classTeacherName ?? 'Class Teacher', role: 'TEACHER' })),
+        ...Array.from(classStudentsMap.values()).flat().map(s => ({ id: s.userId, name: s.fullName, role: 'STUDENT' })),
+    ];
+    if (currentUserId) return <MessagesCenter title="Accounts Messages" recipients={messageRecipients} />;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedItem?.userId || !currentUserId) return;

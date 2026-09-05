@@ -69,12 +69,7 @@ export default function StudentFeePage() {
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center space-x-4">
-                    <Link href="/accounts">
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-amber-500 transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </button>
-                    </Link>
+                    
                     <div className="h-6 w-px bg-gray-300"></div>
                     <div>
                         <h1 className="text-3xl font-bold text-gray-800">{classroomName} — Students</h1>

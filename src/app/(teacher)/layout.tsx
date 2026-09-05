@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Bell, User, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useGetTeacherProfileQuery } from "@/redux/api/teacherApi";
 import { Tooltip } from "@/components/ui/tooltip";
+import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
 export default function TeacherLayout({
     children,
@@ -14,6 +15,9 @@ export default function TeacherLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const showMobileMenu = pathname === '/teacher' && !searchParams.get('view');
     const [isAuthChecked, setIsAuthChecked] = useState(false);
     const router = useRouter();
     const { data: teacherProfile, isLoading } = useGetTeacherProfileQuery();
@@ -62,7 +66,7 @@ export default function TeacherLayout({
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex flex-col transition-all duration-300 relative border-r border-slate-800`}>
+            <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex-col transition-all duration-300 relative border-r border-slate-800`}>
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -145,8 +149,7 @@ export default function TeacherLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                {children}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Teacher Portal" subtitle="Your classroom workspace" accent="emerald" items={[{href:'/teacher?view=home',label:'Home',icon:LayoutDashboard},{href:'/teacher/noticeboard',label:'Notice Board',icon:Bell},{href:'/teacher/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/teacher" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

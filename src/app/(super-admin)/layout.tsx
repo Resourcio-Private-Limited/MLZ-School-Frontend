@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetSuperAdminProfileQuery } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
+import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
 export default function SuperAdminLayout({
     children,
@@ -16,6 +17,9 @@ export default function SuperAdminLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const showMobileMenu = pathname === '/super-admin' && !searchParams.get('view');
     const [isAuthChecked, setIsAuthChecked] = useState(false);
     const dispatch = useDispatch();
     const router = useRouter();
@@ -66,7 +70,7 @@ export default function SuperAdminLayout({
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex flex-col transition-all duration-300 relative border-r border-slate-800`}>
+            <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex-col transition-all duration-300 relative border-r border-slate-800`}>
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -152,8 +156,7 @@ export default function SuperAdminLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                {children}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Super Admin" subtitle="Control center for your school" accent="rose" items={[{href:'/super-admin?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/super-admin/users',label:'Users',icon:Users},{href:'/super-admin/noticeboard',label:'Notice Board',icon:Bell},{href:'/super-admin/messages',label:'Messages',icon:MessageSquare},{href:'/super-admin/financial',label:'Financial Overview',icon:BarChart3}]} /> : <MobileBackToMenu href="/super-admin" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );
