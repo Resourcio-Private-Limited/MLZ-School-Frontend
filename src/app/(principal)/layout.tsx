@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
+import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
 export default function PrincipalLayout({
     children,
@@ -16,6 +17,9 @@ export default function PrincipalLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const showMobileMenu = pathname === '/principal' && !searchParams.get('view');
     const [isAuthChecked, setIsAuthChecked] = useState(false);
     const dispatch = useDispatch();
     const router = useRouter();
@@ -66,7 +70,7 @@ export default function PrincipalLayout({
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex flex-col transition-all duration-300 relative border-r border-slate-800`}>
+            <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex-col transition-all duration-300 relative border-r border-slate-800`}>
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -150,8 +154,7 @@ export default function PrincipalLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                {children}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Principal Portal" subtitle="Choose an area to continue" items={[{href:'/principal?view=home',label:'Home',icon:Home},{href:'/principal/admit-card',label:'Admit Cards',icon:FileText},{href:'/principal/noticeboard',label:'Notice Board',icon:Bell},{href:'/principal/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/principal" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

@@ -163,12 +163,7 @@ export default function PrincipalNoticeBoardPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                    <Link href="/principal">
-                        <button className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </button>
-                    </Link>
+                   
                     <div className="h-6 w-px bg-gray-300"></div>
                     <h1 className="text-3xl font-bold text-gray-800">School Notice Board</h1>
                 </div>

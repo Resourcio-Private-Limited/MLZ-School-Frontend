@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon, LogOut, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
+import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
 export default function AccountantLayout({
     children,
@@ -13,6 +14,9 @@ export default function AccountantLayout({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const showMobileMenu = pathname === '/accounts' && !searchParams.get('view');
     const [isAuthChecked, setIsAuthChecked] = useState(false);
     const [accountantName, setAccountantName] = useState("Accountant");
     const [accountantEmail, setAccountantEmail] = useState("accountant@school.com");
@@ -62,7 +66,7 @@ export default function AccountantLayout({
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
-            <aside className={`${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex flex-col transition-all duration-300 relative border-r border-slate-800`}>
+            <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex-col transition-all duration-300 relative border-r border-slate-800`}>
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -148,8 +152,7 @@ export default function AccountantLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                {children}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Accounts Portal" subtitle="Manage the school finances" accent="amber" items={[{href:'/accounts?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/accounts/income',label:'Add Income',icon:PlusCircle},{href:'/accounts/expenses',label:'Expenses',icon:TrendingDown},{href:'/accounts/analysis',label:'Analysis',icon:BarChart3},{href:'/accounts/messages',label:'Messages',icon:MessageCircleIcon}]} /> : <MobileBackToMenu href="/accounts" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

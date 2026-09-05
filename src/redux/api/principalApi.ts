@@ -22,6 +22,8 @@ export interface PrincipalOfficial {
 }
 
 export interface PrincipalFullProfile {
+    halfYearlyMarksEntryEnabled?: boolean;
+    finalMarksEntryEnabled?: boolean;
     id: string;
     fullName: string;
     dob: string;
@@ -149,6 +151,14 @@ export const principalApi = baseApi.injectEndpoints({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),
             providesTags: ['Classroom'],
         }),
+        createClassroom: builder.mutation<ClassroomSummary, { name: string; grade: string; section: string; capacity: number }>({
+            query: (body) => ({ url: '/principal/classrooms', method: 'POST', body }),
+            invalidatesTags: ['Classroom'],
+        }),
+        deleteClassroom: builder.mutation<{ id: string }, string>({
+            query: (classroomId) => ({ url: `/principal/classrooms/${classroomId}`, method: 'DELETE' }),
+            invalidatesTags: ['Classroom'],
+        }),
 
         getClassroom: builder.query<ClassroomSummary, string>({
             query: (classroomId) => ({ url: `/principal/classrooms/${classroomId}`, method: 'GET' }),
@@ -212,6 +222,9 @@ export const principalApi = baseApi.injectEndpoints({
                 ...res,
                 userEmail: res.user?.email ?? res.email,
             }),
+        }),
+        updateMarksEntrySetting: builder.mutation<{ enabled: boolean }, { examType: 'HALF_YEARLY' | 'FINAL'; enabled: boolean }>({
+            query: (body) => ({ url: '/principal/marks-entry-setting', method: 'PATCH', body }),
         }),
 
         updatePrincipalProfile: builder.mutation<{ id: string; fullName: string }, UpdatePrincipalProfilePayload>({
@@ -282,8 +295,11 @@ export const principalApi = baseApi.injectEndpoints({
 
 export const {
     useGetPrincipalProfileQuery,
+    useUpdateMarksEntrySettingMutation,
     useUpdatePrincipalProfileMutation,
     useGetAllClassroomsQuery,
+    useCreateClassroomMutation,
+    useDeleteClassroomMutation,
     useGetClassroomQuery,
     useGetClassroomStudentsQuery,
     useAddStudentMutation,

@@ -8,6 +8,7 @@ import {
     useGetClassroomExamsQuery,
     useGetStudentMarksQuery,
     useSaveStudentMarksMutation,
+    useGetTeacherProfileQuery,
     StudentMarkSummary,
 } from "@/redux/api/teacherApi";
 
@@ -35,9 +36,12 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
     );
 
     const [saveStudentMarks] = useSaveStudentMarksMutation();
+    const { data: teacherProfile } = useGetTeacherProfileQuery();
 
     // Get unique exam types (Half Yearly, Final, etc.)
     const examTypes = exams ? [...new Map(exams.map(e => [e.name, e])).values()] : [];
+
+    const selectedExamEnabled = selectedExamName.toUpperCase().includes('FINAL') ? teacherProfile?.finalMarksEntryEnabled : teacherProfile?.halfYearlyMarksEntryEnabled;
 
     const handleExamSelect = (examId: string, examName: string) => {
         setSelectedExamId(examId);
@@ -45,6 +49,7 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
     };
 
     const openMarksModal = (student: StudentMarkSummary) => {
+        if (!selectedExamEnabled) { toast.error('The principal has not enabled marks entry for this exam'); return; }
         if (!student) return;
         setSelectedStudentData({
             studentId: student.studentId,

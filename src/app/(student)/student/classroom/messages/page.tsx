@@ -6,6 +6,7 @@ import { ArrowLeft, Search, Send, Lock } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
 import { useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
+import MessagesCenter from "@/components/messages/MessagesCenter";
 
 function formatTime(dateStr: string) {
     try {
@@ -103,6 +104,8 @@ export default function StudentMessagesPage() {
 
     const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
     const canSendToSelected = selectedItem?.canSend ?? false;
+
+    if (currentUserId) return <MessagesCenter title="Student Messages" backHref="/student/classroom" recipients={sidebarItems.map(item => ({ id: item.userId, name: item.name, role: getRoleLabel(item.role) }))} readOnlyRoles={READ_ONLY_ROLES} />;
 
     const handleSendMessage = async () => {
         if (!messageText.trim() || !selectedUserId || !currentUserId) return;

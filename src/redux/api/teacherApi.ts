@@ -20,6 +20,8 @@ export interface AssignedClassroom {
 }
 
 export interface TeacherFullProfile {
+  halfYearlyMarksEntryEnabled?: boolean;
+  finalMarksEntryEnabled?: boolean;
   // Basic Info
   fullName: string;
   email: string;
