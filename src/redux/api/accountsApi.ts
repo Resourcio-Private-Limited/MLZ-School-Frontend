@@ -13,6 +13,7 @@ export interface ClassroomWithFees {
     tuitionFees: number;
     lateFees: number;
     annualCharges: number;
+    annualFeeExpiryDate: string | null;
 }
 
 export interface StudentFeeRecord {
@@ -163,12 +164,31 @@ export const accountsApi = baseApi.injectEndpoints({
             query: () => ({ url: '/accounts/classrooms/fees', method: 'GET' }),
         }),
 
-        upsertClassroomFees: builder.mutation<ClassroomWithFees, { classroomId: string; tuitionFees: number; lateFees: number; annualCharges: number }>({
+        upsertClassroomFees: builder.mutation<ClassroomWithFees, { classroomId: string; tuitionFees: number; lateFees: number; annualCharges: number; annualFeeExpiryDate?: string }>({
             query: ({ classroomId, ...body }) => ({
                 url: `/accounts/classrooms/${classroomId}/fees`,
                 method: 'POST',
                 body,
             }),
+        }),
+
+        applyClassroomOtherFees: builder.mutation<{
+            classroomId: string; month: number; year: number; otherFees: number;
+            otherFeesRemarks: string | null; appliedCount: number; skippedPaidCount: number;
+        }, { classroomId: string; month: number; year: number; otherFees: number; otherFeesRemarks?: string }>({
+            query: ({ classroomId, ...body }) => ({
+                url: `/accounts/classrooms/${classroomId}/other-fees`,
+                method: 'POST',
+                body,
+            }),
+        }),
+
+        getLatestPayments: builder.query<Array<{
+            id: string; paidAt: string; amountPaid: number; monthsPaid: string | null;
+            paymentMode: string | null; receiptUrl: string | null; razorpayPaymentId: string | null;
+            annualContribution: number; student: { id: string; fullName: string; admissionNumber: string; classroomName: string };
+        }>, void>({
+            query: () => ({ url: '/accounts/payments/latest', method: 'GET' }),
         }),
 
         getStudentFees: builder.query<StudentFeeRecord[], { classroomId: string; month?: number; year?: number }>({
@@ -351,6 +371,8 @@ export const accountsApi = baseApi.injectEndpoints({
 export const {
     useGetClassroomsWithFeesQuery,
     useUpsertClassroomFeesMutation,
+    useApplyClassroomOtherFeesMutation,
+    useGetLatestPaymentsQuery,
     useGetStudentFeesQuery,
     useSearchStudentsFeesQuery,
     useUpdateOtherFeesMutation,

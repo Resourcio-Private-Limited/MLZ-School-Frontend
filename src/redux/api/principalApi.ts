@@ -108,6 +108,7 @@ export interface AdmitCardPreview {
     profileImage: string | null;
     center: string;
     issuedAt: string;
+    svg?: string;
 }
 
 export interface StudentListItem {
@@ -190,10 +191,17 @@ export const principalApi = baseApi.injectEndpoints({
                 url: `/principal/classrooms/${classroomId}/exam-schedule?examType=${encodeURIComponent(examType)}`,
                 method: 'GET',
             }),
+            providesTags: (_result, _error, arg) => [{ type: 'ExamSchedule', id: `${arg.classroomId}:${arg.examType}` }],
         }),
 
         setExamSchedule: builder.mutation<AdmitCardScheduleEntry[], { classroomId: string; examType: string; schedule: Array<{ subjectId: string; examDate: string }> }>({
             query: (body) => ({ url: '/principal/exam-schedule', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [{ type: 'ExamSchedule', id: `${arg.classroomId}:${arg.examType}` }],
+        }),
+
+        updateExamSchedule: builder.mutation<AdmitCardScheduleEntry[], { classroomId: string; examType: string; schedule: Array<{ subjectId: string; examDate: string }> }>({
+            query: (body) => ({ url: '/principal/exam-schedule', method: 'PATCH', body }),
+            invalidatesTags: (_result, _error, arg) => [{ type: 'ExamSchedule', id: `${arg.classroomId}:${arg.examType}` }],
         }),
 
         assignClassTeacher: builder.mutation<any, { teacherId: string; classroomId: string }>({
@@ -310,6 +318,7 @@ export const {
     useGetSubjectsByClassroomQuery,
     useGetExamScheduleQuery,
     useSetExamScheduleMutation,
+    useUpdateExamScheduleMutation,
     useAssignClassTeacherMutation,
     useAddSubjectWithTeacherMutation,
     useUpdateSubjectMutation,

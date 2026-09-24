@@ -122,6 +122,7 @@ export interface StudentExam {
 export interface ExamsResponse {
   exams: StudentExam[];
 }
+export interface StudentAdmitCard { id: string; issuedAt: string; fileUrl: string; svgUrl: string | null; examName: string; examDate: string; }
 
 export interface UpdateProfilePayload {
   fullName?: string;
@@ -139,6 +140,7 @@ export interface MonthlyFeeRecord {
   year: number;
   tuitionFees: number;
   annualCharges: number;
+  annualContributionRequired: number;
   transportFees: number;
   otherFees: number;
   penalty: number;
@@ -148,6 +150,22 @@ export interface MonthlyFeeRecord {
   paidAmount: number;
   paidAt: string | null;
   receiptUrl: string | null;
+  paymentId: string | null;
+}
+
+export interface AnnualFeeSummary {
+  total: number;
+  paid: number;
+  remaining: number;
+  expiryDate: string | null;
+  isOverdue: boolean;
+  isConfigured: boolean;
+}
+
+export interface StudentMonthlyFeesResponse {
+  year: number;
+  annualSummary: AnnualFeeSummary;
+  fees: MonthlyFeeRecord[];
 }
 
 export interface RazorpayOrderResponse {
@@ -155,6 +173,34 @@ export interface RazorpayOrderResponse {
   amount: number;
   currency: string;
   receipt: string;
+  paymentReference: string;
+}
+
+export interface PaymentReceipt {
+  receiptNumber: string;
+  paidAt: string;
+  student: {
+    admissionNumber: string;
+    fullName: string;
+    parentName?: string | null;
+    className: string;
+    section: string;
+  };
+  academicSession: string;
+  feesForPeriod: string;
+  fees: {
+    application: number;
+    admission: number;
+    security: number;
+    annual: number;
+    tuition: number;
+    transport: number;
+    stationery: number;
+    miscellaneous: number;
+  };
+  total: number;
+  paymentMode: string;
+  svg: string;
 }
 
 // ─── API ───────────────────────────────────────────────────────────
@@ -172,6 +218,7 @@ export const studentApi = baseApi.injectEndpoints({
     getExams: builder.query<StudentExam[], void>({
       query: () => ({ url: '/student/exams', method: 'GET' }),
     }),
+    getAdmitCards: builder.query<StudentAdmitCard[], void>({ query: () => ({ url: '/student/admit-cards', method: 'GET' }) }),
 
     updateProfile: builder.mutation<StudentProfileResponse, UpdateProfilePayload>({
       query: (body) => ({ url: '/student/update-profile', method: 'PATCH', body }),
@@ -182,23 +229,26 @@ export const studentApi = baseApi.injectEndpoints({
     }),
 
     // Monthly fee breakdown
-    getMonthlyFees: builder.query<MonthlyFeeRecord[], void>({
-      query: () => ({ url: '/student/fees/monthly', method: 'GET' }),
+    getMonthlyFees: builder.query<StudentMonthlyFeesResponse, number | void>({
+      query: (year) => ({ url: `/student/fees/monthly${year ? `?year=${year}` : ''}`, method: 'GET' }),
     }),
 
     // Create Razorpay order
-    createRazorpayOrder: builder.mutation<RazorpayOrderResponse, { month: number; year: number; amount: number }>({
+    createRazorpayOrder: builder.mutation<RazorpayOrderResponse, { year: number; items: Array<{ month: number; annualContribution?: number }> }>({
       query: (body) => ({ url: '/student/fees/monthly/order', method: 'POST', body }),
     }),
 
     // Confirm payment after Razorpay success
-    confirmStudentPayment: builder.mutation<MonthlyFeeRecord, {
-      month: number;
-      year: number;
+    confirmStudentPayment: builder.mutation<PaymentReceipt, {
       razorpayOrderId: string;
       razorpayPaymentId: string;
+      razorpaySignature: string;
     }>({
       query: (body) => ({ url: '/student/fees/monthly/confirm', method: 'POST', body }),
+    }),
+
+    getPaymentReceipt: builder.query<PaymentReceipt, string>({
+      query: (paymentId) => ({ url: `/student/payments/${paymentId}/receipt`, method: 'GET' }),
     }),
 
     uploadProfileImage: builder.mutation<{ success: boolean; imageUrl: string }, { imageUrl: string }>({
@@ -211,10 +261,12 @@ export const {
   useGetProfileQuery,
   useGetDashboardQuery,
   useGetExamsQuery,
+  useGetAdmitCardsQuery,
   useUpdateProfileMutation,
   useGetMessageRecipientsQuery,
   useGetMonthlyFeesQuery,
   useCreateRazorpayOrderMutation,
   useConfirmStudentPaymentMutation,
+  useGetPaymentReceiptQuery,
   useUploadProfileImageMutation,
 } = studentApi;

@@ -268,9 +268,9 @@ export default function SuperAdminMessagesPage() {
                 </div>
 
                 {/* Message Layout */}
-                <div className="flex bg-white rounded-lg shadow-lg overflow-hidden min-h-150">
+                <div className="flex flex-col md:flex-row bg-white rounded-lg shadow-lg overflow-hidden min-h-150">
                     {/* Sidebar */}
-                    <div className="w-80 border-r border-gray-200 bg-gray-50 flex flex-col">
+                    <div className="w-full max-h-80 md:max-h-none md:w-80 md:shrink-0 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 flex flex-col">
                         <div className="p-4 border-b border-gray-200">
                             <h2 className="text-lg font-bold text-gray-800 mb-3">All Users</h2>
                             <div className="relative">

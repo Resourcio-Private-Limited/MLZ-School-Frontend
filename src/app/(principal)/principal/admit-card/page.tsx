@@ -5,13 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import toast from 'react-hot-toast';
-import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation, AdmitCardPreview as AdmitCardPreviewData } from "@/redux/api/principalApi";
+import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation, useUpdateExamScheduleMutation, AdmitCardPreview as AdmitCardPreviewData } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
 const EXAM_TYPES = [
     { value: "HALF_YEARLY", label: "Half Yearly Examination", svg: "/admit/Admit Card-Half Year.svg" },
     { value: "FINAL", label: "Final Examination", svg: "/admit/Admit Card-Final Exam.svg" },
 ];
+
+const toDateInputValue = (value: string | null | undefined) => value ? value.slice(0, 10) : '';
 
 export default function AdmitCardPage() {
     const [selectedClassroomId, setSelectedClassroomId] = useState("");
@@ -21,6 +23,7 @@ export default function AdmitCardPage() {
     const [generating, setGenerating] = useState(false);
     const [examScheduleDates, setExamScheduleDates] = useState<Record<string, string>>({});
     const [scheduleSaved, setScheduleSaved] = useState(false);
+    const [hasPersistedSchedule, setHasPersistedSchedule] = useState(false);
     const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
     const { data: classrooms = [], isLoading: loadingClassrooms } = useGetAllClassroomsQuery();
@@ -31,6 +34,8 @@ export default function AdmitCardPage() {
         { skip: !selectedClassroomId || !selectedExamType },
     );
     const [setExamSchedule, { isLoading: savingSchedule }] = useSetExamScheduleMutation();
+    const [updateExamSchedule, { isLoading: updatingSchedule }] = useUpdateExamScheduleMutation();
+    const isSavingSchedule = savingSchedule || updatingSchedule;
     const [createAdmitCard] = useCreateAdmitCardMutation();
     const selectedStudentId = selectedStudentIds[0] ?? '';
     const { data: admitCardPreview, isFetching: loadingPreview } = useGetStudentAdmitCardPreviewQuery(
@@ -47,6 +52,7 @@ export default function AdmitCardPage() {
     useEffect(() => {
         setExamScheduleDates({});
         setScheduleSaved(false);
+        setHasPersistedSchedule(false);
         setIsEditingSchedule(false);
     }, [selectedClassroomId, selectedExamType]);
 
@@ -57,11 +63,12 @@ export default function AdmitCardPage() {
             const initialDates: Record<string, string> = {};
             subjects.forEach((subject) => {
                 const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
-                initialDates[subject.id] = existing?.examDate ?? '';
+                initialDates[subject.id] = toDateInputValue(existing?.examDate);
             });
             setExamScheduleDates(initialDates);
             const allSaved = subjects.every((subject) => Boolean(initialDates[subject.id]));
             setScheduleSaved(allSaved);
+            setHasPersistedSchedule(allSaved);
             setIsEditingSchedule(false);
         } else if (subjects.length > 0 && (!examSchedule || examSchedule.length === 0)) {
             const emptyDates: Record<string, string> = {};
@@ -70,6 +77,7 @@ export default function AdmitCardPage() {
             });
             setExamScheduleDates(emptyDates);
             setScheduleSaved(false);
+            setHasPersistedSchedule(false);
             setIsEditingSchedule(false);
         }
     }, [examSchedule, loadingExamSchedule, subjects]);
@@ -107,15 +115,18 @@ export default function AdmitCardPage() {
         if (!selectedClassroomId || !selectedExamType || !scheduleComplete) return;
 
         try {
-            await setExamSchedule({
+            const payload = {
                 classroomId: selectedClassroomId,
                 examType: selectedExamType,
                 schedule: subjects.map((subject) => ({
                     subjectId: subject.id,
                     examDate: examScheduleDates[subject.id],
                 })),
-            }).unwrap();
+            };
+            if (hasPersistedSchedule) await updateExamSchedule(payload).unwrap();
+            else await setExamSchedule(payload).unwrap();
             setScheduleSaved(true);
+            setHasPersistedSchedule(true);
             setIsEditingSchedule(false);
             toast.success('Exam dates saved. You can now generate admit cards.');
         } catch (err) {
@@ -188,8 +199,8 @@ export default function AdmitCardPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center space-x-3 sm:space-x-4">
                     
                     <div className="h-6 w-px bg-gray-300"></div>
                     <h1 className="text-3xl font-bold text-gray-800">Create Admit Card</h1>
@@ -255,13 +266,13 @@ export default function AdmitCardPage() {
                     {/* Exam Schedule */}
                     {selectedClassroomId && selectedExamType && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-800">Exam Schedule</h3>
                                     <p className="text-sm text-gray-500">Set the date for each subject before generating admit cards.</p>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="text-right">
+                                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                                    <div className="text-left sm:text-right">
                                         <p className="text-sm font-medium text-slate-700">Schedule status</p>
                                         <p className={`text-sm ${scheduleSaved ? 'text-emerald-600' : scheduleComplete ? 'text-amber-600' : 'text-slate-500'}`}>
                                             {scheduleStatus}
@@ -314,15 +325,15 @@ export default function AdmitCardPage() {
                                             <>
                                                 <button
                                                     onClick={handleSaveExamSchedule}
-                                                    disabled={!scheduleComplete || savingSchedule}
+                                                    disabled={!scheduleComplete || isSavingSchedule}
                                                     className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
-                                                        scheduleComplete && !savingSchedule
+                                                        scheduleComplete && !isSavingSchedule
                                                             ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
                                                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                                     }`}
                                                 >
-                                                    {savingSchedule ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                                                    <span>{savingSchedule ? 'Saving Schedule...' : 'Save Exam Dates'}</span>
+                                                    {isSavingSchedule ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+                                                    <span>{isSavingSchedule ? 'Saving Schedule...' : hasPersistedSchedule ? 'Update Exam Dates' : 'Save Exam Dates'}</span>
                                                 </button>
                                                 {scheduleSaved && (
                                                     <button
@@ -332,7 +343,7 @@ export default function AdmitCardPage() {
                                                             const initialDates: Record<string, string> = {};
                                                             subjects.forEach((subject) => {
                                                                 const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
-                                                                initialDates[subject.id] = existing?.examDate ?? '';
+                                                                initialDates[subject.id] = toDateInputValue(existing?.examDate);
                                                             });
                                                             setExamScheduleDates(initialDates);
                                                             setScheduleSaved(true);
@@ -363,7 +374,7 @@ export default function AdmitCardPage() {
                     {/* Student Selection */}
                     {selectedClassroomId && (
                         <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                                 <h3 className="text-lg font-semibold text-gray-800">
                                     Select Students
                                     {loadingStudents && <Loader2 size={16} className="inline ml-2 animate-spin" />}
@@ -469,7 +480,7 @@ export default function AdmitCardPage() {
 // user sees exactly what will be downloaded. Always renders 10 table rows
 // (empty cells if fewer subjects are scheduled).
 function AdmitCardPreview({
-    preview,
+    preview: previewInput,
     loading,
     examLabel,
 }: {
@@ -477,11 +488,21 @@ function AdmitCardPreview({
     loading: boolean;
     examLabel: string;
 }) {
+    // The principal portal intentionally renders only the populated reference SVG.
+    // The old hand-built HTML card is retained below temporarily for source history,
+    // but is never rendered.
+    if (loading) return <div className="py-16 text-center text-slate-500">Generating SVG preview…</div>;
+    if (!previewInput?.svg) return <div className="py-16 text-center text-slate-500">Select an eligible student to generate the SVG preview.</div>;
+    return <div className="mx-auto max-w-2xl overflow-auto rounded-lg bg-white p-3 shadow-lg [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: previewInput.svg }} />;
+
+    /* Legacy HTML preview intentionally unreachable. */
+    const preview = previewInput!;
+    const legacyPreview = preview as AdmitCardPreviewData;
     const ROWS = 10;
-    const schedule = preview?.examSchedule?.length ? preview.examSchedule : [];
-    const sessionYear = preview?.examDate
+    const schedule = legacyPreview.examSchedule?.length ? legacyPreview.examSchedule : [];
+    const sessionYear = legacyPreview.examDate
         ? (() => {
-              const d = new Date(preview.examDate);
+              const d = new Date(legacyPreview.examDate!);
               const start = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
               const end = String((start + 1) % 100).padStart(2, '0');
               return `${start}-${end}`;
@@ -550,7 +571,7 @@ function AdmitCardPreview({
                     <div className="ac-photo">
                         {preview?.profileImage ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={preview.profileImage} alt="Photo" />
+                            <img src={preview.profileImage || undefined} alt="Photo" />
                         ) : (
                             <span className="ac-photo-ph">PHOTO</span>
                         )}
