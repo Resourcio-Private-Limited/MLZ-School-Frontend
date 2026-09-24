@@ -200,7 +200,6 @@ export interface PaymentReceipt {
   };
   total: number;
   paymentMode: string;
-  svg: string;
 }
 
 // ─── API ───────────────────────────────────────────────────────────

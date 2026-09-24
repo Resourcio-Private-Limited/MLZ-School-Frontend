@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -11,7 +11,7 @@ import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
-export default function PrincipalLayout({
+function PrincipalLayoutContent({
     children,
 }: {
     children: React.ReactNode;
@@ -158,6 +158,10 @@ export default function PrincipalLayout({
             </main>
         </div>
     );
+}
+
+export default function PrincipalLayout(props: { children: React.ReactNode }) {
+    return <Suspense fallback={<div className="min-h-screen bg-gray-50" />}><PrincipalLayoutContent {...props} /></Suspense>;
 }
 
 function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React.ReactNode; label: string; isCollapsed: boolean }) {
