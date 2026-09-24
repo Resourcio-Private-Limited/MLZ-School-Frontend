@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon
 import { Tooltip } from "@/components/ui/tooltip";
 import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
-export default function AccountantLayout({
+function AccountantLayoutContent({
     children,
 }: {
     children: React.ReactNode;
@@ -157,6 +157,10 @@ export default function AccountantLayout({
             </main>
         </div>
     );
+}
+
+export default function AccountantLayout(props: { children: React.ReactNode }) {
+    return <Suspense fallback={<div className="min-h-screen bg-gray-50" />}><AccountantLayoutContent {...props} /></Suspense>;
 }
 
 function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React.ReactNode; label: string; isCollapsed: boolean }) {
