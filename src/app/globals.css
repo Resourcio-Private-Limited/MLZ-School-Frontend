@@ -23,4 +23,44 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Shared portal layouts: preserve readable data-heavy pages on narrow screens. */
+main {
+  min-width: 0;
+}
+
+main img,
+main svg {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  main {
+    padding-bottom: 2rem;
+  }
+
+  main h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  /* Dense records remain legible rather than forcing a page-level horizontal scroll. */
+  main table:not(.ac-table) th,
+  main table:not(.ac-table) td {
+    padding: 0.55rem !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  main .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Older pages with a table directly inside a clipped card become touch-scrollable. */
+  main .overflow-hidden:has(> table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }

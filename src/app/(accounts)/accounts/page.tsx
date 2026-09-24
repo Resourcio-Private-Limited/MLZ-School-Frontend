@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Users, Settings, X, Save, IndianRupee } from "lucide-react";
-import { useGetClassroomsWithFeesQuery, useUpsertClassroomFeesMutation } from "@/redux/api/accountsApi";
+import { useApplyClassroomOtherFeesMutation, useGetClassroomsWithFeesQuery, useUpsertClassroomFeesMutation } from "@/redux/api/accountsApi";
 import toast from "react-hot-toast";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -20,10 +20,17 @@ const GRADE_LEVELS: Record<string, string> = {
 export default function AccountantHomePage() {
     const { data: apiClassrooms = [], isLoading } = useGetClassroomsWithFeesQuery();
     const [upsertClassroomFees] = useUpsertClassroomFeesMutation();
+    const [applyClassroomOtherFees, { isLoading: isApplyingOtherFees }] = useApplyClassroomOtherFeesMutation();
 
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [editedClassroom, setEditedClassroom] = useState<any>(null);
+    const [otherFeesForm, setOtherFeesForm] = useState({
+        amount: 0,
+        remarks: "",
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+    });
     const router = useRouter();
 
     const classrooms = apiClassrooms.map(cls => ({
@@ -34,6 +41,7 @@ export default function AccountantHomePage() {
         tuitionFees: cls.tuitionFees,
         lateFees: cls.lateFees,
         annualCharges: cls.annualCharges,
+        annualFeeExpiryDate: cls.annualFeeExpiryDate ? cls.annualFeeExpiryDate.slice(0, 10) : '',
         _api: cls,
     }));
 
@@ -42,6 +50,12 @@ export default function AccountantHomePage() {
         e.stopPropagation();
         setSelectedClassroom(classroom);
         setEditedClassroom({ ...classroom });
+        setOtherFeesForm({
+            amount: 0,
+            remarks: "",
+            month: new Date().getMonth() + 1,
+            year: new Date().getFullYear(),
+        });
         setShowSettingsModal(true);
     };
 
@@ -59,6 +73,7 @@ export default function AccountantHomePage() {
                 tuitionFees: editedClassroom.tuitionFees,
                 lateFees: editedClassroom.lateFees,
                 annualCharges: editedClassroom.annualCharges,
+                annualFeeExpiryDate: editedClassroom.annualFeeExpiryDate || undefined,
             }).unwrap();
             toast.success("Fee settings saved successfully!");
         } catch {
@@ -69,6 +84,29 @@ export default function AccountantHomePage() {
 
     const handleOpenStudentModal = (classroom: any) => {
         router.push(`/accounts/student/${classroom.id}`);
+    };
+
+    const handleApplyOtherFees = async () => {
+        if (!editedClassroom) return;
+        if (otherFeesForm.amount < 0) {
+            toast.error("Other fees cannot be negative.");
+            return;
+        }
+        try {
+            const result = await applyClassroomOtherFees({
+                classroomId: editedClassroom.id,
+                month: otherFeesForm.month,
+                year: otherFeesForm.year,
+                otherFees: otherFeesForm.amount,
+                otherFeesRemarks: otherFeesForm.remarks || undefined,
+            }).unwrap();
+            toast.success(`Other fees applied to ${result.appliedCount} student${result.appliedCount === 1 ? "" : "s"}.`);
+            if (result.skippedPaidCount) {
+                toast(`Skipped ${result.skippedPaidCount} paid student${result.skippedPaidCount === 1 ? "" : "s"}.`, { icon: "ℹ️" });
+            }
+        } catch {
+            toast.error("Failed to apply other fees to the classroom.");
+        }
     };
 
     return (
@@ -136,6 +174,10 @@ export default function AccountantHomePage() {
                                                 <span className="text-gray-600">Annual Charges</span>
                                                 <span className="font-bold text-purple-600">₹{classroom.annualCharges}</span>
                                             </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600">Other Fees</span>
+                                                <span className="font-semibold text-slate-500">Apply by month</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -182,6 +224,10 @@ export default function AccountantHomePage() {
                                     />
                                 </div>
                             </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Annual Fee Expiry Date</label>
+                                <input type="date" value={editedClassroom.annualFeeExpiryDate ?? ''} onChange={(e) => setEditedClassroom({ ...editedClassroom, annualFeeExpiryDate: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800" />
+                            </div>
 
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -216,6 +262,72 @@ export default function AccountantHomePage() {
                                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none text-gray-800"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-4">
+                                <div>
+                                    <h3 className="font-semibold text-amber-950">Other Fees — All Students</h3>
+                                    <p className="mt-1 text-xs leading-5 text-amber-800">
+                                        Apply the same additional charge to every unpaid student in this classroom for a selected month. Paid receipts are not changed.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1">Month</label>
+                                        <select
+                                            value={otherFeesForm.month}
+                                            onChange={(e) => setOtherFeesForm({ ...otherFeesForm, month: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-gray-800 bg-white"
+                                        >
+                                            {Array.from({ length: 12 }, (_, index) => (
+                                                <option key={index + 1} value={index + 1}>
+                                                    {new Date(2000, index).toLocaleString("en-IN", { month: "long" })}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-700 mb-1">Year</label>
+                                        <input
+                                            type="number"
+                                            min="2000"
+                                            value={otherFeesForm.year}
+                                            onChange={(e) => setOtherFeesForm({ ...otherFeesForm, year: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-gray-800 bg-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Other Fees per Student</label>
+                                    <div className="relative">
+                                        <IndianRupee size={16} className="absolute inset-y-0 left-3 my-auto text-gray-400" />
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={otherFeesForm.amount}
+                                            onChange={(e) => setOtherFeesForm({ ...otherFeesForm, amount: Number(e.target.value) })}
+                                            className="w-full pl-9 pr-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-gray-800 bg-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Remarks</label>
+                                    <input
+                                        type="text"
+                                        value={otherFeesForm.remarks}
+                                        onChange={(e) => setOtherFeesForm({ ...otherFeesForm, remarks: e.target.value })}
+                                        placeholder="e.g. Annual activity fee"
+                                        className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-gray-800 bg-white"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyOtherFees}
+                                    disabled={isApplyingOtherFees}
+                                    className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {isApplyingOtherFees ? "Applying to students..." : "Apply Other Fees to This Classroom"}
+                                </button>
                             </div>
                         </div>
 

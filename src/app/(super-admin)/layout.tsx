@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare, PlusCircle, TrendingDown } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetSuperAdminProfileQuery } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -114,6 +114,8 @@ export default function SuperAdminLayout({
                     <NavLink href="/super-admin/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/messages" icon={<MessageSquare size={20} />} label="Messages" isCollapsed={isCollapsed} />
                     <NavLink href="/super-admin/financial" icon={<BarChart3 size={20} />} label="Financial Overview" isCollapsed={isCollapsed} />
+                    <NavLink href="/super-admin/income" icon={<PlusCircle size={20} />} label="Income" isCollapsed={isCollapsed} />
+                    <NavLink href="/super-admin/expenses" icon={<TrendingDown size={20} />} label="Expenses" isCollapsed={isCollapsed} />
                     {/* <NavLink href="/super-admin/profile" icon={<Users size={20} />} label="Profile" isCollapsed={isCollapsed} /> */}
                 </nav>
 
@@ -156,7 +158,7 @@ export default function SuperAdminLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Super Admin" subtitle="Control center for your school" accent="rose" items={[{href:'/super-admin?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/super-admin/users',label:'Users',icon:Users},{href:'/super-admin/noticeboard',label:'Notice Board',icon:Bell},{href:'/super-admin/messages',label:'Messages',icon:MessageSquare},{href:'/super-admin/financial',label:'Financial Overview',icon:BarChart3}]} /> : <MobileBackToMenu href="/super-admin" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Super Admin" subtitle="Control center for your school" accent="rose" items={[{href:'/super-admin?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/super-admin/users',label:'Users',icon:Users},{href:'/super-admin/noticeboard',label:'Notice Board',icon:Bell},{href:'/super-admin/messages',label:'Messages',icon:MessageSquare},{href:'/super-admin/financial',label:'Financial Overview',icon:BarChart3},{href:'/super-admin/income',label:'Income',icon:PlusCircle},{href:'/super-admin/expenses',label:'Expenses',icon:TrendingDown}]} /> : <MobileBackToMenu href="/super-admin" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

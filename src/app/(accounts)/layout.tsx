@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon, LogOut, ChevronLeft, ChevronRight, User, Loader2 } from "lucide-react";
+import { LayoutDashboard, PlusCircle, TrendingDown, BarChart3, MessageCircleIcon, LogOut, ChevronLeft, ChevronRight, User, Loader2, CreditCard } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
 
@@ -109,6 +109,7 @@ export default function AccountantLayout({
                     <NavLink href="/accounts/income" icon={<PlusCircle size={20} />} label="Add Income" isCollapsed={isCollapsed} />
                     <NavLink href="/accounts/expenses" icon={<TrendingDown size={20} />} label="Expenses" isCollapsed={isCollapsed} />
                     <NavLink href="/accounts/analysis" icon={<BarChart3 size={20} />} label="Analysis" isCollapsed={isCollapsed} />
+                    <NavLink href="/accounts/payments" icon={<CreditCard size={20} />} label="Latest Payments" isCollapsed={isCollapsed} />
                     <NavLink href="/accounts/messages" icon={<MessageCircleIcon size={20} />} label="Messages" isCollapsed={isCollapsed} />
                     {/* <NavLink href="/accounts/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} /> */}
                 </nav>
@@ -152,7 +153,7 @@ export default function AccountantLayout({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Accounts Portal" subtitle="Manage the school finances" accent="amber" items={[{href:'/accounts?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/accounts/income',label:'Add Income',icon:PlusCircle},{href:'/accounts/expenses',label:'Expenses',icon:TrendingDown},{href:'/accounts/analysis',label:'Analysis',icon:BarChart3},{href:'/accounts/messages',label:'Messages',icon:MessageCircleIcon}]} /> : <MobileBackToMenu href="/accounts" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Accounts Portal" subtitle="Manage the school finances" accent="amber" items={[{href:'/accounts?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/accounts/income',label:'Add Income',icon:PlusCircle},{href:'/accounts/expenses',label:'Expenses',icon:TrendingDown},{href:'/accounts/analysis',label:'Analysis',icon:BarChart3},{href:'/accounts/payments',label:'Latest Payments',icon:CreditCard},{href:'/accounts/messages',label:'Messages',icon:MessageCircleIcon}]} /> : <MobileBackToMenu href="/accounts" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

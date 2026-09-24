@@ -31,11 +31,12 @@ export default function StudentFeesPage() {
         }
     }, []);
 
-    const { data: fees = [], isLoading } = useGetMonthlyFeesQuery(undefined, {
+    const { data, isLoading } = useGetMonthlyFeesQuery(undefined, {
         skip: !authUser?.id,
     });
 
-    const currentYear = new Date().getFullYear();
+    const fees = data?.fees ?? [];
+    const currentYear = data?.year ?? new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
     const totalPaid = fees
