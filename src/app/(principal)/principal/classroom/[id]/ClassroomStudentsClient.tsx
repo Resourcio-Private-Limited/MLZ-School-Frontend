@@ -354,7 +354,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                         <thead className="bg-gray-50 border-b">
                             <tr>
                                 <th className="p-4 font-semibold text-gray-600">Name</th>
-                                <th className="p-4 font-semibold text-gray-600">Password</th>
+                                <th className="p-4 font-semibold text-gray-600">Roll Number</th>
                                 <th className="p-4 font-semibold text-gray-600">Attendance</th>
                                 <th className="p-4 font-semibold text-gray-600">Avg Marks</th>
                                 <th className="p-4 font-semibold text-gray-600">Fee Status</th>
@@ -377,7 +377,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                     </td>
                                     <td className="p-4">
                                         <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-700">
-                                            {student.password || 'N/A'}
+                                            {student.rollNumber ?? 'N/A'}
                                         </span>
                                     </td>
                                     <td className="p-4">

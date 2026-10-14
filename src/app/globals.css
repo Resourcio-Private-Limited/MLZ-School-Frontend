@@ -26,6 +26,18 @@ body {
   overflow-x: hidden;
 }
 
+input,
+select,
+textarea {
+  color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
 /* Shared portal layouts: preserve readable data-heavy pages on narrow screens. */
 main {
   min-width: 0;

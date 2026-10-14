@@ -42,6 +42,16 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
     const examTypes = exams ? [...new Map(exams.map(e => [e.name, e])).values()] : [];
 
     const selectedExamEnabled = selectedExamName.toUpperCase().includes('FINAL') ? teacherProfile?.finalMarksEntryEnabled : teacherProfile?.halfYearlyMarksEntryEnabled;
+    const scoreToPrimaryGrade = (score: number | null) => {
+        if (score === null) return '';
+        if (score >= 90) return 'A1';
+        if (score >= 80) return 'A2';
+        if (score >= 70) return 'B1';
+        if (score >= 60) return 'B2';
+        if (score >= 50) return 'C1';
+        if (score >= 40) return 'C2';
+        return 'D';
+    };
 
     const handleExamSelect = (examId: string, examName: string) => {
         setSelectedExamId(examId);
@@ -57,16 +67,20 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
             rollNumber: student.rollNumber,
             currentScore: student.subjects[0]?.score ?? null,
         });
-        setScoreInput(student.subjects[0]?.score?.toString() ?? "");
+        setScoreInput(student.classType === 'PRIMARY'
+            ? scoreToPrimaryGrade(student.subjects[0]?.score ?? null)
+            : student.subjects[0]?.score?.toString() ?? "");
         setShowMarksModal(true);
     };
 
     const handleSaveStudentMarks = async () => {
         if (!selectedStudentData || !selectedExamId) return;
 
-        const score = parseFloat(scoreInput);
+        const isPrimary = studentMarks?.[0]?.classType === 'PRIMARY';
+        const primaryGradeScores: Record<string, number> = { A1: 95, A2: 85, B1: 75, B2: 65, C1: 55, C2: 45, D: 35 };
+        const score = isPrimary ? primaryGradeScores[scoreInput] : parseFloat(scoreInput);
         if (isNaN(score) || score < 0 || score > 100) {
-            toast.error("Please enter a valid score between 0 and 100");
+            toast.error(isPrimary ? "Please select a valid grade" : "Please enter a valid score between 0 and 100");
             return;
         }
 
@@ -212,7 +226,7 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
                                     <tr>
                                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Roll No</th>
                                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Student Name</th>
-                                        <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Obtained</th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">{studentMarks?.[0]?.classType === 'PRIMARY' ? 'Grade' : 'Obtained'}</th>
                                         <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Total</th>
                                         <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Percentage</th>
                                         <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Grade</th>
@@ -232,7 +246,7 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
                                                     <span className={`text-lg font-bold ${student.subjects[0]?.score !== null ? 'text-gray-900' : 'text-gray-400'}`}>
-                                                        {student.subjects[0]?.score ?? "—"}
+                                                        {student.classType === 'PRIMARY' ? scoreToPrimaryGrade(student.subjects[0]?.score ?? null) || "—" : student.subjects[0]?.score ?? "—"}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -301,7 +315,14 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     {currentExam.subject.name} Marks
                                 </label>
-                                <input
+                                {studentMarks?.[0]?.classType === 'PRIMARY' ? <select
+                                    value={scoreInput}
+                                    onChange={(e) => setScoreInput(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-lg text-gray-900"
+                                >
+                                    <option value="">Select grade</option>
+                                    {['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'D'].map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+                                </select> : <input
                                     type="number"
                                     min="0"
                                     max="100"
@@ -309,9 +330,9 @@ export default function FinalExamMarksPage({ params }: { params: Promise<{ id: s
                                     onChange={(e) => setScoreInput(e.target.value)}
                                     placeholder="Enter marks (0-100)"
                                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-lg"
-                                />
+                                />}
                                 <p className="text-xs text-gray-400 mt-2">
-                                    Maximum marks: 100 | Current: {selectedStudentData.currentScore ?? "Not set"}
+                                    {studentMarks?.[0]?.classType === 'PRIMARY' ? 'Primary grading scale: A1 to D' : 'Maximum marks: 100'} | Current: {selectedStudentData.currentScore ?? "Not set"}
                                 </p>
                             </div>
 

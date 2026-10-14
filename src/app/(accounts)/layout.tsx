@@ -153,7 +153,7 @@ function AccountantLayoutContent({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Accounts Portal" subtitle="Manage the school finances" accent="amber" items={[{href:'/accounts?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/accounts/income',label:'Add Income',icon:PlusCircle},{href:'/accounts/expenses',label:'Expenses',icon:TrendingDown},{href:'/accounts/analysis',label:'Analysis',icon:BarChart3},{href:'/accounts/payments',label:'Latest Payments',icon:CreditCard},{href:'/accounts/messages',label:'Messages',icon:MessageCircleIcon}]} /> : <MobileBackToMenu href="/accounts" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Accounts Portal" subtitle="Manage the school finances" accent="amber" items={[{href:'/accounts?view=home',label:'Dashboard',icon:LayoutDashboard},{href:'/accounts/income',label:'Add Income',icon:PlusCircle},{href:'/accounts/expenses',label:'Expenses',icon:TrendingDown},{href:'/accounts/analysis',label:'Analysis',icon:BarChart3},{href:'/accounts/payments',label:'Latest Payments',icon:CreditCard},{href:'/accounts/messages',label:'Messages',icon:MessageCircleIcon}]} /> : <MobileBackToMenu href="/accounts?view=home" title="Back to accounts menu" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

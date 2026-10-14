@@ -71,7 +71,7 @@ export default function FinancialOverviewPage() {
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
                         className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none text-sm text-gray-700"
                     >
-                        {[2024, 2025, 2026].map(y => (
+                        {Array.from({ length: 7 }, (_, index) => currentYear - 5 + index).map(y => (
                             <option key={y} value={y}>{y}</option>
                         ))}
                     </select>

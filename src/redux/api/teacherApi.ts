@@ -181,6 +181,7 @@ export interface StudentMarkSummary {
   totalMax: number;
   percentage: number;
   grade: string;
+  classType: 'PRIMARY' | 'SECONDARY';
 }
 
 export interface SaveMarksPayload {

@@ -60,6 +60,7 @@ export interface ClassroomSummary {
     name: string;
     grade: string;
     section: string;
+    classType: 'PRIMARY' | 'SECONDARY';
     capacity: number;
     total: number;
     classTeacher: { id: string; fullName: string; employeeId: string } | null;
@@ -152,7 +153,7 @@ export const principalApi = baseApi.injectEndpoints({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),
             providesTags: ['Classroom'],
         }),
-        createClassroom: builder.mutation<ClassroomSummary, { name: string; grade: string; section: string; capacity: number }>({
+        createClassroom: builder.mutation<ClassroomSummary, { name: string; grade: string; section: string; capacity: number; classType: 'PRIMARY' | 'SECONDARY' }>({
             query: (body) => ({ url: '/principal/classrooms', method: 'POST', body }),
             invalidatesTags: ['Classroom'],
         }),
@@ -226,6 +227,7 @@ export const principalApi = baseApi.injectEndpoints({
 
         getPrincipalProfile: builder.query<PrincipalFullProfile, void>({
             query: () => ({ url: '/principal/profile', method: 'GET' }),
+            providesTags: ['PrincipalProfile'],
             transformResponse: (res: any) => ({
                 ...res,
                 userEmail: res.user?.email ?? res.email,
@@ -233,6 +235,7 @@ export const principalApi = baseApi.injectEndpoints({
         }),
         updateMarksEntrySetting: builder.mutation<{ enabled: boolean }, { examType: 'HALF_YEARLY' | 'FINAL'; enabled: boolean }>({
             query: (body) => ({ url: '/principal/marks-entry-setting', method: 'PATCH', body }),
+            invalidatesTags: ['PrincipalProfile'],
         }),
 
         updatePrincipalProfile: builder.mutation<{ id: string; fullName: string }, UpdatePrincipalProfilePayload>({
