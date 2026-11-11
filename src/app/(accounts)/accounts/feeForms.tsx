@@ -139,8 +139,14 @@ function PaymentForm({ titleId, classroomId, student, month, year, onClose, onDo
     const [recordPayment, { isLoading }] = useRecordStudentPaymentMutation();
 
     const parsed = parseMoney(amount);
-    const error = parsed === null ? "Enter an amount in rupees." : parsed <= 0 ? "Enter an amount above ₹0." : null;
     const over = parsed !== null && parsed > student.totalAmount;
+    const error = parsed === null
+        ? "Enter an amount in rupees."
+        : parsed <= 0
+            ? "Enter an amount above ₹0."
+            : over
+                ? `That's more than this month's total of ${inr(student.totalAmount)}.`
+                : null;
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -151,7 +157,14 @@ function PaymentForm({ titleId, classroomId, student, month, year, onClose, onDo
             toast.success(`${inr(parsed)} payment recorded for ${student.fullName}.`);
             onDone();
         } catch (err) {
-            toast.error(errorMessage(err, "The payment wasn't recorded. Check your connection and try again."));
+            // The backend only accepts payments for months that already have a fee
+            // record; that row is created by saving the month on the student's fee page.
+            const status = (err as { status?: number })?.status;
+            if (status === 404) {
+                toast.error(`${monthLabel(month, year)} hasn't been billed yet. Open ${student.fullName}'s fee page and save the month first, then record the payment.`);
+            } else {
+                toast.error(errorMessage(err, "The payment wasn't recorded. Check your connection and try again."));
+            }
         }
     };
 
@@ -180,7 +193,7 @@ function PaymentForm({ titleId, classroomId, student, month, year, onClose, onDo
             </div>
             <div className="flex flex-col-reverse gap-2 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button type="button" onClick={onClose} className={secondaryLg}>Cancel</button>
-                <button type="submit" disabled={isLoading} className={primaryBtn}>
+                <button type="submit" disabled={isLoading || !!error} className={primaryBtn}>
                     {isLoading ? "Recording…" : parsed && !error ? `Record ${inr(parsed)}` : "Record payment"}
                 </button>
             </div>

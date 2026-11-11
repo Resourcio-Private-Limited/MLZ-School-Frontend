@@ -253,12 +253,14 @@ function FeeSettingsForm({ classroom, titleId, onClose, onSaved }: { classroom: 
     const tuitionError = t === null ? "Enter an amount of ₹0 or more." : t === 0 ? "Enter the monthly tuition fee." : null;
     const lateError = l === null ? "Enter an amount of ₹0 or more." : null;
     const annualError = a === null ? "Enter an amount of ₹0 or more." : null;
+    // The server requires an end date whenever annual charges are set.
+    const expiryError = a !== null && a > 0 && !expiry ? "Annual charges need an end date." : null;
     const show = (e: string | null) => touched && e;
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setTouched(true);
-        if (tuitionError || lateError || annualError || t === null || l === null || a === null) return;
+        if (tuitionError || lateError || annualError || expiryError || t === null || l === null || a === null) return;
         try {
             await upsert({ classroomId: classroom.classroomId, tuitionFees: t, lateFees: l, annualCharges: a, annualFeeExpiryDate: expiry || undefined }).unwrap();
             toast.success(`Fee settings saved for ${classroom.className}.`);
@@ -288,11 +290,19 @@ function FeeSettingsForm({ classroom, titleId, onClose, onSaved }: { classroom: 
                 </div>
                 <div>
                     <label htmlFor={`${id}-expiry`} className={labelClass}>
-                        Annual fee end date <span className="font-normal text-gray-500">(optional)</span>
+                        Annual fee end date {a !== null && a > 0 ? <span className="text-red-600" aria-hidden="true">*</span> : <span className="font-normal text-gray-500">(only with annual charges)</span>}
                     </label>
-                    <input id={`${id}-expiry`} type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} aria-describedby={`${id}-expiry-hint`} className={`${inputClass} mt-1.5 tabular-nums`} />
-                    <p id={`${id}-expiry-hint`} className={hintClass}>
-                        {expiry ? `Annual charges apply until ${longDate(expiry)}.` : "Leave it empty if the annual charges don't have an end date."}
+                    <input
+                        id={`${id}-expiry`}
+                        type="date"
+                        value={expiry}
+                        onChange={(e) => setExpiry(e.target.value)}
+                        aria-invalid={show(expiryError) ? true : undefined}
+                        aria-describedby={`${id}-expiry-hint`}
+                        className={`${inputClass} mt-1.5 tabular-nums ${show(expiryError) ? "border-red-400 focus:border-red-500 focus:ring-red-100" : ""}`}
+                    />
+                    <p id={`${id}-expiry-hint`} className={show(expiryError) ? errorClass : hintClass}>
+                        {show(expiryError) || (expiry ? `Annual charges apply until ${longDate(expiry)}.` : "Needed whenever annual charges are set, so the system knows when they stop applying.")}
                     </p>
                 </div>
             </div>
