@@ -69,7 +69,7 @@ export const academicApi = baseApi.injectEndpoints({
             query: (examId) => ({ url: `/academic/exam/${examId}/marks`, method: 'GET' }),
         }),
 
-        updateStudentMarks: builder.mutation<any, { examId: string; studentId: string; score: number }>({
+        updateStudentMarks: builder.mutation<{ success: boolean }, { examId: string; studentId: string; score: number }>({
             query: ({ examId, studentId, score }) => ({
                 url: `/academic/exam/${examId}/marks/${studentId}`,
                 method: 'POST',

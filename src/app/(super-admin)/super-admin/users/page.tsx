@@ -11,6 +11,7 @@ import {
     useUpdateUserMutation,
     useChangeUserPasswordMutation,
     UserSummary,
+    type UpdateUserPayload,
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { apiErrorMessage } from "@/lib/apiError";
@@ -224,7 +225,7 @@ export default function UserManagementPage() {
         }
 
         try {
-            await addUser(newUser as any).unwrap();
+            await addUser(newUser as unknown as Parameters<typeof addUser>[0]).unwrap();
             setShowAddModal(false);
             setNewUser(emptyForm);
             toast.success("User added successfully!");
@@ -236,7 +237,7 @@ export default function UserManagementPage() {
 
     const confirmPrincipalAdd = async () => {
         try {
-            await addUser(newUser as any).unwrap();
+            await addUser(newUser as unknown as Parameters<typeof addUser>[0]).unwrap();
             setShowAddModal(false);
             setShowPrincipalWarningModal(false);
             setNewUser(emptyForm);
@@ -312,7 +313,8 @@ export default function UserManagementPage() {
             toast.error(`${editIssue[0]}: ${editIssue[1]}`);
             return;
         }
-            const updateData: any = {
+        try {
+            const updateData: UpdateUserPayload = {
                 fullName: editForm.fullName,
                 email: editForm.email,
                 primaryContact: editForm.primaryContact,

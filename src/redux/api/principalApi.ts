@@ -212,22 +212,22 @@ export const principalApi = baseApi.injectEndpoints({
             invalidatesTags: (_result, _error, arg) => [{ type: 'ExamSchedule', id: `${arg.classroomId}:${arg.examType}` }],
         }),
 
-        assignClassTeacher: builder.mutation<any, { teacherId: string; classroomId: string }>({
+        assignClassTeacher: builder.mutation<unknown, { teacherId: string; classroomId: string }>({
             query: (body) => ({ url: '/principal/class-teacher', method: 'POST', body }),
             invalidatesTags: ['Classroom'],
         }),
 
-        addSubjectWithTeacher: builder.mutation<any, { subjectName: string; classroomId: string; teacherId: string }>({
+        addSubjectWithTeacher: builder.mutation<unknown, { subjectName: string; classroomId: string; teacherId: string }>({
             query: (body) => ({ url: '/principal/subjects', method: 'POST', body }),
             invalidatesTags: ['Subject'],
         }),
 
-        updateSubject: builder.mutation<any, { subjectId: string; name: string; teacherId?: string }>({
+        updateSubject: builder.mutation<unknown, { subjectId: string; name: string; teacherId?: string }>({
             query: ({ subjectId, ...body }) => ({ url: `/principal/subjects/${subjectId}`, method: 'PATCH', body }),
             invalidatesTags: ['Subject'],
         }),
 
-        deleteSubject: builder.mutation<any, string>({
+        deleteSubject: builder.mutation<unknown, string>({
             query: (subjectId) => ({ url: `/principal/subjects/${subjectId}`, method: 'DELETE' }),
             invalidatesTags: ['Subject'],
         }),
@@ -235,7 +235,7 @@ export const principalApi = baseApi.injectEndpoints({
         getPrincipalProfile: builder.query<PrincipalFullProfile, void>({
             query: () => ({ url: '/principal/profile', method: 'GET' }),
             providesTags: ['PrincipalProfile'],
-            transformResponse: (res: any) => ({
+            transformResponse: (res: PrincipalFullProfile & { user?: { email?: string }; email?: string }) => ({
                 ...res,
                 userEmail: res.user?.email ?? res.email,
             }),
@@ -249,7 +249,7 @@ export const principalApi = baseApi.injectEndpoints({
             query: (body) => ({ url: '/principal/update-profile', method: 'PATCH', body }),
         }),
 
-        addStudent: builder.mutation<any, {
+        addStudent: builder.mutation<unknown, {
             userEmail: string;
             password: string;
             admissionNumber: string;
@@ -275,7 +275,7 @@ export const principalApi = baseApi.injectEndpoints({
             query: (body) => ({ url: '/principal/students', method: 'POST', body }),
         }),
 
-        promoteStudents: builder.mutation<any, { studentIds: string[]; targetClassroomId: string }>({
+        promoteStudents: builder.mutation<unknown, { studentIds: string[]; targetClassroomId: string }>({
             query: (body) => ({ url: '/principal/promote', method: 'POST', body }),
         }),
 

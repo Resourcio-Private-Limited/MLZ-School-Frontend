@@ -89,13 +89,13 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
 
         setLoading(true);
         try {
-            await addStudent(data as any).unwrap();
+            await addStudent(data as Parameters<typeof addStudent>[0]).unwrap();
             toast.success("Student admitted successfully!");
             setIsOpen(false);
             setSelectedClassroomId("");
             formEl.reset();
-        } catch (err: any) {
-            const msg = err?.data?.message ?? "Failed to create student.";
+        } catch (err) {
+            const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to create student.";
             setError(msg);
             toast.error(msg);
         } finally {

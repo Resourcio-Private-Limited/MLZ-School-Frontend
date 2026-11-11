@@ -140,7 +140,7 @@ export default function AttendanceClient({
     );
 }
 
-function StatusButton({ current, target, onClick, color }: any) {
+function StatusButton({ current, target, onClick, color }: { current: string; target: string; onClick: () => void; color: string }) {
     const isSelected = current === target;
     return (
         <button

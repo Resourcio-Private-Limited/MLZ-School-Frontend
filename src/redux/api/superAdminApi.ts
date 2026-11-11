@@ -161,7 +161,7 @@ export const superAdminApi = baseApi.injectEndpoints({
         // Profile
         getSuperAdminProfile: builder.query<SuperAdminProfile, void>({
             query: () => ({ url: '/super-admin/profile', method: 'GET' }),
-            transformResponse: (res: any) => ({
+            transformResponse: (res: SuperAdminProfile & { user?: { email?: string }; email?: string }) => ({
                 ...res,
                 userEmail: res.user?.email ?? res.email,
             }),
@@ -209,7 +209,7 @@ export const superAdminApi = baseApi.injectEndpoints({
             query: () => ({ url: '/super-admin/users', method: 'GET' }),
         }),
 
-        addUser: builder.mutation<any, AddUserPayload>({
+        addUser: builder.mutation<{ userId: string; fullName: string; role: string; employeeId: string | null }, AddUserPayload>({
             query: (body) => ({ url: '/super-admin/users', method: 'POST', body }),
         }),
 

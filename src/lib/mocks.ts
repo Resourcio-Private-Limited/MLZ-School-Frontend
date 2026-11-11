@@ -169,14 +169,14 @@ export const MockAcademicYearService = {
 };
 
 export const MockAdmissionService = {
-    admitStudent: async (data: any) => {
+    admitStudent: async (data: unknown) => {
         console.log("Mock Admit Student:", data);
         return { success: true, message: "Student admitted successfully (Mock)" };
     }
 };
 
 export const MockPromotionService = {
-    promoteStudents: async (data: any) => {
+    promoteStudents: async (data: unknown) => {
         console.log("Mock Promote Students:", data);
         return { success: true, promotedCount: 10, graduatedCount: 0 };
     }
@@ -185,7 +185,7 @@ export const MockPromotionService = {
 
 // --- Mock Actions ---
 
-export async function mockAction(name: string, data?: any) {
+export async function mockAction(name: string, data?: unknown) {
     console.log(`[Mock Action] ${name} called with:`, data);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
     return { success: true, message: "Action completed successfully (Mock)" };

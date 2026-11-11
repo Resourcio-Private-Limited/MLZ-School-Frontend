@@ -285,7 +285,7 @@ export const accountsApi = baseApi.injectEndpoints({
             }),
         }),
 
-        upsertStudentMonthlyFee: builder.mutation<any, {
+        upsertStudentMonthlyFee: builder.mutation<unknown, {
             studentId: string;
             classroomId: string;
             month: number;

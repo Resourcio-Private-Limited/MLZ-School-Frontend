@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -247,7 +248,7 @@ export default function LoginForm({
                         </button>
 
                         <div className="text-center pt-2">
-                            <a
+                            <Link
                                 href="/"
                                 className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
                             >
@@ -266,7 +267,7 @@ export default function LoginForm({
                                     <path d="M19 12H5" />
                                 </svg>
                                 <span>Back to Home</span>
-                            </a>
+                            </Link>
                         </div>
                     </form>
                 </div>

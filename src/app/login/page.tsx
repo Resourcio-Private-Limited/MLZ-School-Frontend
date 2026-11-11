@@ -278,7 +278,7 @@ export default function UnifiedLoginPage() {
                     </div>
 
                     <div className="text-center pt-4">
-                        <a
+                        <Link
                             href="/"
                             className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
                         >
@@ -297,7 +297,7 @@ export default function UnifiedLoginPage() {
                                 <path d="M19 12H5" />
                             </svg>
                             <span>Back to Home</span>
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

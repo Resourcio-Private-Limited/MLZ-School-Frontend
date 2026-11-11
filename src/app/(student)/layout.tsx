@@ -77,6 +77,7 @@ function StudentLayoutContent({
                     router.push("/login/student");
                 }
             }
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot localStorage auth gate; project rule: keep portal auth checks as they are (CLAUDE.md)
             setIsAuthChecked(true);
         }
     }, [router]);

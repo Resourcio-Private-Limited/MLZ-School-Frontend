@@ -257,13 +257,13 @@ export default function LoginForm({
                         </button>
 
                         <div className="text-center pt-2">
-                            <a
+                            <Link
                                 href="/"
                                 className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
                             >
                                 <ArrowLeft size={16} />
                                 <span>Back to Home</span>
-                            </a>
+                            </Link>
                         </div>
                     </form>
 

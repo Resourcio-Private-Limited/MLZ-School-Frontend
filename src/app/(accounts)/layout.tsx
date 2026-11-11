@@ -70,6 +70,7 @@ function AccountantLayoutContent({
                     if (user.role !== 'ACCOUNTANT') {
                         router.push("/login/accounts");
                     } else {
+                        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot localStorage auth gate; project rule: keep portal auth checks as they are (CLAUDE.md)
                         setAccountantName(user.name ?? user.fullName ?? "Accountant");
                         setAccountantEmail(user.email ?? "accountant@school.com");
                     }
@@ -77,6 +78,7 @@ function AccountantLayoutContent({
                     router.push("/login/accounts");
                 }
             }
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot localStorage auth gate; project rule: keep portal auth checks as they are (CLAUDE.md)
             setIsAuthChecked(true);
         }
     }, [router]);
