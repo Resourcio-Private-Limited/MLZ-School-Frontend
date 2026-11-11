@@ -41,6 +41,10 @@ import {
 
 // ─── Levels ────────────────────────────────────────────────────────
 
+// The school's known grades — the create dialog offers exactly these, so a typo
+// can't invent a grade that falls outside the level buckets below.
+const GRADES = ["Nursery", "LKG", "UKG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"] as const;
+
 const LEVELS = ["Pre-primary", "Primary", "Middle school", "High school", "Senior secondary", "Other"] as const;
 type Level = (typeof LEVELS)[number];
 type LevelFilter = "all" | Level;
@@ -508,7 +512,8 @@ function CreateClassroomDialog({ open, onClose }: { open: boolean; onClose: () =
     // The name follows grade and section until it's typed in by hand.
     const [nameTouched, setNameTouched] = useState(false);
 
-    const suggestedName = form.grade.trim() && form.section.trim() ? `Class ${form.grade.trim()} - Section ${form.section.trim().toUpperCase()}` : "";
+    const gradeLabel = /^\d+$/.test(form.grade.trim()) ? `Class ${form.grade.trim()}` : form.grade.trim();
+    const suggestedName = form.grade.trim() && form.section.trim() ? `${gradeLabel} - Section ${form.section.trim().toUpperCase()}` : "";
     const name = nameTouched ? form.name : form.name || suggestedName;
     const capacity = Number(form.capacity);
     const capacityOk = Number.isInteger(capacity) && capacity >= 1;
@@ -541,7 +546,12 @@ function CreateClassroomDialog({ open, onClose }: { open: boolean; onClose: () =
                     <div className="grid grid-cols-2 gap-3">
                         <label className={labelClass}>
                             Grade
-                            <input value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} placeholder="7" className={`${inputClass} mt-1.5`} />
+                            <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} className={`${inputClass} mt-1.5`}>
+                                <option value="">Choose a grade</option>
+                                {GRADES.map((g) => (
+                                    <option key={g} value={g}>{/^\d+$/.test(g) ? `Class ${g}` : g}</option>
+                                ))}
+                            </select>
                         </label>
                         <label className={labelClass}>
                             Section
