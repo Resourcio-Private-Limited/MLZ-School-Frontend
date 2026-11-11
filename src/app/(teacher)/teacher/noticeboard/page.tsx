@@ -1,184 +1,205 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useGetNoticesQuery } from "@/redux/api/operationsApi";
-import {
-    ArrowLeft,
-    Bell,
-    Filter,
-    FileText,
-    Image as ImageIcon,
-    Link2,
-    FileImage,
-    Download,
-    ExternalLink,
-    Megaphone,
-} from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Bell, ExternalLink, Paperclip, Search, X } from "lucide-react";
+import { useGetNoticesQuery, type Notice, type NoticeTag } from "@/redux/api/operationsApi";
+import { EmptyState, PageHeader, Pager, clock, fileName, focusRing, groupByDay, hostname, inputClass, paginate, secondaryBtn } from "@/components/teacher/ui";
 
-const tagToLabel: Record<string, string> = {
-    ALL_NOTICES: 'All Notices',
-    GENERAL: 'General',
-    HOLIDAYS: 'Holidays',
-    EVENTS: 'Events',
-    EXAMS: 'Exams',
-    EMERGENCY: 'Emergency',
-};
+type Category = Exclude<NoticeTag, "ALL_NOTICES">;
 
-const categories = ["All Notices", "General", "Holidays", "Events", "Emergency"];
+const CATEGORIES: { tag: Category; label: string; dot: string }[] = [
+    { tag: "GENERAL", label: "General", dot: "bg-gray-400" },
+    { tag: "HOLIDAYS", label: "Holidays", dot: "bg-emerald-500" },
+    { tag: "EVENTS", label: "Events", dot: "bg-sky-500" },
+    { tag: "EXAMS", label: "Exams", dot: "bg-violet-500" },
+    { tag: "EMERGENCY", label: "Emergency", dot: "bg-red-600" },
+];
+
+// Older notices may carry the legacy ALL_NOTICES tag; they are shown and filtered as General.
+const categoryOf = (tag: NoticeTag): Category => (tag === "ALL_NOTICES" ? "GENERAL" : tag);
+const categoryMeta = (tag: NoticeTag) => CATEGORIES.find((c) => c.tag === categoryOf(tag)) ?? CATEGORIES[0];
+
+function NoticeItem({ notice }: { notice: Notice }) {
+    const meta = categoryMeta(notice.tag);
+    const emergency = meta.tag === "EMERGENCY";
+    return (
+        <article className="relative grid gap-x-6 gap-y-1 px-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-6">
+            {emergency && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-600" />}
+            <time dateTime={notice.createdAt} className="text-sm tabular-nums text-gray-500 sm:pt-0.5">{clock(notice.createdAt)}</time>
+            <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-900">{notice.title}</h3>
+                <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span className={`inline-flex items-center gap-1.5 font-medium ${emergency ? "text-red-700" : "text-gray-700"}`}>
+                        <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        {meta.label}
+                    </span>
+                    <span>Posted by {notice.senderName}</span>
+                </p>
+                <p className="mt-3 max-w-prose whitespace-pre-line text-sm leading-relaxed text-gray-700">{notice.content}</p>
+                {(notice.link || notice.file) && (
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                        {notice.link && (
+                            <a
+                                href={notice.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline ${focusRing}`}
+                            >
+                                <ExternalLink size={14} aria-hidden="true" />
+                                {hostname(notice.link)}
+                                <span className="sr-only">(opens in a new tab)</span>
+                            </a>
+                        )}
+                        {notice.file && (
+                            <a
+                                href={notice.file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-sm text-sm font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline ${focusRing}`}
+                            >
+                                <Paperclip size={14} aria-hidden="true" className="shrink-0" />
+                                <span className="truncate">{fileName(notice.file)}</span>
+                                <span className="sr-only">(opens in a new tab)</span>
+                            </a>
+                        )}
+                    </div>
+                )}
+            </div>
+        </article>
+    );
+}
 
 export default function TeacherNoticeBoardPage() {
-    const [selectedCategory, setSelectedCategory] = useState("All Notices");
-    const { data: notices = [], isLoading, error } = useGetNoticesQuery();
+    const reduceMotion = useReducedMotion();
+    const [filter, setFilter] = useState<Category | "ALL">("ALL");
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const { data: notices = [], isLoading, isError, refetch } = useGetNoticesQuery();
 
-    const buildAttachments = (notice: { link: string | null; file: string | null }) => {
-        const attachments: { type: string; name: string; url: string }[] = [];
-        if (notice.link) {
-            attachments.push({ type: 'link', name: 'View Link', url: notice.link });
-        }
-        if (notice.file) {
-            const filename = notice.file.split('/').pop() ?? 'Attachment';
-            attachments.push({
-                type: filename.endsWith('.pdf') ? 'pdf' : 'image',
-                name: filename,
-                url: notice.file,
-            });
-        }
-        return attachments;
+    const sorted = [...notices].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const countFor = (tag: Category) => notices.filter((n) => categoryOf(n.tag) === tag).length;
+    const q = search.trim().toLowerCase();
+    const visible = sorted.filter(
+        (n) => (filter === "ALL" || categoryOf(n.tag) === filter) && (!q || [n.title, n.content, n.senderName].some((v) => v.toLowerCase().includes(q)))
+    );
+    const { pageCount, current, pageRows } = paginate(visible, page);
+    const groups = groupByDay(pageRows, (n) => n.createdAt);
+
+    const filters: { value: Category | "ALL"; label: string; count: number }[] = [
+        { value: "ALL", label: "All", count: notices.length },
+        ...CATEGORIES.map((c) => ({ value: c.tag, label: c.label, count: countFor(c.tag) })),
+    ];
+    const pickFilter = (f: Category | "ALL") => {
+        setFilter(f);
+        setPage(1);
     };
-
-    const filteredNotices = selectedCategory === "All Notices"
-        ? notices
-        : notices.filter(n => tagToLabel[n.tag] === selectedCategory);
-
-    const getFileIcon = (type: string) => {
-        switch (type) {
-            case "pdf": return <FileText className="text-red-600" size={20} />;
-            case "image": return <ImageIcon className="text-green-600" size={20} />;
-            case "link": return <Link2 className="text-blue-600" size={20} />;
-            case "ppt": return <FileImage className="text-orange-600" size={20} />;
-            default: return <FileText className="text-gray-600" size={20} />;
-        }
-    };
-
-    const getCategoryColor = (category: string) => {
-        switch (category) {
-            case "Holidays": return "bg-green-100 text-green-800";
-            case "Events": return "bg-orange-100 text-orange-800";
-            case "Emergency": return "bg-red-100 text-red-800";
-            default: return "bg-blue-100 text-blue-800";
-        }
-    };
-
-    const formatDate = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-    };
-
-    const formatTime = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    const updateSearch = (value: string) => {
+        setSearch(value);
+        setPage(1);
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    
-                    <div className="h-6 w-px bg-gray-300" />
-                    <div className="flex items-center space-x-2">
-                        <Megaphone className="text-emerald-500" size={28} />
-                        <h1 className="text-3xl font-bold text-gray-800">Staff General Notice Board</h1>
-                    </div>
-                </div>
-            </div>
+        <div className="max-w-7xl space-y-6">
+            <PageHeader title="Notice board" subtitle="Holidays, events, exams and other news from the school office." />
 
-            {/* Notice Board Section */}
-            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100">
-                <div className="flex items-center justify-between mb-6 border-b pb-3">
-                    <div className="flex items-center space-x-2">
-                        <Bell className="text-emerald-500" size={24} />
-                        <h2 className="text-xl font-semibold text-gray-800">Circulars & Announcements</h2>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Filter size={18} className="text-gray-500" />
-                        <select
-                            value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        >
-                            {categories.map((category, index) => (
-                                <option key={index} value={category}>{category}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    {isLoading ? (
-                        <div className="text-center py-8">
-                            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-gray-500">Loading notices...</p>
-                        </div>
-                    ) : error ? (
-                        <div className="text-center py-8 text-red-500">
-                            <p>Failed to load notices. Please try again.</p>
-                        </div>
-                    ) : filteredNotices.length > 0 ? (
-                        filteredNotices.map((notice) => {
-                            const attachments = buildAttachments(notice);
-                            const dateLabel = tagToLabel[notice.tag] ?? notice.tag;
+            <section aria-label="Notices" className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div role="group" aria-label="Filter by category" className="-mx-1 flex gap-1 overflow-x-auto px-1 py-0.5">
+                        {filters.map((f) => {
+                            const active = filter === f.value;
                             return (
-                                <div key={notice.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center space-x-2">
-                                                <h3 className="font-semibold text-gray-800">{notice.senderName}</h3>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(dateLabel)}`}>
-                                                    {dateLabel}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm font-medium text-gray-700">{notice.title}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-500">{formatDate(notice.createdAt)}</p>
-                                            <p className="text-xs text-gray-500">{formatTime(notice.createdAt)}</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-600 text-sm mb-3 mt-2">{notice.content}</p>
-
-                                    {attachments.length > 0 && (
-                                        <div className="mt-4 pt-3 border-t border-gray-200">
-                                            <p className="text-xs font-medium text-gray-500 mb-2">Attachments:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {attachments.map((attachment, idx) => (
-                                                    <a
-                                                        key={idx}
-                                                        href={attachment.url}
-                                                        target={attachment.type === "link" ? "_blank" : undefined}
-                                                        rel={attachment.type === "link" ? "noopener noreferrer" : undefined}
-                                                        className="flex items-center space-x-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 text-xs transition-colors group"
-                                                    >
-                                                        {getFileIcon(attachment.type)}
-                                                        <span className="text-gray-700 font-medium">{attachment.name}</span>
-                                                        {attachment.type === "link" ? (
-                                                            <ExternalLink size={14} className="text-gray-400 group-hover:text-emerald-500" />
-                                                        ) : (
-                                                            <Download size={14} className="text-gray-400 group-hover:text-emerald-500" />
-                                                        )}
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
+                                <button
+                                    key={f.value}
+                                    type="button"
+                                    aria-pressed={active}
+                                    onClick={() => pickFilter(f.value)}
+                                    className={`relative inline-flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium motion-safe:transition-colors ${focusRing} ${active ? "text-gray-900" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
+                                >
+                                    {active && (
+                                        <motion.span
+                                            layoutId="teacher-notice-filter"
+                                            className="absolute inset-0 rounded-md bg-emerald-50 ring-1 ring-emerald-100"
+                                            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                                        />
                                     )}
-                                </div>
+                                    <span className="relative">{f.label}</span>
+                                    <span className={`relative text-xs tabular-nums ${active ? "text-emerald-700" : "text-gray-400"}`}>{isLoading ? "…" : f.count}</span>
+                                </button>
                             );
-                        })
-                    ) : (
-                        <p className="text-gray-500 text-center py-8">No notices in {selectedCategory} category</p>
-                    )}
+                        })}
+                    </div>
+                    <div className="relative lg:w-72">
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <label htmlFor="notice-search" className="sr-only">Search notices</label>
+                        <input
+                            id="notice-search"
+                            type="search"
+                            value={search}
+                            onChange={(e) => updateSearch(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Escape") updateSearch(""); }}
+                            placeholder="Search notices"
+                            className={`${inputClass} h-9 py-0 pl-9 pr-9 [&::-webkit-search-cancel-button]:appearance-none`}
+                        />
+                        {search && (
+                            <button
+                                type="button"
+                                onClick={() => updateSearch("")}
+                                aria-label="Clear search"
+                                className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                            >
+                                <X size={14} aria-hidden="true" />
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
+
+                {isLoading ? (
+                    <div aria-hidden="true" className="divide-y divide-gray-100">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="grid gap-x-6 gap-y-2 px-6 py-5 sm:grid-cols-[5rem_minmax(0,1fr)]">
+                                <span className="h-4 w-14 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                <div className="space-y-2">
+                                    <span className="block h-4 w-2/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="block h-3 w-1/4 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="block h-3.5 w-4/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : isError ? (
+                    <EmptyState
+                        title="Notices couldn't be loaded."
+                        hint="Check your connection, then try again."
+                        action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
+                    />
+                ) : visible.length === 0 ? (
+                    notices.length === 0 ? (
+                        <EmptyState icon={<Bell size={28} />} title="No notices yet." hint="When the school publishes a notice, it appears here." />
+                    ) : (
+                        <EmptyState
+                            title={q ? `No notices match “${search.trim()}”${filter !== "ALL" ? ` in ${categoryMeta(filter).label}` : ""}.` : `No ${categoryMeta(filter as Category).label.toLowerCase()} notices.`}
+                            action={<button type="button" onClick={() => { updateSearch(""); pickFilter("ALL"); }} className={secondaryBtn}>Show all notices</button>}
+                        />
+                    )
+                ) : (
+                    <>
+                        {groups.map((g, gi) => (
+                            <section key={g.label} aria-label={g.label}>
+                                <h2 className={`border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600 sm:px-6 ${gi > 0 ? "border-t" : ""}`}>{g.label}</h2>
+                                <ul className="divide-y divide-gray-100">
+                                    {g.items.map((n) => (
+                                        <li key={n.id}>
+                                            <NoticeItem notice={n} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        ))}
+                        <Pager total={visible.length} page={current} pageCount={pageCount} onPage={setPage} />
+                    </>
+                )}
+            </section>
         </div>
     );
 }

@@ -1,229 +1,268 @@
 "use client";
 
-import { useState, use, useEffect } from "react";
-import Link from "next/link";
-import { ArrowLeft, Bell, Send, Paperclip, X, Info } from "lucide-react";
-import toast from 'react-hot-toast';
-import { useGetAnnouncementsQuery, useCreateAnnouncementMutation } from "@/redux/api/operationsApi";
+import { use, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Megaphone, Paperclip, Plus, Send } from "lucide-react";
+import toast from "react-hot-toast";
+import { useCreateAnnouncementMutation, useGetAnnouncementsQuery, type Announcement } from "@/redux/api/operationsApi";
+import { useGetTeacherClassesQuery } from "@/redux/api/teacherApi";
+import {
+    EASE_OUT,
+    EmptyState,
+    PageHeader,
+    Pager,
+    SearchBox,
+    clock,
+    errorMessage,
+    focusRing,
+    groupByDay,
+    hostname,
+    inputClass,
+    paginate,
+    primaryBtn,
+    secondaryBtn,
+} from "@/components/teacher/ui";
 
-function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
-}
+const TITLE_MAX = 120;
 
-function formatTime(dateStr: string) {
-    return new Date(dateStr).toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-function getAuthUser() {
-    if (typeof window === 'undefined') return {};
+function validUrl(value: string) {
     try {
-        const raw = localStorage.getItem("authUser");
-        return raw ? JSON.parse(raw) : {};
+        const u = new URL(value);
+        return u.protocol === "http:" || u.protocol === "https:";
     } catch {
-        return {};
+        return false;
     }
+}
+
+function AnnouncementItem({ a }: { a: Pick<Announcement, "title" | "content" | "fileUrl" | "createdAt"> & { teacher?: { fullName: string } } }) {
+    return (
+        <article className="grid gap-x-6 gap-y-1 px-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-6">
+            <time dateTime={a.createdAt} className="text-sm tabular-nums text-gray-500 sm:pt-0.5">{clock(a.createdAt)}</time>
+            <div className="min-w-0">
+                <h3 className="break-words text-base font-semibold text-gray-900">{a.title || "Untitled announcement"}</h3>
+                {a.teacher?.fullName && <p className="mt-0.5 text-xs text-gray-500">Posted by {a.teacher.fullName}</p>}
+                <p className="mt-3 max-w-prose whitespace-pre-line break-words text-sm leading-relaxed text-gray-700">{a.content}</p>
+                {a.fileUrl && (
+                    <a
+                        href={a.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`mt-3 inline-flex max-w-full items-center gap-1.5 rounded-sm text-sm font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline ${focusRing}`}
+                    >
+                        <Paperclip size={14} aria-hidden="true" className="shrink-0" />
+                        <span className="truncate">{hostname(a.fileUrl)}</span>
+                        <span className="sr-only">(opens in a new tab)</span>
+                    </a>
+                )}
+            </div>
+        </article>
+    );
 }
 
 export default function TeacherAnnouncementsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
+    const reduceMotion = useReducedMotion();
+    // Portal layouts render pages only after their auth check, so localStorage is safe here.
+    const [teacherId] = useState<string | null>(() => {
+        try {
+            return JSON.parse(localStorage.getItem("authUser") || "{}").teacher?.id ?? null;
+        } catch {
+            return null;
+        }
+    });
 
-    const [isCreating, setIsCreating] = useState(false);
+    const { data: myClasses = [] } = useGetTeacherClassesQuery();
+    const className = myClasses.find((c) => c.id === classroomId)?.name ?? "Classroom";
+    const { data: announcements = [], isLoading, isError, refetch } = useGetAnnouncementsQuery(classroomId);
+    const [createAnnouncement, { isLoading: posting }] = useCreateAnnouncementMutation();
+
+    const [composing, setComposing] = useState(false);
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [fileUrl, setFileUrl] = useState("");
-    const [teacherId, setTeacherId] = useState<string | null>(null);
+    const [touched, setTouched] = useState(false);
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
 
-    useEffect(() => {
-        const user = getAuthUser();
-        setTeacherId(user?.teacher?.id ?? null);
-    }, []);
+    const linkError = fileUrl.trim() && !validUrl(fileUrl.trim()) ? "Enter a full link that starts with https://" : null;
+    const canPost = title.trim() && content.trim() && !linkError && !posting;
 
-    const { data: announcements = [], isLoading } = useGetAnnouncementsQuery(classroomId);
-    const [createAnnouncement, { isLoading: isCreating_ }] = useCreateAnnouncementMutation();
+    const sorted = [...announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const q = search.trim().toLowerCase();
+    const visible = sorted.filter((a) => !q || [a.title, a.content, a.teacher?.fullName ?? ""].some((v) => v.toLowerCase().includes(q)));
+    const { pageCount, current, pageRows } = paginate(visible, page);
+    const groups = groupByDay(pageRows, (a) => a.createdAt);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const reset = () => {
+        setTitle("");
+        setContent("");
+        setFileUrl("");
+        setTouched(false);
+        setComposing(false);
+    };
+
+    const post = async (e: React.FormEvent) => {
         e.preventDefault();
-
+        setTouched(true);
+        if (!canPost) return;
         if (!teacherId) {
-            toast.error("Teacher not found. Please login again.");
+            toast.error("Your teacher record wasn't found. Log out, log in again, then post.");
             return;
         }
-
         try {
-            await createAnnouncement({
-                title,
-                content,
-                fileUrl: fileUrl || undefined,
-                teacherId,
-                classroomId,
-            }).unwrap();
-
-            setTitle("");
-            setContent("");
-            setFileUrl("");
-            setIsCreating(false);
-            toast.success("Announcement posted successfully!");
-        } catch {
-            toast.error("Failed to create announcement. Please try again.");
+            await createAnnouncement({ title: title.trim(), content: content.trim(), fileUrl: fileUrl.trim() || undefined, teacherId, classroomId }).unwrap();
+            toast.success(`Announcement posted to ${className}.`);
+            reset();
+            setPage(1);
+            refetch();
+        } catch (err) {
+            toast.error(errorMessage(err, "Announcement not posted. Check your connection and try again."));
         }
     };
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    
-                    <div className="h-6 w-px bg-slate-300" />
-                    <h1 className="text-3xl font-bold text-slate-800">Classroom Announcements</h1>
-                </div>
-
-                {!isCreating && (
-                    <button
-                        onClick={() => setIsCreating(true)}
-                        className="bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all flex items-center space-x-2 shadow-md hover:shadow-lg"
-                    >
-                        <Bell size={20} />
-                        <span>New Announcement</span>
-                    </button>
-                )}
-            </div>
-
-            {/* Create Announcement Form */}
-            {isCreating && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                    <div className="bg-slate-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                        <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                            <Send size={18} className="text-emerald-500" />
-                            Compose Announcement
-                        </h2>
-                        <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-600">
-                            <X size={20} />
+        <div className="max-w-5xl space-y-6">
+            <PageHeader
+                title="Announcements"
+                crumb={{ href: `/teacher/classroom/${classroomId}`, label: className }}
+                subtitle="Every student in this class sees what you post here."
+                actions={
+                    !composing && (
+                        <button type="button" onClick={() => setComposing(true)} className={primaryBtn}>
+                            <Plus size={18} aria-hidden="true" />
+                            New announcement
                         </button>
-                    </div>
+                    )
+                }
+            />
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700">Title</label>
-                            <input
-                                type="text"
-                                required
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="e.g., Assignment Due Date Change"
-                                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-800"
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700">Message</label>
-                            <textarea
-                                required
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                rows={4}
-                                placeholder="Type your announcement content here..."
-                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all resize-none text-gray-800"
-                            />
-                            <p className="text-xs text-gray-500 text-right">Visible to all students in this classroom.</p>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700">Attachment URL (optional)</label>
-                            <input
-                                type="url"
-                                value={fileUrl}
-                                onChange={(e) => setFileUrl(e.target.value)}
-                                placeholder="https://drive.google.com/..."
-                                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all text-gray-800"
-                            />
-                        </div>
-
-                        <div className="flex justify-end pt-2 border-t border-gray-100">
-                            <div className="flex space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCreating(false)}
-                                    className="px-5 py-2 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isCreating_}
-                                    className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors shadow-sm"
-                                >
-                                    {isCreating_ ? "Posting..." : "Post Announcement"}
-                                </button>
+            <AnimatePresence initial={false}>
+                {composing && (
+                    <motion.section
+                        aria-labelledby="compose-title"
+                        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE_OUT }}
+                        className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+                    >
+                        <h2 id="compose-title" className="border-b border-gray-100 px-4 py-4 text-base font-semibold text-gray-900 sm:px-6">New announcement</h2>
+                        <form onSubmit={post} className="grid gap-6 px-4 py-5 sm:px-6 lg:grid-cols-2">
+                            <div className="space-y-4">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Title
+                                    <input
+                                        autoFocus
+                                        value={title}
+                                        maxLength={TITLE_MAX}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        placeholder="For example, Science project due on Friday"
+                                        aria-invalid={touched && !title.trim()}
+                                        className={`${inputClass} mt-1.5`}
+                                    />
+                                    <span className="mt-1 flex justify-between text-xs font-normal text-gray-500">
+                                        <span className={touched && !title.trim() ? "text-red-700" : ""}>{touched && !title.trim() ? "Add a title." : "Keep it short and specific."}</span>
+                                        <span className="tabular-nums">{title.length}/{TITLE_MAX}</span>
+                                    </span>
+                                </label>
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Message
+                                    <textarea
+                                        rows={6}
+                                        value={content}
+                                        onChange={(e) => setContent(e.target.value)}
+                                        placeholder="What do students need to know or do?"
+                                        aria-invalid={touched && !content.trim()}
+                                        className={`${inputClass} mt-1.5 resize-y`}
+                                    />
+                                    {touched && !content.trim() && <span className="mt-1 block text-xs font-normal text-red-700">Write the message.</span>}
+                                </label>
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Attachment link <span className="font-normal text-gray-500">(optional)</span>
+                                    <input
+                                        type="url"
+                                        inputMode="url"
+                                        value={fileUrl}
+                                        onChange={(e) => setFileUrl(e.target.value)}
+                                        placeholder="https://drive.google.com/…"
+                                        aria-invalid={!!linkError}
+                                        className={`${inputClass} mt-1.5`}
+                                    />
+                                    <span className={`mt-1 block text-xs font-normal ${linkError ? "text-red-700" : "text-gray-500"}`}>
+                                        {linkError ?? "A worksheet, a slide deck or a form. Students open it in a new tab."}
+                                    </span>
+                                </label>
                             </div>
-                        </div>
-                    </form>
-                </div>
-            )}
 
-            {/* Announcements History */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                    <h2 className="font-bold text-slate-800 text-lg">Posted Announcements</h2>
-                    <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-                        Total: {announcements.length}
-                    </span>
-                </div>
-
-                <div className="divide-y divide-gray-100">
-                    {isLoading ? (
-                        <div className="p-10 text-center">
-                            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-slate-500">Loading announcements...</p>
-                        </div>
-                    ) : announcements.length === 0 ? (
-                        <div className="p-10 text-center text-gray-500">
-                            <Bell size={48} className="mx-auto text-gray-300 mb-4" />
-                            <p>No announcements posted yet.</p>
-                            <button onClick={() => setIsCreating(true)} className="text-emerald-500 font-medium hover:underline mt-2">
-                                Create your first post
-                            </button>
-                        </div>
-                    ) : (
-                        announcements.map((announcement) => (
-                            <div key={announcement.id} className="p-6 hover:bg-gray-50 transition-colors group">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center space-x-3">
-                                        <span className="px-2.5 py-0.5 rounded text-xs font-bold border flex items-center gap-1.5 bg-emerald-100 text-emerald-700 border-emerald-200">
-                                            <Info size={14} />
-                                            Announcement
-                                        </span>
-                                        <span className="text-sm text-gray-400 font-medium flex items-center">
-                                            <span>{formatDate(announcement.createdAt)}</span>
-                                            <span className="mx-1.5">•</span>
-                                            <span>{formatTime(announcement.createdAt)}</span>
-                                        </span>
-                                    </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium text-gray-700">Preview</p>
+                                <div className="mt-1.5 overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50">
+                                    {title.trim() || content.trim() ? (
+                                        <AnnouncementItem a={{ title: title.trim(), content: content.trim() || "Your message appears here.", fileUrl: !linkError && fileUrl.trim() ? fileUrl.trim() : null, createdAt: new Date().toISOString() }} />
+                                    ) : (
+                                        <p className="px-6 py-12 text-center text-sm text-gray-500">Start typing to see how students will see it.</p>
+                                    )}
                                 </div>
-
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">{announcement.title}</h3>
-                                <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{announcement.content}</p>
-
-                                {announcement.fileUrl && (
-                                    <div className="mt-4 flex items-center space-x-2 text-sm text-emerald-600 bg-emerald-50 w-fit px-3 py-1.5 rounded-md">
-                                        <Paperclip size={14} />
-                                        <a href={announcement.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
-                                            View Attachment
-                                        </a>
-                                    </div>
-                                )}
                             </div>
-                        ))
-                    )}
+
+                            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end lg:col-span-2">
+                                <button type="button" onClick={reset} className={`${secondaryBtn} h-10`}>Discard</button>
+                                <button type="submit" disabled={posting} className={primaryBtn}>
+                                    <Send size={16} aria-hidden="true" />
+                                    {posting ? "Posting…" : "Post announcement"}
+                                </button>
+                            </div>
+                        </form>
+                    </motion.section>
+                )}
+            </AnimatePresence>
+
+            <section aria-label="Posted announcements" className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <p className="text-sm text-gray-600">
+                        <span className="font-medium tabular-nums text-gray-900">{isLoading ? "…" : announcements.length}</span> posted
+                    </p>
+                    <SearchBox id="announcement-search" label="Search announcements" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search announcements" className="sm:w-72" />
                 </div>
-            </div>
+
+                {isLoading ? (
+                    <div aria-hidden="true" className="divide-y divide-gray-100">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="space-y-2 px-6 py-5">
+                                <span className="block h-4 w-2/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                <span className="block h-3.5 w-4/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                            </div>
+                        ))}
+                    </div>
+                ) : isError ? (
+                    <EmptyState title="Announcements couldn't be loaded." hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                ) : announcements.length === 0 ? (
+                    <EmptyState
+                        icon={<Megaphone size={28} />}
+                        title="Nothing posted to this class yet."
+                        hint="Homework reminders, test dates and links to worksheets work well here."
+                        action={!composing ? <button type="button" onClick={() => setComposing(true)} className={primaryBtn}>Write the first one</button> : undefined}
+                    />
+                ) : visible.length === 0 ? (
+                    <EmptyState title={`No announcements match “${search.trim()}”.`} action={<button type="button" onClick={() => setSearch("")} className={secondaryBtn}>Clear search</button>} />
+                ) : (
+                    <>
+                        {groups.map((g, gi) => (
+                            <section key={g.label} aria-label={g.label}>
+                                <h3 className={`border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600 sm:px-6 ${gi > 0 ? "border-t" : ""}`}>{g.label}</h3>
+                                <ul className="divide-y divide-gray-100">
+                                    {g.items.map((a) => (
+                                        <li key={a.id}>
+                                            <AnnouncementItem a={a} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        ))}
+                        <Pager total={visible.length} page={current} pageCount={pageCount} onPage={setPage} />
+                    </>
+                )}
+            </section>
         </div>
     );
 }
