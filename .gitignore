@@ -46,4 +46,5 @@ next-env.d.ts
 /.next-qa/
 
 # local-only screenshot tour and its mocked API (kept on disk, not tracked)
-/scripts/ui-tour/
+/scripts/ui-tour/*
+
