@@ -1,335 +1,451 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { ArrowLeft, Search, Send, Lock } from "lucide-react";
-import toast from 'react-hot-toast';
-import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutation } from "@/redux/api/operationsApi";
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
+import { ChevronRight, Lock, MessageSquare, Plus, Search, Send } from "lucide-react";
+import toast from "react-hot-toast";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
-import MessagesCenter from "@/components/messages/MessagesCenter";
+import { useGetConversationQuery, useGetConversationsQuery, useSendMessageMutation, type ConversationItem } from "@/redux/api/operationsApi";
+import { EmptyState, PageHeader, Pager, clock, dayHeading, focusRing, inputClass, paginate, primaryBtn, secondaryBtn, shortDate, startOfDay } from "@/components/student/ui";
 
-function formatTime(dateStr: string) {
-    try {
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        if (days === 0) {
-            return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-        } else if (days === 1) {
-            return 'Yesterday';
-        } else if (days < 7) {
-            return date.toLocaleDateString('en-IN', { weekday: 'short' });
-        } else {
-            return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-        }
-    } catch {
-        return '';
-    }
+type Group = "TEACHERS" | "PRINCIPAL" | "OFFICE";
+type Contact = { id: string; name: string; role: string; group: Group; canSend: boolean };
+
+const TABS: { key: Group; label: string }[] = [
+    { key: "TEACHERS", label: "Teachers" },
+    { key: "PRINCIPAL", label: "Principal" },
+    { key: "OFFICE", label: "School office" },
+];
+
+const ROLE_LABEL: Record<string, string> = {
+    TEACHER: "Teacher",
+    "Class Teacher": "Class teacher",
+    PRINCIPAL: "Principal",
+    ACCOUNTANT: "Accountant",
+    SUPER_ADMIN: "School administration",
+};
+// Students may write to teachers and the principal. The office can write to students, but replies are turned off.
+const CAN_SEND_ROLES = ["TEACHER", "Class Teacher", "PRINCIPAL"];
+const groupOf = (role: string): Group => (role === "PRINCIPAL" ? "PRINCIPAL" : role === "TEACHER" || role === "Class Teacher" ? "TEACHERS" : "OFFICE");
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
+
+function listDate(value: string) {
+    const d = new Date(value);
+    const diff = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000);
+    if (diff === 0) return clock(value);
+    if (diff === 1) return "Yesterday";
+    return shortDate(value);
 }
 
-function getRoleLabel(role: string): string {
-    const labels: Record<string, string> = {
-        TEACHER: 'Teacher',
-        PRINCIPAL: 'Principal',
-        ACCOUNTANT: 'Accountant',
-        SUPER_ADMIN: 'Super Admin',
-        'Class Teacher': 'Class Teacher',
-    };
-    return labels[role] ?? role;
-}
-
-const CAN_SEND_ROLES = ['TEACHER', 'PRINCIPAL', 'Class Teacher'];
-const READ_ONLY_ROLES = ['ACCOUNTANT', 'SUPER_ADMIN'];
-
-export default function StudentMessagesPage() {
-    const [authUser, setAuthUser] = useState<Record<string, any>>({});
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const raw = localStorage.getItem("authUser");
-                setAuthUser(raw ? JSON.parse(raw) : {});
-            } catch {
-                setAuthUser({});
-            }
-        }
-    }, []);
-
-    const currentUserId = authUser?.id;
-
-    const { data: recipients = [] } = useGetMessageRecipientsQuery();
-    const { data: conversations = [], refetch: refetchConversations } = useGetConversationsQuery(currentUserId ?? "");
-    const [sendMessage, { isLoading: isSending }] = useSendMessageMutation();
-
-    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [messageText, setMessageText] = useState("");
-
-    const { data: messages = [], refetch: refetchMessages } = useGetConversationQuery(
-        { userId: currentUserId ?? "", otherUserId: selectedUserId ?? "" },
-        { skip: !currentUserId || !selectedUserId }
+function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
+    return (
+        <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-sky-50 font-semibold text-sky-700 ${size === "lg" ? "h-11 w-11 text-sm" : "h-9 w-9 text-xs"}`}>
+            {initials(name)}
+        </span>
     );
+}
 
-    // Poll for new messages every 3 seconds when a conversation is selected
-    useEffect(() => {
-        if (!selectedUserId) return;
-        const interval = setInterval(() => {
-            refetchMessages();
-            refetchConversations();
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [selectedUserId, refetchMessages, refetchConversations]);
+function PersonRow({ contact, conv, onOpen }: { contact: Contact; conv?: ConversationItem; onOpen: () => void }) {
+    return (
+        <li>
+            <button
+                type="button"
+                onClick={onOpen}
+                className={`group flex w-full items-center gap-4 px-4 py-3.5 text-left hover:bg-gray-50 motion-safe:transition-colors sm:px-6 ${focusRing} focus-visible:ring-inset`}
+            >
+                <Avatar name={contact.name} />
+                <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-4">
+                        <span className="min-w-0 truncate text-sm">
+                            <span className="font-medium text-gray-900">{contact.name}</span>
+                            <span className="ml-2 text-gray-500">{ROLE_LABEL[contact.role] ?? contact.role}</span>
+                        </span>
+                        {conv && (
+                            <time dateTime={conv.lastMessageAt} className="shrink-0 text-xs tabular-nums text-gray-500">
+                                {listDate(conv.lastMessageAt)}
+                            </time>
+                        )}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-2">
+                        {!contact.canSend && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                <Lock size={11} aria-hidden="true" />
+                                Read only
+                            </span>
+                        )}
+                        <span className={`min-w-0 truncate text-sm ${conv ? "text-gray-600" : "text-gray-400"}`}>
+                            {conv ? `${conv.direction === "sent" ? "You: " : ""}${conv.lastMessage}` : "No messages yet"}
+                        </span>
+                    </span>
+                </span>
+                <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-gray-300 group-hover:text-gray-500 motion-safe:transition motion-safe:group-hover:translate-x-0.5" />
+            </button>
+        </li>
+    );
+}
 
-    // Build sidebar items: always show all recipients, merge with conversation data
-    const sidebarItems = recipients.map(r => {
-        const conv = conversations.find(c => c.otherUserId === r.id);
-        const canSend = CAN_SEND_ROLES.includes(r.role);
-        return {
-            userId: r.id,
-            name: r.name,
-            role: r.role,
-            canSend,
-            lastMessage: conv?.lastMessage ?? 'No messages yet',
-            lastMessageAt: conv?.lastMessageAt ?? '',
-            direction: conv?.direction ?? ('received' as const),
-            unread: 0,
-        };
+function MessagesContent() {
+    const reduceMotion = useReducedMotion();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const threadTitleId = useId();
+    const composeTitleId = useId();
+    // Portal layouts render children only after their localStorage auth check, so this is safe.
+    const [currentUserId] = useState<string>(() => {
+        try {
+            return JSON.parse(localStorage.getItem("authUser") || "{}").id ?? "";
+        } catch {
+            return "";
+        }
     });
 
-    const filteredItems = sidebarItems.filter(item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.role.toLowerCase().includes(searchTerm.toLowerCase())
+    const [tab, setTab] = useState<Group>("TEACHERS");
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    // ?to=<userId> (from the Classroom page) opens that conversation straight away.
+    const [threadId, setThreadId] = useState<string | null>(() => searchParams.get("to"));
+    const [reply, setReply] = useState("");
+    const threadRef = useRef<HTMLDivElement>(null);
+    const [composeOpen, setComposeOpen] = useState(false);
+    const [composeTo, setComposeTo] = useState("");
+    const [composeText, setComposeText] = useState("");
+
+    const { data: recipients = [], isLoading, isError, refetch } = useGetMessageRecipientsQuery();
+    const { data: conversations = [] } = useGetConversationsQuery(currentUserId, { skip: !currentUserId, pollingInterval: 30000, skipPollingIfUnfocused: true });
+    const { data: messages = [], isLoading: threadLoading } = useGetConversationQuery(
+        { userId: currentUserId, otherUserId: threadId ?? "" },
+        { skip: !currentUserId || !threadId, pollingInterval: 5000, skipPollingIfUnfocused: true }
     );
+    const [sendMessage, { isLoading: sending }] = useSendMessageMutation();
 
-    const selectedItem = sidebarItems.find(i => i.userId === selectedUserId);
-    const canSendToSelected = selectedItem?.canSend ?? false;
+    const contacts = useMemo<Contact[]>(
+        () => recipients.map((r) => ({ id: r.id, name: r.name, role: r.role, group: groupOf(r.role), canSend: CAN_SEND_ROLES.includes(r.role) })),
+        [recipients]
+    );
+    const contactById = useMemo(() => new Map(contacts.map((c) => [c.id, c])), [contacts]);
+    const convById = useMemo(() => new Map(conversations.map((c) => [c.otherUserId, c])), [conversations]);
 
-    if (currentUserId) return <MessagesCenter title="Student Messages" backHref="/student/classroom" recipients={sidebarItems.map(item => ({ id: item.userId, name: item.name, role: getRoleLabel(item.role) }))} readOnlyRoles={READ_ONLY_ROLES} />;
+    const q = search.trim().toLowerCase();
+    const matches = (c: Contact) => !q || c.name.toLowerCase().includes(q) || (ROLE_LABEL[c.role] ?? c.role).toLowerCase().includes(q);
+    const countFor = (g: Group) => contacts.filter((c) => c.group === g && matches(c)).length;
+    // People with a conversation come first, newest first; everyone else alphabetically, class teacher on top.
+    const byRecent = (a: Contact, b: Contact) => {
+        const ta = convById.get(a.id)?.lastMessageAt ?? "";
+        const tb = convById.get(b.id)?.lastMessageAt ?? "";
+        if (ta !== tb) return tb.localeCompare(ta);
+        if ((a.role === "Class Teacher") !== (b.role === "Class Teacher")) return a.role === "Class Teacher" ? -1 : 1;
+        return a.name.localeCompare(b.name);
+    };
+    const rows = contacts.filter((c) => c.group === tab && matches(c)).sort(byRecent);
+    const { pageCount, current, pageRows } = paginate(rows, page);
+    const otherTabWithMatches = q ? TABS.find((t) => t.key !== tab && countFor(t.key) > 0) : undefined;
 
-    const handleSendMessage = async () => {
-        if (!messageText.trim() || !selectedUserId || !currentUserId) return;
+    const thread = threadId ? contactById.get(threadId) : undefined;
 
+    useEffect(() => {
+        const el = threadRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [messages.length, threadId]);
+
+    const switchTab = (key: Group) => {
+        setTab(key);
+        setPage(1);
+    };
+    const openThread = (id: string) => {
+        setReply("");
+        setThreadId(id);
+    };
+    const closeThread = () => {
+        setThreadId(null);
+        if (searchParams.get("to")) router.replace("/student/classroom/messages", { scroll: false });
+    };
+
+    const sendReply = async () => {
+        const text = reply.trim();
+        if (!text || !threadId || sending || !thread?.canSend) return;
         try {
-            await sendMessage({
-                receiverId: selectedUserId,
-                content: messageText.trim(),
-            }).unwrap();
-            setMessageText("");
-            toast.success("Message sent!");
-            refetchMessages();
-            refetchConversations();
+            await sendMessage({ receiverId: threadId, content: text }).unwrap();
+            setReply("");
         } catch {
-            toast.error("Failed to send message.");
+            toast.error("Message not sent. Check your connection and try again.");
+        }
+    };
+
+    const sendable = contacts.filter((c) => c.canSend).sort((a, b) => a.name.localeCompare(b.name));
+    const openCompose = () => {
+        setComposeTo(thread?.canSend ? thread.id : "");
+        setComposeText("");
+        setComposeOpen(true);
+    };
+    const sendCompose = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const text = composeText.trim();
+        if (!composeTo || !text || sending) return;
+        try {
+            await sendMessage({ receiverId: composeTo, content: text }).unwrap();
+            const name = contactById.get(composeTo)?.name;
+            setComposeOpen(false);
+            toast.success(name ? `Message sent to ${name}.` : "Message sent.");
+        } catch {
+            toast.error("Message not sent. Check your connection and try again.");
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-6">
-            <div className="max-w-7xl mx-auto space-y-8">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <Link href="/student/classroom">
-                            <button className="flex items-center space-x-2 text-slate-500 hover:text-blue-600 transition-colors">
-                                <ArrowLeft size={20} />
-                                <span className="font-medium">Back</span>
-                            </button>
-                        </Link>
-                        <div className="h-6 w-px bg-slate-300"></div>
-                        <h1 className="text-3xl font-bold text-slate-800">Messages</h1>
+        <div className="mx-auto max-w-5xl space-y-6">
+            <PageHeader
+                title="Messages"
+                subtitle="For questions and formal requests to your teachers and the principal."
+                actions={
+                    <button type="button" onClick={openCompose} disabled={isLoading || sendable.length === 0} className={primaryBtn}>
+                        <Plus size={18} aria-hidden="true" />
+                        New message
+                    </button>
+                }
+            />
+
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div role="tablist" aria-label="Recipient type" className="-mb-px flex gap-5 overflow-x-auto sm:gap-6">
+                        {TABS.map((t) => {
+                            const active = tab === t.key;
+                            return (
+                                <button
+                                    key={t.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    onClick={() => switchTab(t.key)}
+                                    className={`relative flex shrink-0 items-center gap-2 rounded-sm py-4 text-sm font-medium motion-safe:transition-colors ${focusRing} ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
+                                >
+                                    {t.label}
+                                    <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums motion-safe:transition-colors ${active ? "bg-sky-50 text-sky-700" : "bg-gray-100 text-gray-600"}`}>
+                                        {isLoading ? "…" : countFor(t.key)}
+                                    </span>
+                                    {active && (
+                                        <motion.span
+                                            layoutId="student-messages-tab-underline"
+                                            className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-sky-600"
+                                            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="pb-3 lg:w-72 lg:pb-0">
+                        <div className="relative">
+                            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <label htmlFor="message-search" className="sr-only">Search people</label>
+                            <input
+                                id="message-search"
+                                type="search"
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setPage(1);
+                                }}
+                                placeholder="Search by name or role"
+                                className={`${inputClass} h-10 py-0 pl-9`}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Disclaimer */}
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                        <strong>Note:</strong> This section is strictly for queries, issues, or formal communication. Please refrain from using it for casual or continuous chat.
+                {tab === "OFFICE" && !isLoading && rows.length > 0 && (
+                    <p className="flex items-start gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600 sm:px-6">
+                        <Lock size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-gray-400" />
+                        You can read messages from the school office here. For fee questions, write to your class teacher.
                     </p>
-                </div>
+                )}
 
-                {/* Message Layout */}
-                <div className="flex flex-col md:flex-row bg-white rounded-lg shadow-lg overflow-hidden min-h-150">
-                    {/* Sidebar */}
-                    <div className="w-full max-h-80 md:max-h-none md:w-80 md:shrink-0 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 flex flex-col">
-                        <div className="p-4 border-b border-gray-200">
-                            <h2 className="text-lg font-bold text-gray-800 mb-3">Conversations</h2>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                                <input
-                                    type="text"
-                                    placeholder="Search by name or role..."
-                                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm text-gray-800"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto">
-                            {filteredItems.length === 0 ? (
-                                <div className="text-center py-8 text-gray-400 text-sm">No recipients found</div>
-                            ) : (
-                                filteredItems.map((item) => (
-                                    <div
-                                        key={item.userId}
-                                        onClick={() => setSelectedUserId(item.userId)}
-                                        className={`p-4 flex items-center space-x-3 cursor-pointer transition-colors hover:bg-white border-b border-transparent ${
-                                            selectedUserId === item.userId
-                                                ? 'bg-white border-l-4 border-l-blue-500 shadow-sm'
-                                                : 'border-gray-50'
-                                        }`}
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
-                                            {item.name.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-baseline mb-1">
-                                                <h3 className={`text-sm font-semibold truncate ${
-                                                    selectedUserId === item.userId ? 'text-blue-500' : 'text-gray-800'
-                                                }`}>{item.name}</h3>
-                                                {item.lastMessageAt && (
-                                                    <span className="text-xs text-gray-400 shrink-0 ml-2">
-                                                        {formatTime(item.lastMessageAt)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-xs text-gray-500">{getRoleLabel(item.role)}</span>
-                                                {!item.canSend && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium flex items-center gap-1">
-                                                        <Lock size={8} />
-                                                        Read Only
-                                                    </span>
-                                                )}
-                                                {item.direction === 'sent' && item.canSend && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-500 font-medium">Sent</span>
-                                                )}
-                                            </div>
-                                            {item.lastMessage && (
-                                                <p className="text-xs text-gray-500 truncate mt-0.5">{item.lastMessage}</p>
-                                            )}
-                                        </div>
-                                        {item.unread > 0 && (
-                                            <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">
-                                                {item.unread}
-                                            </div>
+                <div role="tabpanel" aria-label={TABS.find((t) => t.key === tab)?.label}>
+                    {isLoading ? (
+                        <ul aria-hidden="true" className="divide-y divide-gray-100">
+                            {Array.from({ length: 4 }, (_, i) => (
+                                <li key={i} className="flex items-center gap-4 px-6 py-4">
+                                    <span className="h-9 w-9 rounded-full bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="flex-1 space-y-2">
+                                        <span className="block h-3 w-40 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                        <span className="block h-3 w-64 max-w-full rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : isError ? (
+                        <EmptyState
+                            title="Your contacts couldn't be loaded."
+                            hint="Check your connection, then try again."
+                            action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
+                        />
+                    ) : rows.length === 0 ? (
+                        q ? (
+                            <EmptyState
+                                icon={<MessageSquare size={28} />}
+                                title={`No one here matches “${search.trim()}”`}
+                                action={
+                                    <div className="flex flex-wrap justify-center gap-3">
+                                        {otherTabWithMatches && (
+                                            <button type="button" onClick={() => switchTab(otherTabWithMatches.key)} className={`rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700 hover:bg-sky-100 motion-safe:transition-colors ${focusRing}`}>
+                                                Show {countFor(otherTabWithMatches.key)} in {otherTabWithMatches.label}
+                                            </button>
                                         )}
+                                        <button type="button" onClick={() => setSearch("")} className={secondaryBtn}>Clear search</button>
                                     </div>
-                                ))
+                                }
+                            />
+                        ) : (
+                            <EmptyState
+                                icon={<MessageSquare size={28} />}
+                                title={tab === "TEACHERS" ? "No teachers are linked to your class yet" : tab === "PRINCIPAL" ? "The principal isn't listed yet" : "No messages from the school office"}
+                                hint={tab === "OFFICE" ? "Messages the accounts office sends you will appear here." : "Ask your class teacher or the school office to set this up."}
+                            />
+                        )
+                    ) : (
+                        <>
+                            <ul className="divide-y divide-gray-100">
+                                {pageRows.map((c) => (
+                                    <PersonRow key={c.id} contact={c} conv={convById.get(c.id)} onOpen={() => openThread(c.id)} />
+                                ))}
+                            </ul>
+                            <Pager total={rows.length} page={current} pageCount={pageCount} onPage={setPage} />
+                        </>
+                    )}
+                </div>
+            </section>
+
+            {/* Conversation */}
+            <Dialog open={!!thread} onClose={closeThread} labelledBy={threadTitleId} className="sm:max-w-2xl">
+                {thread && (
+                    <>
+                        <DialogHeader accent="sky" id={threadTitleId} title={thread.name} subtitle={ROLE_LABEL[thread.role] ?? thread.role} leading={<Avatar name={thread.name} size="lg" />} onClose={closeThread} />
+                        <div ref={threadRef} className="min-h-64 flex-1 overflow-y-auto bg-gray-50 px-4 py-5 sm:px-6">
+                            {threadLoading ? (
+                                <p className="py-16 text-center text-sm text-gray-500">Loading conversation…</p>
+                            ) : messages.length === 0 ? (
+                                <div className="py-16 text-center">
+                                    <p className="text-sm font-medium text-gray-900">No messages with {thread.name} yet</p>
+                                    <p className="mt-1 text-sm text-gray-500">{thread.canSend ? "Your first message will appear here." : "Messages they send you will appear here."}</p>
+                                </div>
+                            ) : (
+                                <ol className="space-y-2" aria-live="polite">
+                                    {messages.map((m, i) => {
+                                        const mine = m.senderId === currentUserId;
+                                        const newDay = i === 0 || startOfDay(new Date(messages[i - 1].createdAt)) !== startOfDay(new Date(m.createdAt));
+                                        return (
+                                            <li key={m.id}>
+                                                {newDay && (
+                                                    <div className="my-4 flex items-center gap-3 text-xs text-gray-500">
+                                                        <span aria-hidden="true" className="h-px flex-1 bg-gray-200" />
+                                                        {dayHeading(m.createdAt)}
+                                                        <span aria-hidden="true" className="h-px flex-1 bg-gray-200" />
+                                                    </div>
+                                                )}
+                                                <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                                                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${mine ? "rounded-br-md bg-sky-600 text-white" : "rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200"}`}>
+                                                        <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
+                                                        <time dateTime={m.createdAt} className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-sky-100" : "text-gray-400"}`}>
+                                                            {clock(m.createdAt)}
+                                                        </time>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
+                                </ol>
                             )}
                         </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="flex-1 flex flex-col">
-                        {selectedItem ? (
-                            <>
-                                {/* Chat Header */}
-                                <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center space-x-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                                        {selectedItem.name.charAt(0)}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h2 className="text-lg font-bold text-gray-800">{selectedItem.name}</h2>
-                                        <p className="text-xs text-gray-500">{getRoleLabel(selectedItem.role)}</p>
-                                    </div>
-                                    {!selectedItem.canSend && (
-                                        <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                            <Lock size={12} />
-                                            Read Only
-                                        </span>
-                                    )}
+                        {thread.canSend ? (
+                            <form
+                                className="border-t border-gray-200 bg-white px-4 py-4 sm:px-6"
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    sendReply();
+                                }}
+                            >
+                                <label htmlFor="reply" className="sr-only">Message {thread.name}</label>
+                                <textarea
+                                    id="reply"
+                                    autoFocus
+                                    rows={3}
+                                    value={reply}
+                                    onChange={(e) => setReply(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                                            e.preventDefault();
+                                            sendReply();
+                                        }
+                                    }}
+                                    placeholder={`Write to ${thread.name}`}
+                                    className={`${inputClass} resize-none`}
+                                />
+                                <div className="mt-3 flex items-center justify-between gap-3">
+                                    <p className="hidden text-xs text-gray-500 sm:block">Press Enter to send. Shift + Enter starts a new line.</p>
+                                    <button type="submit" disabled={!reply.trim() || sending} className={`${primaryBtn} ml-auto`}>
+                                        <Send size={16} aria-hidden="true" />
+                                        {sending ? "Sending…" : "Send"}
+                                    </button>
                                 </div>
-
-                                {/* Messages */}
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                    {messages.length === 0 ? (
-                                        <div className="text-center text-gray-400 py-12">
-                                            <p className="text-sm">No messages yet. {canSendToSelected ? 'Start the conversation below.' : 'You can only receive messages here.'}</p>
-                                        </div>
-                                    ) : (
-                                        messages.map((msg) => {
-                                            const isMine = msg.senderId === currentUserId;
-                                            return (
-                                                <div key={msg.id} className="flex flex-col">
-                                                    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[70%] rounded-xl px-4 py-3 ${
-                                                            isMine
-                                                                ? 'bg-blue-600 text-white rounded-br-md'
-                                                                : 'bg-gray-100 text-gray-800 rounded-bl-md'
-                                                        }`}>
-                                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                                            <p className={`text-[10px] mt-1 ${
-                                                                isMine ? 'text-blue-200' : 'text-gray-400'
-                                                            }`}>
-                                                                {formatTime(msg.createdAt)}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {!isMine && (
-                                                        <span className="text-[10px] text-gray-400 ml-1 mt-0.5">
-                                                            {getRoleLabel(msg.sender.role)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-
-                                {/* Input */}
-                                <div className="p-6 bg-gray-50 border-t border-gray-200">
-                                    {canSendToSelected ? (
-                                        <div className="flex items-end gap-3">
-                                            <div className="flex-1">
-                                                <textarea
-                                                    rows={3}
-                                                    placeholder="Type your message here..."
-                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
-                                                    value={messageText}
-                                                    onChange={(e) => setMessageText(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                                            e.preventDefault();
-                                                            handleSendMessage();
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={handleSendMessage}
-                                                disabled={!messageText.trim() || isSending}
-                                                className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
-                                                    messageText.trim() && !isSending
-                                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                <Send size={16} />
-                                                {isSending ? 'Sending...' : 'Send'}
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center text-gray-400 text-sm">
-                                            <Lock size={16} className="mr-2" />
-                                            Messaging is disabled for {getRoleLabel(selectedItem.role)}. Only receive mode available.
-                                        </div>
-                                    )}
-                                </div>
-                            </>
+                            </form>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-300">
-                                    <Search size={32} />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-600 mb-1">Select a Conversation</h3>
-                                <p className="text-sm">Choose a recipient from the sidebar to view messages</p>
-                            </div>
+                            <p className="flex items-start gap-2 border-t border-gray-200 bg-white px-4 py-4 text-sm text-gray-600 sm:px-6">
+                                <Lock size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-gray-400" />
+                                Replies to the school office are turned off. For questions, write to your class teacher.
+                            </p>
                         )}
+                    </>
+                )}
+            </Dialog>
+
+            {/* New message */}
+            <Dialog open={composeOpen} onClose={() => setComposeOpen(false)} labelledBy={composeTitleId} className="sm:max-w-lg">
+                <DialogHeader accent="sky" id={composeTitleId} title="New message" onClose={() => setComposeOpen(false)} />
+                <form onSubmit={sendCompose} className="flex min-h-0 flex-1 flex-col">
+                    <div className="space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Send to
+                            <select autoFocus value={composeTo} onChange={(e) => setComposeTo(e.target.value)} className={`${inputClass} mt-1.5`}>
+                                <option value="">Choose a teacher or the principal</option>
+                                {TABS.filter((t) => t.key !== "OFFICE").map((t) => {
+                                    const options = sendable.filter((c) => c.group === t.key);
+                                    return options.length ? (
+                                        <optgroup key={t.key} label={t.label}>
+                                            {options.map((c) => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}{c.role === "Class Teacher" ? " (class teacher)" : ""}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    ) : null;
+                                })}
+                            </select>
+                        </label>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Message
+                            <textarea rows={6} value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Write your question or request" className={`${inputClass} mt-1.5 resize-none`} />
+                        </label>
+                        <p className="text-xs text-gray-500">Keep messages formal and to the point. For casual chat, speak to your teacher in class.</p>
                     </div>
-                </div>
-            </div>
+                    <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+                        <button type="button" onClick={() => setComposeOpen(false)} className={`${secondaryBtn} h-10`}>Cancel</button>
+                        <button type="submit" disabled={!composeTo || !composeText.trim() || sending} className={primaryBtn}>
+                            <Send size={16} aria-hidden="true" />
+                            {sending ? "Sending…" : "Send message"}
+                        </button>
+                    </div>
+                </form>
+            </Dialog>
         </div>
+    );
+}
+
+export default function StudentMessagesPage() {
+    return (
+        <Suspense fallback={<div className="mx-auto h-64 max-w-5xl rounded-xl border border-gray-200 bg-white" />}>
+            <MessagesContent />
+        </Suspense>
     );
 }

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Calendar, CheckCircle, CheckSquare, CreditCard, Download, Eye, FileText, Loader2, Square, X } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { AlertCircle, CheckCircle2, Clock, Download, Eye, Loader2, ShieldCheck } from "lucide-react";
+import toast from "react-hot-toast";
 import {
     MonthlyFeeRecord,
     PaymentReceipt,
@@ -11,19 +13,34 @@ import {
     useGetPaymentReceiptQuery,
 } from "@/redux/api/studentApi";
 import { generatePaymentReceiptSvg } from "@/lib/paymentReceiptSvg";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { heroGradient } from "@/components/student/brand";
+import { EASE_OUT, EmptyState, PageHeader, Skeleton, focusRing, inputClass, inr, longDate, primaryBtn, secondaryBtn } from "@/components/student/ui";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const money = (amount: number) => `\u20B9${amount.toLocaleString("en-IN")}`;
+
+type RazorpayResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
+type RazorpayCtor = new (options: Record<string, unknown>) => { open: () => void };
+const getRazorpay = () => (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay;
+
+type Filter = "all" | "due" | "paid";
+const FILTERS: { value: Filter; label: string }[] = [
+    { value: "all", label: "All months" },
+    { value: "due", label: "Due" },
+    { value: "paid", label: "Paid" },
+];
 
 export default function PaymentPage() {
+    const reduceMotion = useReducedMotion();
     const year = new Date().getFullYear();
-    const { data, isLoading, refetch } = useGetMonthlyFeesQuery(year);
+    const { data, isLoading, isError, refetch } = useGetMonthlyFeesQuery(year);
     const [createOrder, { isLoading: creatingOrder }] = useCreateRazorpayOrderMutation();
     const [confirmPayment] = useConfirmStudentPaymentMutation();
     const [selected, setSelected] = useState<number[]>([]);
     const [annualContributions, setAnnualContributions] = useState<Record<number, number>>({});
-    const [message, setMessage] = useState<string | null>(null);
     const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
+    // Until the student picks a filter, open on "Due" when anything is due, so paid months don't bury it.
+    const [pickedFilter, setFilter] = useState<Filter | null>(null);
 
     useEffect(() => { void loadRazorpayScript(); }, []);
 
@@ -35,6 +52,7 @@ export default function PaymentPage() {
         (sum, fee) => sum + (fee.annualContributionRequired ? 0 : Number(annualContributions[fee.month] ?? 0)),
         0,
     );
+    const monthlyTotal = selectedFees.reduce((sum, fee) => sum + fee.totalAmount, 0);
     const selectedTotal = selectedFees.reduce(
         (sum, fee) => sum + fee.totalAmount + (fee.annualContributionRequired ? 0 : Number(annualContributions[fee.month] ?? 0)),
         0,
@@ -47,7 +65,7 @@ export default function PaymentPage() {
     const pay = async () => {
         if (!data || !selectedFees.length || selectedTotal <= 0) return;
         if (flexibleAnnual > data.annualSummary.remaining) {
-            setMessage("Annual installments cannot exceed the remaining annual balance.");
+            toast.error(`Annual instalments can't be more than the ${inr(data.annualSummary.remaining)} still due. Lower the amount and try again.`);
             return;
         }
 
@@ -59,8 +77,8 @@ export default function PaymentPage() {
                     annualContribution: fee.annualContributionRequired ? 0 : Number(annualContributions[fee.month] ?? 0),
                 })),
             }).unwrap();
-            const Razorpay = (window as any).Razorpay;
-            if (!Razorpay) throw new Error("Razorpay checkout is unavailable");
+            const Razorpay = getRazorpay();
+            if (!Razorpay) throw new Error("The payment window couldn't open. Check your connection, reload the page and try again.");
 
             new Razorpay({
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_JOC0wRKpLH1cVW",
@@ -69,167 +87,380 @@ export default function PaymentPage() {
                 name: "MLZ School",
                 description: `Fees for ${selectedFees.map((fee) => MONTHS[fee.month - 1]).join(", ")}`,
                 order_id: order.orderId,
-                handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-                    const paidReceipt = await confirmPayment({
-                        razorpayOrderId: response.razorpay_order_id,
-                        razorpayPaymentId: response.razorpay_payment_id,
-                        razorpaySignature: response.razorpay_signature,
-                    }).unwrap();
-                    setReceipt(paidReceipt);
-                    setSelected([]);
-                    setAnnualContributions({});
-                    setMessage("Payment successful. Your selected months are now marked paid.");
-                    refetch();
+                handler: async (response: RazorpayResponse) => {
+                    try {
+                        const paidReceipt = await confirmPayment({
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature,
+                        }).unwrap();
+                        setReceipt(paidReceipt);
+                        setSelected([]);
+                        setAnnualContributions({});
+                        toast.success(`${inr(paidReceipt.total)} paid. Your receipt is ready.`);
+                        refetch();
+                    } catch {
+                        toast.error("Your payment went through but couldn't be confirmed yet. Don't pay again; reload this page in a few minutes or contact the accounts office.");
+                        refetch();
+                    }
                 },
-                theme: { color: "#2563eb" },
+                theme: { color: "#0284c7" },
             }).open();
         } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Unable to begin payment. Please try again.");
+            toast.error(error instanceof Error ? error.message : "Payment couldn't start. Check your connection and try again.");
         }
     };
 
     const annual = data?.annualSummary;
-    return <div className="space-y-6">
-        <div className="flex items-center gap-4">
-            <div className="rounded-xl bg-blue-600 p-3 text-white shadow-lg"><CreditCard size={26} /></div>
-            <div><h1 className="text-3xl font-bold text-slate-800">Fee Payment</h1><p className="text-slate-500">Select one or more monthly fees to pay together.</p></div>
-        </div>
-        {message && <div className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-900"><CheckCircle size={20} className="shrink-0" />{message}</div>}
-        {receipt && <ReceiptModal receipt={receipt} fileName={`MLZ-payment-receipt-${receipt.receiptNumber}.svg`} onClose={() => setReceipt(null)} />}
+    const fees = data?.fees ?? [];
+    const dueCount = fees.filter((f) => !f.isPaid && f.totalAmount > 0).length;
+    const paidCount = fees.filter((f) => f.isPaid).length;
+    const filter: Filter = pickedFilter ?? (dueCount > 0 ? "due" : "all");
+    const visible = fees.filter((f) => (filter === "all" ? true : filter === "paid" ? f.isPaid : !f.isPaid && f.totalAmount > 0));
+    const paidPct = annual && annual.total > 0 ? Math.min(100, Math.round((annual.paid / annual.total) * 100)) : 0;
 
-        {annual && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-                <div><h2 className="flex items-center gap-2 font-bold text-amber-950"><Calendar size={19} />Annual fees</h2><p className="mt-1 text-sm text-amber-800">Total {money(annual.total)} / Paid {money(annual.paid)} / Remaining {money(annual.remaining)}</p></div>
-                <div className="text-right text-sm font-medium text-amber-900">
-                    {annual.expiryDate ? <>Expiry: {new Date(annual.expiryDate).toLocaleDateString("en-IN")}</> : "Expiry date awaiting accountant configuration"}
-                    {annual.isOverdue && <p className="mt-1 text-red-700">Outstanding balance is now required with the next unpaid month.</p>}
-                </div>
-            </div>
-        </div>}
+    const payLabel = creatingOrder ? "Opening payment…" : selectedTotal > 0 ? `Pay ${inr(selectedTotal)}` : "Pay securely";
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-                <div className="flex items-center justify-between border-b p-5">
-                    <h2 className="flex items-center gap-2 text-xl font-bold text-slate-800"><FileText size={21} className="text-blue-600" />Monthly fees - {year}</h2>
-                    <span className="text-sm text-slate-500">Configured by the accountant</span>
+    return (
+        <div className="max-w-7xl space-y-6 pb-24 lg:pb-0">
+            <PageHeader title="Fee payment" subtitle="Choose one or more months and pay them together. Fees are set by the accounts office." />
+
+            {/* Annual fees summary */}
+            <section aria-labelledby="annual-fees" className={`overflow-hidden rounded-xl shadow-sm ${heroGradient}`}>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-5 sm:px-6">
+                    <h2 id="annual-fees" className="text-base font-semibold">Annual fees, {year}</h2>
+                    {annual?.expiryDate && (
+                        <p className="text-sm text-slate-300">
+                            Due by <time dateTime={annual.expiryDate} className="font-medium text-white">{longDate(annual.expiryDate)}</time>
+                        </p>
+                    )}
                 </div>
-                <div className="divide-y divide-slate-100">
-                    {isLoading ? <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-600" /></div> : data?.fees.map((fee) => {
-                        const active = selected.includes(fee.month);
-                        const canSelect = !fee.isPaid && fee.totalAmount > 0;
-                        return <div key={fee.month} className={`p-5 ${active ? "bg-blue-50/70" : ""}`}>
-                            <div className="flex gap-3">
-                                <button disabled={!canSelect} onClick={() => toggleMonth(fee.month)} className="mt-1 text-blue-600 disabled:text-emerald-500">
-                                    {fee.isPaid ? <CheckCircle size={22} /> : active ? <CheckSquare size={22} /> : <Square size={22} />}
-                                </button>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap justify-between gap-3">
-                                        <div>
-                                            <h3 className="font-bold text-slate-800">{MONTHS[fee.month - 1]} {year}</h3>
-                                            <p className={fee.isPaid ? "text-sm text-emerald-700" : "text-sm text-amber-700"}>{fee.isPaid ? "Paid" : "Pending"}</p>
-                                        </div>
-                                        <div className="flex flex-wrap items-center justify-end gap-3">
-                                            <strong className="text-slate-900">{money(fee.totalAmount)}</strong>
-                                            {fee.isPaid && fee.paymentId && <PaidReceiptActions fee={fee} year={year} />}
-                                        </div>
+                <div className="px-4 pb-6 pt-4 sm:px-6">
+                    {!isLoading && annual && !annual.isConfigured ? (
+                        <p className="text-sm text-slate-300">The accounts office hasn&apos;t set up annual fees for {year} yet. Monthly fees can still be paid below.</p>
+                    ) : (
+                        <>
+                            <dl className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                                {[
+                                    { label: "Total", value: annual?.total, tone: "text-white" },
+                                    { label: "Paid", value: annual?.paid, tone: "text-emerald-300" },
+                                    { label: "Still due", value: annual?.remaining, tone: annual?.remaining ? "text-white" : "text-emerald-300" },
+                                ].map((f) => (
+                                    <div key={f.label}>
+                                        <dt className="text-sm text-slate-300">{f.label}</dt>
+                                        <dd className={`mt-1 text-3xl font-semibold tracking-tight tabular-nums ${f.tone}`}>
+                                            {isLoading ? <Skeleton onDark className="h-8 w-32 align-middle" /> : inr(f.value ?? 0)}
+                                        </dd>
                                     </div>
-                                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                                        <Detail label="Tuition" value={fee.tuitionFees} />
-                                        <Detail label="Transport" value={fee.transportFees} />
-                                        <Detail label="Penalty" value={fee.penalty} tone={fee.penalty ? "text-red-600" : undefined} />
-                                        <Detail label="Other fees" value={fee.otherFees} />
-                                    </div>
-                                    {active && !fee.annualContributionRequired && annual && annual.remaining > 0 && !annual.isOverdue && <label className="mt-4 block text-sm font-medium text-slate-700">
-                                        Annual-fee installment <span className="font-normal text-slate-500">(remaining: {money(remainingAfterSelection)})</span>
-                                        <input min="0" max={annual.remaining} step="0.01" type="number" value={annualContributions[fee.month] ?? ""} onChange={(event) => setAnnualContributions((current) => ({ ...current, [fee.month]: Number(event.target.value) }))} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="0" />
-                                    </label>}
-                                    {fee.annualContributionRequired > 0 && <p className="mt-3 rounded-lg bg-red-50 p-2 text-sm font-medium text-red-800">Annual balance required with this month: {money(fee.annualContributionRequired)}</p>}
+                                ))}
+                            </dl>
+                            <div className="mt-6">
+                                <div role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={paidPct} aria-label="Share of annual fees paid" className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                                    {!isLoading && (
+                                        <motion.div
+                                            className="h-full rounded-full bg-emerald-400"
+                                            initial={{ width: reduceMotion ? `${paidPct}%` : 0 }}
+                                            animate={{ width: `${paidPct}%` }}
+                                            transition={reduceMotion ? { duration: 0 } : { duration: 0.8, delay: 0.15, ease: EASE_OUT }}
+                                        />
+                                    )}
                                 </div>
+                                <p className="mt-2 min-h-5 text-sm text-slate-300">
+                                    {isLoading || !annual
+                                        ? null
+                                        : annual.isOverdue && annual.remaining > 0
+                                          ? <span className="text-rose-300">The due date has passed. The {inr(annual.remaining)} still due must be paid with your next unpaid month.</span>
+                                          : annual.remaining === 0
+                                            ? "Annual fees are fully paid."
+                                            : `${paidPct}% paid. You can add an annual instalment to any month you pay.`}
+                                </p>
                             </div>
-                        </div>;
-                    })}
+                        </>
+                    )}
                 </div>
             </section>
-            <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-800">Payment summary</h2>
-                <p className="mt-2 text-sm text-slate-500">{selectedFees.length} month(s) selected</p>
-                <div className="mt-5 border-y py-4">
-                    <div className="flex justify-between text-sm text-slate-600"><span>Monthly fees</span><span>{money(selectedFees.reduce((sum, fee) => sum + fee.totalAmount, 0))}</span></div>
-                    <div className="mt-2 flex justify-between text-sm text-slate-600"><span>Annual installments</span><span>{money(flexibleAnnual)}</span></div>
-                    <div className="mt-3 flex justify-between text-lg font-bold text-slate-900"><span>Total</span><span>{money(selectedTotal)}</span></div>
+
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <section aria-labelledby="monthly-fees" className="overflow-hidden rounded-xl border border-gray-200 bg-white lg:col-span-2">
+                    <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <h2 id="monthly-fees" className="text-base font-semibold text-gray-900">Monthly fees, {year}</h2>
+                        <div role="group" aria-label="Show months" className="grid grid-cols-3 rounded-lg bg-gray-100 p-0.5 sm:inline-flex">
+                            {FILTERS.map((f) => {
+                                const active = f.value === filter;
+                                const count = f.value === "due" ? dueCount : f.value === "paid" ? paidCount : fees.length;
+                                return (
+                                    <button
+                                        key={f.value}
+                                        type="button"
+                                        aria-pressed={active}
+                                        onClick={() => setFilter(f.value)}
+                                        className={`relative rounded-md px-3 py-1.5 text-xs font-medium motion-safe:transition-colors ${focusRing} ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
+                                    >
+                                        {active && (
+                                            <motion.span
+                                                layoutId="fee-filter"
+                                                className="absolute inset-0 rounded-md bg-white shadow-sm ring-1 ring-gray-200"
+                                                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 38 }}
+                                            />
+                                        )}
+                                        <span className="relative">{f.label} <span className="tabular-nums text-gray-400">{isLoading ? "" : count}</span></span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {isLoading ? (
+                        <div aria-hidden="true" className="space-y-3 px-6 py-6">
+                            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="block h-14 w-full" />)}
+                        </div>
+                    ) : isError ? (
+                        <EmptyState
+                            title="Your fees couldn't be loaded."
+                            hint="Check your connection, then try again."
+                            action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
+                        />
+                    ) : visible.length === 0 ? (
+                        <EmptyState
+                            title={filter === "due" ? "Nothing is due. You're all paid up." : filter === "paid" ? "No months have been paid yet." : `No fees have been set for ${year} yet.`}
+                            hint={filter === "all" ? "The accounts office adds monthly fees here." : undefined}
+                        />
+                    ) : (
+                        <ul className="divide-y divide-gray-100">
+                            {visible.map((fee) => {
+                                const active = selected.includes(fee.month);
+                                const canSelect = !fee.isPaid && fee.totalAmount > 0;
+                                const inputId = `month-${fee.month}`;
+                                return (
+                                    <li key={fee.month} className={`px-4 py-4 motion-safe:transition-colors sm:px-6 ${active ? "bg-sky-50/60" : ""}`}>
+                                        <div className="flex gap-3">
+                                            <div className="pt-0.5">
+                                                {fee.isPaid ? (
+                                                    <CheckCircle2 size={20} aria-hidden="true" className="text-emerald-600" />
+                                                ) : (
+                                                    <input
+                                                        id={inputId}
+                                                        type="checkbox"
+                                                        checked={active}
+                                                        disabled={!canSelect}
+                                                        onChange={() => toggleMonth(fee.month)}
+                                                        className="h-5 w-5 cursor-pointer rounded border-gray-300 accent-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
+                                                    />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                                                    <div>
+                                                        <label htmlFor={fee.isPaid ? undefined : inputId} className={`block font-medium text-gray-900 ${canSelect ? "cursor-pointer" : ""}`}>
+                                                            {MONTHS[fee.month - 1]} {year}
+                                                        </label>
+                                                        <p className={`mt-0.5 flex items-center gap-1.5 text-sm ${fee.isPaid ? "text-emerald-700" : fee.totalAmount > 0 ? "text-amber-700" : "text-gray-500"}`}>
+                                                            {fee.isPaid ? (
+                                                                <>Paid{fee.paidAt ? ` on ${longDate(fee.paidAt)}` : ""}</>
+                                                            ) : fee.totalAmount > 0 ? (
+                                                                <><Clock size={14} aria-hidden="true" />Due</>
+                                                            ) : (
+                                                                "Not set yet"
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        <span className="text-base font-semibold tabular-nums text-gray-900">{inr(fee.totalAmount)}</span>
+                                                        {fee.isPaid && fee.paymentId && <PaidReceiptActions fee={fee} year={year} />}
+                                                    </div>
+                                                </div>
+                                                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+                                                    <Detail label="Tuition" value={fee.tuitionFees} />
+                                                    <Detail label="Transport" value={fee.transportFees} />
+                                                    <Detail label="Penalty" value={fee.penalty} warn={fee.penalty > 0} />
+                                                    <Detail label="Other fees" value={fee.otherFees} />
+                                                </dl>
+                                                {active && !fee.annualContributionRequired && annual && annual.remaining > 0 && !annual.isOverdue && (
+                                                    <div className="mt-4 max-w-xs">
+                                                        <label htmlFor={`annual-${fee.month}`} className="block text-sm font-medium text-gray-700">
+                                                            Annual fee instalment <span className="font-normal text-gray-500">(optional)</span>
+                                                        </label>
+                                                        <div className="relative mt-1.5">
+                                                            <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">₹</span>
+                                                            <input
+                                                                id={`annual-${fee.month}`}
+                                                                min="0"
+                                                                max={annual.remaining}
+                                                                step="1"
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                value={annualContributions[fee.month] ?? ""}
+                                                                onChange={(event) => setAnnualContributions((current) => ({ ...current, [fee.month]: Number(event.target.value) }))}
+                                                                aria-describedby={`annual-${fee.month}-hint`}
+                                                                className={`${inputClass} pl-7 tabular-nums`}
+                                                                placeholder="0"
+                                                            />
+                                                        </div>
+                                                        <p id={`annual-${fee.month}-hint`} className="mt-1 text-xs text-gray-500">{inr(remainingAfterSelection)} of annual fees left after this.</p>
+                                                    </div>
+                                                )}
+                                                {fee.annualContributionRequired > 0 && !fee.isPaid && (
+                                                    <p className="mt-3 flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+                                                        <AlertCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                                                        {inr(fee.annualContributionRequired)} of annual fees must be paid with this month.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </section>
+
+                {/* Summary (desktop) */}
+                <aside aria-labelledby="pay-summary" className="hidden h-fit overflow-hidden rounded-xl border border-gray-200 bg-white lg:sticky lg:top-0 lg:block">
+                    <div className="px-6 pt-5">
+                        <h2 id="pay-summary" className="text-base font-semibold text-gray-900">Payment summary</h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {selectedFees.length ? `${selectedFees.length} ${selectedFees.length === 1 ? "month" : "months"} selected` : "Select the months you want to pay."}
+                        </p>
+                    </div>
+                    <dl className="mx-6 mt-4 space-y-2 border-y border-gray-100 py-4 text-sm">
+                        <div className="flex justify-between text-gray-600"><dt>Monthly fees</dt><dd className="tabular-nums">{inr(monthlyTotal)}</dd></div>
+                        <div className="flex justify-between text-gray-600"><dt>Annual instalments</dt><dd className="tabular-nums">{inr(flexibleAnnual)}</dd></div>
+                        <div className="flex justify-between pt-1 text-base font-semibold text-gray-900"><dt>Total</dt><dd className="tabular-nums">{inr(selectedTotal)}</dd></div>
+                    </dl>
+                    <div className="px-6 pb-6 pt-4">
+                        <button type="button" disabled={!selectedFees.length || creatingOrder || selectedTotal <= 0} onClick={pay} className={`${primaryBtn} w-full`}>
+                            {creatingOrder && <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" />}
+                            {payLabel}
+                        </button>
+                        <p className="mt-3 flex gap-2 text-xs text-gray-500">
+                            <ShieldCheck size={15} aria-hidden="true" className="shrink-0 text-gray-400" />
+                            Payments go through Razorpay. The school confirms the final amount before you pay.
+                        </p>
+                    </div>
+                </aside>
+            </div>
+
+            {/* Summary (phones and tablets): pinned to the bottom of the scroll area */}
+            <div className="sticky bottom-0 z-10 -mx-4 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)] backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
+                <div className="flex items-center gap-4">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-500">
+                            {selectedFees.length ? `${selectedFees.length} ${selectedFees.length === 1 ? "month" : "months"} selected` : "No months selected"}
+                        </p>
+                        <p className="text-lg font-semibold tabular-nums text-gray-900">{inr(selectedTotal)}</p>
+                    </div>
+                    <button type="button" disabled={!selectedFees.length || creatingOrder || selectedTotal <= 0} onClick={pay} className={primaryBtn}>
+                        {creatingOrder && <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" />}
+                        {creatingOrder ? "Opening…" : "Pay now"}
+                    </button>
                 </div>
-                <button disabled={!selectedFees.length || creatingOrder || selectedTotal <= 0} onClick={pay} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{creatingOrder && <Loader2 className="animate-spin" size={18} />}Pay securely</button>
-                <p className="mt-3 flex gap-2 text-xs text-slate-500"><AlertCircle size={15} />The server recalculates the final payable amount.</p>
-            </aside>
+            </div>
+
+            <ReceiptDialog receipt={receipt} fileName={receipt ? `MLZ-payment-receipt-${receipt.receiptNumber}.svg` : ""} onClose={() => setReceipt(null)} />
         </div>
-    </div>;
+    );
 }
 
-function Detail({ label, value, tone }: { label: string; value: number; tone?: string }) {
-    return <div><span className="block text-xs uppercase tracking-wide text-slate-500">{label}</span><span className={tone ?? "font-medium text-slate-700"}>{money(value)}</span></div>;
+function Detail({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
+    return (
+        <div>
+            <dt className="text-xs text-gray-500">{label}</dt>
+            <dd className={`tabular-nums ${warn ? "font-medium text-red-700" : value ? "text-gray-700" : "text-gray-400"}`}>{value ? inr(value) : "—"}</dd>
+        </div>
+    );
 }
 
 function PaidReceiptActions({ fee, year }: { fee: MonthlyFeeRecord; year: number }) {
     const { data: receipt, isLoading } = useGetPaymentReceiptQuery(fee.paymentId!, { skip: !fee.paymentId });
     const [showReceipt, setShowReceipt] = useState(false);
     const fileName = `MLZ-${MONTHS[fee.month - 1]}-${year}-receipt.svg`;
+    const month = MONTHS[fee.month - 1];
 
-    return <div className="flex items-center gap-2">
-        {isLoading ? <Loader2 size={16} className="animate-spin text-emerald-700" /> : <>
-            <button disabled={!receipt} onClick={() => setShowReceipt(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-800 disabled:text-slate-400"><Eye size={16} />View</button>
-            <button disabled={!receipt} onClick={() => receipt && void downloadReceipt(receipt, fileName)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-900 disabled:text-slate-400"><Download size={16} />Download</button>
-        </>}
-        {showReceipt && receipt && <ReceiptModal receipt={receipt} fileName={fileName} onClose={() => setShowReceipt(false)} />}
-    </div>;
+    if (isLoading) return <Loader2 size={16} className="text-gray-400 motion-safe:animate-spin" aria-label="Loading receipt" />;
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                type="button"
+                disabled={!receipt}
+                onClick={() => setShowReceipt(true)}
+                aria-label={`View the ${month} receipt`}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-sky-700 hover:bg-sky-50 disabled:text-gray-400 motion-safe:transition-colors ${focusRing}`}
+            >
+                <Eye size={15} aria-hidden="true" />
+                Receipt
+            </button>
+            <button
+                type="button"
+                disabled={!receipt}
+                onClick={() => receipt && void downloadReceipt(receipt, fileName)}
+                aria-label={`Download the ${month} receipt`}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:text-gray-300 motion-safe:transition-colors ${focusRing}`}
+            >
+                <Download size={15} aria-hidden="true" />
+            </button>
+            <ReceiptDialog receipt={showReceipt ? receipt ?? null : null} fileName={fileName} onClose={() => setShowReceipt(false)} />
+        </div>
+    );
 }
 
-function ReceiptModal({ receipt, fileName, onClose }: { receipt: PaymentReceipt; fileName: string; onClose: () => void }) {
-    return <div role="dialog" aria-modal="true" aria-label="Payment receipt" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" onMouseDown={onClose}>
-        <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-start justify-between gap-4">
-                <div><h2 className="text-lg font-bold text-slate-900">Payment receipt</h2><p className="text-sm text-slate-500">{receipt.receiptNumber}</p></div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => void downloadReceipt(receipt, fileName)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"><Download size={16} />Download</button>
-                    <button onClick={onClose} aria-label="Close receipt preview" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><X size={20} /></button>
-                </div>
-            </div>
-            <ReceiptDocument receipt={receipt} />
-        </div>
-    </div>;
+function ReceiptDialog({ receipt, fileName, onClose }: { receipt: PaymentReceipt | null; fileName: string; onClose: () => void }) {
+    const titleId = useId();
+    return (
+        <Dialog open={!!receipt} onClose={onClose} labelledBy={titleId} className="sm:max-w-2xl">
+            {receipt && (
+                <>
+                    <DialogHeader accent="sky" id={titleId} title="Payment receipt" subtitle={`Receipt ${receipt.receiptNumber}`} onClose={onClose} />
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4">
+                        <ReceiptDocument receipt={receipt} />
+                    </div>
+                    <div className="flex justify-end border-t border-gray-200 bg-white px-4 py-4 sm:px-6">
+                        <button type="button" onClick={() => void downloadReceipt(receipt, fileName)} className={primaryBtn}>
+                            <Download size={16} aria-hidden="true" />
+                            Download receipt
+                        </button>
+                    </div>
+                </>
+            )}
+        </Dialog>
+    );
 }
 
 function ReceiptDocument({ receipt }: { receipt: PaymentReceipt }) {
-    const [svg, setSvg] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    // Keyed by receipt so a new receipt starts from a clean loading state.
+    const [state, setState] = useState<{ for: PaymentReceipt; svg: string | null; error: boolean } | null>(null);
 
     useEffect(() => {
         let active = true;
-        setSvg(null);
-        setError(null);
         generatePaymentReceiptSvg(receipt)
-            .then((document) => { if (active) setSvg(document); })
-            .catch(() => { if (active) setError("Unable to prepare this receipt. Please try again."); });
+            .then((document) => { if (active) setState({ for: receipt, svg: document, error: false }); })
+            .catch(() => { if (active) setState({ for: receipt, svg: null, error: true }); });
         return () => { active = false; };
     }, [receipt]);
 
-    return error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : svg
-        ? <div className="mx-auto overflow-auto rounded-lg bg-slate-50 p-2 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
-        : <div className="flex justify-center rounded-lg bg-slate-50 p-12"><Loader2 className="animate-spin text-emerald-700" /></div>;
+    const current = state?.for === receipt ? state : null;
+    if (current?.error) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">This receipt couldn&apos;t be prepared. Close it and try again.</p>;
+    if (current?.svg) return <div className="mx-auto overflow-auto rounded-lg bg-white ring-1 ring-gray-200 [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: current.svg }} />;
+    return <div className="flex justify-center rounded-lg bg-white p-12"><Loader2 className="text-sky-600 motion-safe:animate-spin" aria-label="Preparing receipt" /></div>;
 }
 
 async function downloadReceipt(receipt: PaymentReceipt, fileName: string) {
-    const svg = await generatePaymentReceiptSvg(receipt);
-    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
+    try {
+        const svg = await generatePaymentReceiptSvg(receipt);
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success("Receipt downloaded.");
+    } catch {
+        toast.error("Receipt not downloaded. Try again in a moment.");
+    }
 }
 
 function loadRazorpayScript() {
     return new Promise<boolean>((resolve) => {
-        if ((window as any).Razorpay) return resolve(true);
+        if (getRazorpay()) return resolve(true);
         const script = document.createElement("script");
         script.src = "https://checkout.razorpay.com/v1/checkout.js";
         script.onload = () => resolve(true);

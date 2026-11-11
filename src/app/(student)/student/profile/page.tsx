@@ -1,52 +1,71 @@
 "use client";
 
 import Image from "next/image";
-import {
-    GraduationCap,
-    Award,
-    User,
-    MapPin,
-    Phone,
-    Mail,
-    Calendar,
-    History,
-    Camera,
-    Loader2,
-    IdCard,
-    Users,
-    Globe,
-    FileText,
-    CheckCircle2,
-    Book,
-} from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { Award, Camera, GraduationCap, KeyRound, Loader2, User } from "lucide-react";
+import toast from "react-hot-toast";
 import { useGetProfileQuery, useUploadProfileImageMutation } from "@/redux/api/studentApi";
+import { heroGradient } from "@/components/student/brand";
+import { focusRing, secondaryBtn } from "@/components/student/ui";
+
+function formatDate(dateStr: string | null | undefined) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+const sentence = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : null);
+
+type Field = { label: string; value: string | null | undefined; wide?: boolean };
+
+function Details({ fields }: { fields: Field[] }) {
+    return (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-5 sm:gap-x-6 sm:px-6 lg:grid-cols-3">
+            {fields.map((f) => (
+                <div key={f.label} className={`min-w-0 ${f.wide ? "col-span-2 lg:col-span-3" : ""}`}>
+                    <dt className="text-sm text-gray-500">{f.label}</dt>
+                    <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function Section({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
+                <div>
+                    <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+                    {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+                </div>
+                {action}
+            </div>
+            {children}
+        </section>
+    );
+}
 
 export default function ProfilePage() {
-    const { data: profile, isLoading, refetch } = useGetProfileQuery();
+    const { data: profile, isLoading, isError, refetch } = useGetProfileQuery();
     const [uploadProfileImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [profileImage, setProfileImage] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (profile?.personal?.profileImage) {
-            setProfileImage(profile.personal.profileImage);
-        }
-    }, [profile]);
+    // Shows the new photo straight away while the profile refetches.
+    const [localImage, setLocalImage] = useState<string | null>(null);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Compress image before uploading
         const reader = new FileReader();
         reader.onload = async () => {
             try {
+                // Compress image before uploading
                 const img = new window.Image();
                 img.src = reader.result as string;
                 await new Promise((resolve) => { img.onload = resolve; });
 
-                const canvas = document.createElement('canvas');
+                const canvas = document.createElement("canvas");
                 const maxSize = 800;
                 let width = img.width;
                 let height = img.height;
@@ -63,260 +82,173 @@ export default function ProfilePage() {
 
                 canvas.width = width;
                 canvas.height = height;
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext("2d");
                 ctx?.drawImage(img, 0, 0, width, height);
 
-                const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
+                const compressedImageUrl = canvas.toDataURL("image/jpeg", 0.7);
                 await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
-                setProfileImage(compressedImageUrl);
+                setLocalImage(compressedImageUrl);
+                toast.success("Photo updated.");
                 refetch();
-            } catch (err) {
-                console.error('Failed to upload image:', err);
+            } catch (err: unknown) {
+                const message = (err as { data?: { message?: string }; message?: string })?.data?.message ?? (err as { message?: string })?.message;
+                toast.error(message || "Photo not uploaded. Try a smaller image.");
             }
         };
         reader.readAsDataURL(file);
+        e.target.value = "";
     };
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-500">Loading profile...</p>
-                </div>
+            <div className="max-w-7xl space-y-6" aria-busy="true">
+                <div className={`h-40 rounded-xl ${heroGradient} motion-safe:animate-pulse`} />
+                <div className="h-64 rounded-xl border border-gray-200 bg-white" />
             </div>
         );
     }
 
-    if (!profile) {
+    if (!profile || isError) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <p className="text-gray-500">Failed to load profile.</p>
+            <div className="max-w-7xl rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
+                <p className="font-medium text-gray-900">Your profile couldn&apos;t be loaded</p>
+                <p className="mt-1 text-sm text-gray-500">Check your connection, then try again.</p>
+                <button type="button" onClick={() => refetch()} className={`${secondaryBtn} mt-4`}>Try again</button>
             </div>
         );
     }
 
     const { personal, academic, currentClass } = profile;
+    const photo = localImage ?? personal.profileImage;
+    const roll = academic.classRoll ?? academic.rollNumber;
 
-    // Helper to generate academic history from marksByClass
-    const academicHistory = Object.entries(profile.marksByClass ?? {}).map(([label, marks]) => {
-        const match = label.match(/\((\d{4})\)/);
-        const year = match ? parseInt(match[1]) : new Date().getFullYear();
-        const session = `${year - 1}-${year}`;
-        return { class: label, session, highlight: false, marks };
-    });
+    const personalFields: Field[] = [
+        { label: "Full name", value: personal.fullName },
+        { label: "Date of birth", value: formatDate(personal.dob) },
+        { label: "Gender", value: sentence(personal.gender) },
+        { label: "Nationality", value: personal.nationality },
+        { label: "Caste", value: personal.caste },
+        { label: "Person with disability", value: personal.isPwd ? "Yes" : "No" },
+        { label: "Aadhaar number", value: personal.aadharNo },
+        { label: "Email", value: personal.email ?? profile.userEmail },
+        { label: "Primary contact", value: personal.primaryContact },
+        { label: "Emergency contact", value: personal.secondaryContact },
+        { label: "Identification mark", value: personal.identificationMark, wide: true },
+        { label: "Residential address", value: personal.residentialAddress, wide: true },
+    ];
 
-    const handleDownload = (cls: string, session: string) => {
-        console.log(`Requested Marksheet for ${cls} (${session})`);
-    };
+    const schoolFields: Field[] = [
+        { label: "Class", value: currentClass.name },
+        { label: "Section", value: currentClass.section },
+        { label: "Class roll", value: academic.classRoll != null ? String(academic.classRoll) : null },
+        { label: "Roll number", value: academic.rollNumber },
+        { label: "Admission number", value: academic.admissionNumber },
+        { label: "Admission date", value: formatDate(academic.admissionDate) },
+        { label: "Admission year", value: academic.admissionYear ? String(academic.admissionYear) : null },
+        { label: "School transport", value: academic.transportOpted ? "Yes" : "No" },
+        { label: "Parent or guardian", value: academic.parentName },
+        { label: "Parent's contact", value: academic.parentContact },
+    ];
 
-    // Format date helper
-    const formatDate = (dateStr: string | null | undefined) => {
-        if (!dateStr) return "—";
-        const d = new Date(dateStr);
-        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
-    };
-
-    const genderLabel = personal.gender === "Male" ? "Male" : personal.gender === "Female" ? "Female" : personal.gender;
+    // Marks are keyed by a class label such as "Class 6 - Section A (2025)". Newest year first.
+    const history = Object.entries(profile.marksByClass ?? {})
+        .map(([label, marks]) => {
+            const year = Number(label.match(/\((\d{4})\)/)?.[1]) || null;
+            return { label: label.replace(/\s*\(\d{4}\)\s*$/, ""), session: year ? `${year - 1}–${String(year).slice(-2)}` : null, year, marks };
+        })
+        .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-12">
-            {/* 1. Dark Hero Section */}
-            <div className="bg-slate-900 pt-12 pb-32 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-                        <div className="relative group">
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0">
-                                {profileImage ? (
-                                    <Image
-                                        src={profileImage}
-                                        alt="Student Photo"
-                                        width={160}
-                                        height={160}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                                        <User size={48} className="text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-50"
-                                title="Upload Photo"
-                            >
-                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
+        <div className="max-w-7xl space-y-6">
+            <section className={`overflow-hidden rounded-xl px-4 py-6 shadow-sm sm:px-8 sm:py-8 ${heroGradient}`}>
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="relative shrink-0">
+                        <div className="h-20 w-20 overflow-hidden rounded-full bg-white/10 ring-4 ring-white/10 sm:h-28 sm:w-28">
+                            {photo ? (
+                                <Image src={photo} alt="" width={112} height={112} unoptimized className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-sky-200 sm:text-4xl">
+                                    {personal.fullName?.[0]?.toUpperCase() ?? <User size={36} aria-hidden="true" />}
+                                </span>
+                            )}
                         </div>
-                        <div className="text-center md:text-left text-white">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{personal.fullName}</h1>
-                            <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
-                                <span className="flex items-center gap-1">
-                                    <GraduationCap size={18} className="text-blue-400" />
-                                    {currentClass.name}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            aria-label="Change photo"
+                            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-900 bg-sky-600 text-white shadow-lg hover:bg-sky-500 disabled:opacity-60 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                            {isUploading ? <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{personal.fullName}</h1>
+                        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
+                            <span className="inline-flex items-center gap-1.5">
+                                <GraduationCap size={15} aria-hidden="true" className="text-sky-300" />
+                                {currentClass.name}
+                            </span>
+                            {roll != null && (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Award size={15} aria-hidden="true" className="text-sky-300" />
+                                    Roll {roll}
                                 </span>
-                                <span className="flex items-center gap-1">
-                                    <Award size={18} className="text-blue-400" />
-                                    Roll No: {academic.rollNumber ?? "—"}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <User size={18} className="text-blue-400" />
-                                    Adm No: {academic.admissionNumber}
-                                </span>
-                            </div>
-                        </div>
+                            )}
+                            <span className="inline-flex items-center gap-1.5 tabular-nums">Admission no. {academic.admissionNumber}</span>
+                        </p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            {/* 2. Floating Cards */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 space-y-8">
+            <Section
+                title="Personal details"
+                subtitle="To correct anything here, ask the school office."
+                action={
+                    <Link href="/student/profile/reset-password" className={secondaryBtn}>
+                        <KeyRound size={15} aria-hidden="true" />
+                        Change password
+                    </Link>
+                }
+            >
+                <Details fields={personalFields} />
+            </Section>
 
-                {/* ── Personal Details Card ─────────────────────────── */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <User size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                <p className="text-sm text-gray-500">Your personal information</p>
-                            </div>
-                        </div>
+            <Section title="School record">
+                <Details fields={schoolFields} />
+            </Section>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <InfoField label="Full Name" value={personal.fullName} icon={<User size={16} />} />
-                            <InfoField label="Date of Birth" value={formatDate(personal.dob)} icon={<Calendar size={16} />} />
-                            <InfoField label="Gender" value={genderLabel} icon={<User size={16} />} />
-                            <InfoField label="Nationality & Caste" value={`${personal.nationality ?? '—'}${personal.caste ? ` / ${personal.caste}` : ''}`} icon={<Globe size={16} />} />
-                            <InfoField label="PWD" value={personal.isPwd ? 'Yes' : 'No'} icon={<CheckCircle2 size={16} />} />
-                            <InfoField label="Aadhar No." value={personal.aadharNo ?? '—'} icon={<IdCard size={16} />} />
-                            <InfoField label="Identification Mark" value={personal.identificationMark ?? '—'} icon={<FileText size={16} />} className="md:col-span-2 lg:col-span-3" />
-                            <InfoField label="Email ID" value={personal.email ?? '—'} icon={<Mail size={16} />} />
-                            <InfoField label="Primary Contact No." value={personal.primaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Secondary / Emergency Contact" value={personal.secondaryContact ?? '—'} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={personal.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-2 lg:col-span-3" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Academic Details Card ─────────────────────────── */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <GraduationCap size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Academic Details</h2>
-                                <p className="text-sm text-gray-500">School records and information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <InfoField label="Admission No." value={academic.admissionNumber} icon={<Award size={16} />} />
-                            <InfoField label="Admission Year" value={String(academic.admissionYear)} icon={<Calendar size={16} />} />
-                            <InfoField label="Date of Admission" value={formatDate(academic.admissionDate)} icon={<Calendar size={16} />} />
-                            <InfoField label="Current Class" value={currentClass.name} icon={<GraduationCap size={16} />} />
-                            <InfoField label="Current Section" value={currentClass.section} icon={<Award size={16} />} />
-                            <InfoField label="Roll No." value={academic.rollNumber ?? "—"} icon={<Award size={16} />} />
-                            <InfoField label="Class Roll" value={academic.classRoll != null ? String(academic.classRoll) : "—"} icon={<Award size={16} />} />
-                            <InfoField label="Avail Transportation" value={academic.transportOpted ? 'Yes' : 'No'} icon={<Users size={16} />} />
-                            <InfoField label="Parent Name" value={academic.parentName ?? "—"} icon={<User size={16} />} />
-                            <InfoField label="Parent Contact" value={academic.parentContact ?? "—"} icon={<Phone size={16} />} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Academic History & Marksheets ───────────────────── */}
-                {academicHistory.length > 0 && (
-                    <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-emerald-500">
-                        <div className="p-6 md:p-8">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
-                                        <History size={24} />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-gray-800">Academic History & Marksheets</h2>
-                                        <p className="text-sm text-gray-500">Download marksheets for all previous classes</p>
-                                    </div>
+            {history.length > 0 && (
+                <Section title="Marks by class" subtitle="Scores your teachers have entered, by subject.">
+                    <ul className="divide-y divide-gray-100">
+                        {history.map((h) => (
+                            <li key={`${h.label}-${h.year}`} className="px-4 py-4 sm:px-6">
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                                    <p className="font-medium text-gray-900">{h.label}</p>
+                                    {h.session && <p className="text-sm tabular-nums text-gray-500">Session {h.session}</p>}
                                 </div>
-                            </div>
-
-                            <div className="overflow-hidden rounded-lg border border-gray-200">
-                                <table className="w-full">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Class</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Session</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Marks</th>
-                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 bg-white">
-                                        {academicHistory.map((record, i) => (
-                                            <tr key={i}>
-                                                <td className="px-4 py-3 text-sm text-gray-800 font-medium">{record.class}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">{record.session}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-600">
-                                                    {record.marks.map((m: { id: string; score: number; exam: { subject: { name: string } } }) => (
-                                                        <span key={m.id} className="inline-block mr-2 text-xs bg-gray-100 px-2 py-0.5 rounded">
-                                                            {m.exam.subject.name}: {m.score}
-                                                        </span>
-                                                    ))}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <button
-                                                        onClick={() => handleDownload(record.class, record.session)}
-                                                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                                                    >
-                                                        Download
-                                                    </button>
-                                                </td>
-                                            </tr>
+                                {h.marks.length === 0 ? (
+                                    <p className="mt-2 text-sm text-gray-500">No marks entered yet.</p>
+                                ) : (
+                                    <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                                        {h.marks.map((m) => (
+                                            <div key={m.id} className="rounded-lg bg-gray-50 px-3 py-2 ring-1 ring-gray-100">
+                                                <dt className="truncate text-xs text-gray-500" title={`${m.exam.subject.name}, ${m.exam.name}`}>{m.exam.subject.name}</dt>
+                                                <dd className="text-base font-semibold tabular-nums text-gray-900">{m.score}</dd>
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+                                    </dl>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </Section>
+            )}
 
-// ─── Reusable component ─────────────────────────────────────────
-
-function InfoField({
-    label,
-    value,
-    icon,
-    className = "",
-}: {
-    label: string;
-    value: string;
-    icon?: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <div className={`group ${className}`}>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
-            <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
-                {value}
+            <p className="text-sm text-gray-500">
+                Need a printed marksheet?{" "}
+                <Link href="/student/classroom/messages" className={`rounded-sm font-medium text-sky-700 hover:underline underline-offset-4 ${focusRing}`}>Message your class teacher</Link>.
             </p>
         </div>
     );
