@@ -148,6 +148,8 @@ export interface SubjectSummary {
 }
 
 export const principalApi = baseApi.injectEndpoints({
+    // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+    overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
         getAllClassrooms: builder.query<ClassroomSummary[], void>({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),

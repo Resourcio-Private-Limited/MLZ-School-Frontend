@@ -205,6 +205,8 @@ export interface PaymentReceipt {
 // ─── API ───────────────────────────────────────────────────────────
 
 export const studentApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getProfile: builder.query<StudentProfileResponse, void>({
       query: () => ({ url: '/student/profile', method: 'GET' }),

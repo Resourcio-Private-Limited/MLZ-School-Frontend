@@ -155,6 +155,8 @@ export interface UpdateSuperAdminProfilePayload {
 // ─── API ───────────────────────────────────────────────────────────
 
 export const superAdminApi = baseApi.injectEndpoints({
+    // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+    overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
         // Profile
         getSuperAdminProfile: builder.query<SuperAdminProfile, void>({

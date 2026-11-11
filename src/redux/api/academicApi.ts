@@ -54,6 +54,8 @@ export interface ClassroomExamOption {
 }
 
 export const academicApi = baseApi.injectEndpoints({
+    // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+    overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
         getExamsForTeacher: builder.query<TeacherExam[], string>({
             query: (teacherId) => ({ url: `/academic/teacher/exams?teacherId=${teacherId}`, method: 'GET' }),

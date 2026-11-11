@@ -43,6 +43,8 @@ export interface AuthResponse {
 }
 
 export const authApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     login: builder.mutation<LoginResponse, LoginPayload>({
       query: (body) => ({

@@ -83,6 +83,8 @@ export interface GradeSections {
 }
 
 export const operationsApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getNotices: builder.query<Notice[], void>({
       query: () => ({ url: '/operations/notices', method: 'GET' }),

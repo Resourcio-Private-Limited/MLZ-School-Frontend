@@ -197,6 +197,8 @@ export interface SaveMarksPayload {
 // ─── API ───────────────────────────────────────────────────────────
 
 export const teacherApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getTeacherProfile: builder.query<TeacherFullProfile, void>({
       query: () => ({ url: '/teacher/full-profile', method: 'GET' }),
