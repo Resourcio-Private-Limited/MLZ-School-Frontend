@@ -1290,7 +1290,7 @@ export default function UserManagementPage() {
                             <button
                                 onClick={handleUpdateUser}
                                 disabled={isUpdating || !editForm.fullName || !editForm.email}
-                                className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                                className="flex items-center space-x-2 px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors font-medium"
                             >
                                 <Edit2 size={16} />
                                 {isUpdating ? "Saving..." : "Save Changes"}

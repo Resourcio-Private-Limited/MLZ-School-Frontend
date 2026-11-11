@@ -169,7 +169,7 @@ export default function StudentFeesPage() {
                     <EmptyState
                         icon={<UserX size={32} />}
                         title="This student's fees didn't load"
-                        hint="Check your connection and try again. If the student has left the school, go back to the class list."
+                        hint="It might be a temporary problem — try again in a moment. If the student has left the school, go back to the class list."
                         action={
                             <div className="flex flex-wrap justify-center gap-3">
                                 <button type="button" onClick={() => refetch()} className={secondaryBtn}>

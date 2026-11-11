@@ -18,6 +18,8 @@ const longDay = (key: string) => asDate(key).toLocaleDateString("en-IN", { weekd
 const monthName = (year: number, month: number) => new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 // Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
 const todayKey = () => todayLocal();
+// Noon avoids the UTC-midnight date shift for IST.
+const isSunday = (key: string) => new Date(`${key}T12:00:00`).getDay() === 0;
 
 const stepBtn = `inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 motion-safe:transition ${focusRing}`;
 
@@ -47,11 +49,13 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
         setPage(1);
     };
 
-    // Days up to today, newest first. Future days are left out.
+    // Days up to today, newest first. Future days are left out. Sundays are
+    // shown in "All days" but never counted as school days awaiting a register.
     const today = todayKey();
     const days = (history?.days ?? []).filter((d) => d.date <= today).reverse();
+    const schoolDays = days.filter((d) => !isSunday(d.date));
     const marked = days.filter((d) => d.isMarked);
-    const visible = days.filter((d) => filter === "ALL" || (filter === "MARKED" ? d.isMarked : !d.isMarked));
+    const visible = days.filter((d) => filter === "ALL" || (filter === "MARKED" ? d.isMarked : !d.isMarked && !isSunday(d.date)));
     const { pageCount, current, pageRows } = paginate(visible, page);
     const loading = isLoading || isFetching;
     const label = monthName(ym.year, ym.month);
@@ -121,7 +125,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                         <dt className="text-sm text-slate-300">Days marked</dt>
                         <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
                             {loading ? <Skeleton onDark className="h-7 w-10 align-middle" /> : history?.totalWorkingDays ?? 0}
-                            {!loading && days.length > 0 && <span className="ml-2 text-sm font-normal text-slate-400">of {days.length} days so far</span>}
+                            {!loading && schoolDays.length > 0 && <span className="ml-2 text-sm font-normal text-slate-400">of {schoolDays.length} school days so far</span>}
                         </dd>
                     </div>
                     <div>
@@ -143,7 +147,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                         options={[
                             { value: "ALL", label: "All days", count: days.length },
                             { value: "MARKED", label: "Marked", count: marked.length },
-                            { value: "UNMARKED", label: "Not marked", count: days.length - marked.length },
+                            { value: "UNMARKED", label: "Not marked", count: Math.max(0, schoolDays.length - marked.length) },
                         ]}
                     />
                 </div>
@@ -153,7 +157,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                         {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="block h-11 w-full" />)}
                     </div>
                 ) : isError ? (
-                    <EmptyState title={`${label} couldn't be loaded.`} hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                    <EmptyState title={`${label} couldn't be loaded.`} hint="It might be a temporary problem — try again in a moment." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
                 ) : visible.length === 0 ? (
                     <EmptyState
                         icon={<CalendarDays size={28} />}
@@ -187,7 +191,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                                             <td className="px-6 py-3 font-medium text-gray-900">{longDay(d.date)}</td>
                                             <td className="px-6 py-3 text-right tabular-nums text-gray-700">{d.isMarked ? d.present : "—"}</td>
                                             <td className={`px-6 py-3 text-right tabular-nums ${d.absent ? "font-medium text-red-700" : "text-gray-700"}`}>{d.isMarked ? d.absent : "—"}</td>
-                                            <td className="px-6 py-3">{pct === null ? <span className="text-gray-400">Not marked</span> : <Meter pct={pct} />}</td>
+                                            <td className="px-6 py-3">{pct === null ? <span className="text-gray-400">{isSunday(d.date) ? "Sunday" : "Not marked"}</span> : <Meter pct={pct} />}</td>
                                             <td className="px-6 py-3 text-right">
                                                 {d.isMarked && (
                                                     <button type="button" onClick={() => openDay(d)} className={`rounded-lg px-2.5 py-1.5 font-medium text-emerald-700 hover:bg-emerald-50 motion-safe:transition-colors ${focusRing}`}>
@@ -267,7 +271,7 @@ function DayCard({ day, onOpen }: { day: AttendanceDay; onOpen: () => void }) {
         <>
             <span className="flex items-baseline justify-between gap-3">
                 <span className="text-sm font-medium text-gray-900">{longDay(day.date)}</span>
-                {!day.isMarked && <span className="text-sm text-gray-400">Not marked</span>}
+                {!day.isMarked && <span className="text-sm text-gray-400">{isSunday(day.date) ? "Sunday" : "Not marked"}</span>}
             </span>
             {pct !== null && (
                 <>

@@ -21,7 +21,7 @@ export default function MarksEntryPage() {
                 </div>
             ) : isError ? (
                 <section className="rounded-xl border border-gray-200 bg-white">
-                    <EmptyState title="Your classes couldn't be loaded." hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                    <EmptyState title="Your classes couldn't be loaded." hint="It might be a temporary problem — try again in a moment." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
                 </section>
             ) : sorted.length === 0 ? (
                 <section className="rounded-xl border border-gray-200 bg-white">

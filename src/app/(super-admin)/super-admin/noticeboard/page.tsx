@@ -495,7 +495,7 @@ export default function SuperAdminNoticeBoardPage() {
                 ) : isError ? (
                     <div className="px-6 py-14 text-center">
                         <p className="text-sm font-medium text-gray-900">Notices couldn&apos;t be loaded.</p>
-                        <p className="mt-1 text-sm text-gray-500">Check your connection, then try again.</p>
+                        <p className="mt-1 text-sm text-gray-500">It might be a temporary problem — try again in a moment.</p>
                         <button
                             type="button"
                             onClick={() => refetch()}

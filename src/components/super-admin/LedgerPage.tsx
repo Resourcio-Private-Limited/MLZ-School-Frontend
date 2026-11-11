@@ -110,7 +110,7 @@ const THEMES = {
 } as const;
 type Theme = (typeof THEMES)[LedgerAccent];
 
-export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+export const inr = (n: number) => `${n < 0 ? "\u2212" : ""}₹${Math.abs(Math.round(n)).toLocaleString("en-IN")}`;
 // Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
 const todayIso = todayLocal;
 

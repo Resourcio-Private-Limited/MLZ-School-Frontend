@@ -183,9 +183,11 @@ export default function PaymentPage() {
                                         ? null
                                         : annual.isOverdue && annual.remaining > 0
                                           ? <span className="text-rose-300">The due date has passed. The {inr(annual.remaining)} still due must be paid with your next unpaid month.</span>
-                                          : annual.remaining === 0
-                                            ? "Annual fees are fully paid."
-                                            : `${paidPct}% paid. You can add an annual instalment to any month you pay.`}
+                                          : annual.total === 0
+                                            ? "No fees have been set for your class yet. Nothing to pay for now."
+                                            : annual.remaining === 0
+                                              ? "Annual fees are fully paid."
+                                              : `${paidPct}% paid. You can add an annual instalment to any month you pay.`}
                                 </p>
                             </div>
                         </>
@@ -230,7 +232,7 @@ export default function PaymentPage() {
                     ) : isError ? (
                         <EmptyState
                             title="Your fees couldn't be loaded."
-                            hint="Check your connection, then try again."
+                            hint="It might be a temporary problem — try again in a moment."
                             action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                         />
                     ) : visible.length === 0 ? (

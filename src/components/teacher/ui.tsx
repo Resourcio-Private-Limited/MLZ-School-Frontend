@@ -10,7 +10,7 @@ export const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 export const PAGE_SIZE = 10;
 
-export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+export const inr = (n: number) => `${n < 0 ? "\u2212" : ""}₹${Math.abs(Math.round(n)).toLocaleString("en-IN")}`;
 
 export const primaryBtn = `inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none disabled:active:scale-100 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`;
 export const secondaryBtn = `inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 motion-safe:transition ${focusRing}`;
@@ -239,9 +239,15 @@ export function readAuthUser(): { id: string; teacherId: string } {
 
 /** Pulls a readable message out of an RTK Query error, or falls back to the given text. */
 export function errorMessage(err: unknown, fallback: string) {
-    const e = err as { data?: { message?: string | string[] } };
+    const e = err as { status?: number | string; data?: { message?: string | string[] } };
     const m = e?.data?.message;
-    return (Array.isArray(m) ? m[0] : m) || fallback;
+    const serverMsg = Array.isArray(m) ? m[0] : m;
+    // Nest's default 500 body says "Internal server error" — not worth showing.
+    if (serverMsg && serverMsg !== "Internal server error") return serverMsg;
+    if (typeof e?.status === "number" && e.status >= 500) return "Something went wrong on our side. Try again in a moment.";
+    if (typeof e?.status === "number" && e.status === 404) return "That record wasn't found. It may have been removed — refresh and try again.";
+    if (e?.status === "FETCH_ERROR") return "Can't reach the server. Check your connection and try again.";
+    return fallback;
 }
 
 /** Segmented filter with a sliding highlight. Buttons carry aria-pressed. */

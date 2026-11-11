@@ -231,7 +231,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                 ) : studentsQ.isError || todayQ.isError ? (
                     <EmptyState
                         title="Today's register couldn't be loaded."
-                        hint="Check your connection, then try again."
+                        hint="It might be a temporary problem — try again in a moment."
                         action={<button type="button" onClick={() => { studentsQ.refetch(); todayQ.refetch(); }} className={secondaryBtn}>Try again</button>}
                     />
                 ) : students.length === 0 ? (

@@ -169,7 +169,7 @@ export default function LatestPaymentsPage() {
                     <EmptyState
                         icon={<CreditCard size={36} />}
                         title="Payments couldn't be loaded"
-                        hint="Check your connection, then try again."
+                        hint="It might be a temporary problem — try again in a moment."
                         action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                     />
                 ) : sorted.length === 0 ? (

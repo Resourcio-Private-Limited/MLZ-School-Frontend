@@ -7,6 +7,7 @@ import { useGetDashboardQuery, useGetMonthlyFeesQuery, useGetProfileQuery } from
 import { useGetNoticesQuery } from "@/redux/api/operationsApi";
 import { heroGradient } from "@/components/student/brand";
 import { Panel, Skeleton, clock, dayHeading, focusRing, inr, linkClass, linkOnDark, relativeDay, shortDate } from "@/components/student/ui";
+import { firstNameOf } from "@/lib/names";
 
 const greeting = (hour: number) => (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening");
 
@@ -32,7 +33,7 @@ export default function StudentHomePage() {
     const unpaid = fees.filter((f) => !f.isPaid && f.totalAmount > 0 && f.month <= month);
     const unpaidTotal = unpaid.reduce((n, f) => n + f.totalAmount, 0);
 
-    const firstName = profile?.personal.fullName?.split(/\s+/)[0];
+    const firstName = firstNameOf(profile?.personal.fullName);
     const roll = profile?.academic.classRoll ?? profile?.academic.rollNumber;
 
     return (
@@ -52,7 +53,7 @@ export default function StudentHomePage() {
 
                 {dashQ.isError && (
                     <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                        Your classroom details couldn&apos;t be loaded. Check your connection, then try again.
+                        Your classroom details couldn&apos;t be loaded. It might be a temporary problem — try again in a moment.
                         <button type="button" onClick={() => dashQ.refetch()} className={`rounded-md bg-white px-3 py-1.5 font-medium text-red-800 ring-1 ring-red-200 hover:bg-red-100 ${focusRing}`}>
                             Try again
                         </button>

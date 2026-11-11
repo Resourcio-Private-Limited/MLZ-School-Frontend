@@ -178,7 +178,7 @@ export default function ClassExamMarksPage({ params }: { params: Promise<{ id: s
                     <EmptyState
                         icon={<FileSpreadsheet size={28} />}
                         title="Marks for this class couldn't be loaded."
-                        hint="Check your connection, then try again."
+                        hint="It might be a temporary problem — try again in a moment."
                         action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                     />
                 ) : data.subjects.length === 0 ? (

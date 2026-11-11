@@ -9,7 +9,7 @@ export const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 export const PAGE_SIZE = 10;
 
-export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+export const inr = (n: number) => `${n < 0 ? "\u2212" : ""}₹${Math.abs(Math.round(n)).toLocaleString("en-IN")}`;
 
 export const primaryBtn = `inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none disabled:active:scale-100 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`;
 export const secondaryBtn = `inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 motion-safe:transition ${focusRing}`;

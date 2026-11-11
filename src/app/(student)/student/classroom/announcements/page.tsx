@@ -106,7 +106,7 @@ function AnnouncementsContent() {
             ) : annQ.isError ? (
                 <EmptyState
                     title="Announcements couldn't be loaded."
-                    hint="Check your connection, then try again."
+                    hint="It might be a temporary problem — try again in a moment."
                     action={<button type="button" onClick={() => annQ.refetch()} className={secondaryBtn}>Try again</button>}
                 />
             ) : visible.length === 0 ? (

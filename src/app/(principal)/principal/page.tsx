@@ -24,6 +24,7 @@ import {
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { Tooltip } from "@/components/ui/tooltip";
 import { heroGradient } from "@/components/principal/brand";
+import { firstNameOf } from "@/lib/names";
 import {
     EmptyState,
     FilterChips,
@@ -386,7 +387,7 @@ function SettingsBody({ classroom, teachers, onClose }: { classroom: ClassroomSu
                         ) : subjectsError ? (
                             <EmptyState
                                 title="Subjects couldn't be loaded."
-                                hint="Check your connection, then try again."
+                                hint="It might be a temporary problem — try again in a moment."
                                 action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                             />
                         ) : subjects.length === 0 ? (
@@ -692,7 +693,7 @@ export default function PrincipalHomePage() {
         </ul>
     );
 
-    const firstName = profile?.fullName?.split(/\s+/)[0];
+    const firstName = firstNameOf(profile?.fullName);
     const figure = "mt-1 text-2xl font-semibold tracking-tight tabular-nums";
 
     return (
@@ -791,7 +792,7 @@ export default function PrincipalHomePage() {
                     <div className="rounded-xl border border-gray-200 bg-white">
                         <EmptyState
                             title="Classrooms couldn't be loaded."
-                            hint="Check your connection, then try again."
+                            hint="It might be a temporary problem — try again in a moment."
                             action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                         />
                     </div>

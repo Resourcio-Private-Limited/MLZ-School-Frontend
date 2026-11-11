@@ -77,7 +77,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                         {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="block h-12 w-full" />)}
                     </div>
                 ) : isError ? (
-                    <EmptyState title="The class list couldn't be loaded." hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                    <EmptyState title="The class list couldn't be loaded." hint="It might be a temporary problem — try again in a moment." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
                 ) : students.length === 0 ? (
                     <EmptyState icon={<Users size={28} />} title="No students are enrolled in this class yet." hint="The school office adds students during admission." />
                 ) : rows.length === 0 ? (

@@ -568,7 +568,7 @@ export default function FeeManagementPage() {
                     </div>
                 ) : isError ? (
                     <div className="rounded-xl border border-gray-200 bg-white">
-                        <EmptyState title="Classes couldn't be loaded." hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                        <EmptyState title="Classes couldn't be loaded." hint="It might be a temporary problem — try again in a moment." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
                     </div>
                 ) : classrooms.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-white">
@@ -667,7 +667,7 @@ function StudentFinder() {
                 <p className="border-t border-gray-100 px-4 py-3 text-sm text-gray-500 sm:px-6">Searching…</p>
             ) : isError ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 text-sm sm:px-6">
-                    <p className="text-gray-700">The search didn&apos;t run. Check your connection and try again.</p>
+                    <p className="text-gray-700">The search didn&apos;t run. It might be a temporary problem — try again in a moment.</p>
                     <button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>
                 </div>
             ) : results.length === 0 ? (

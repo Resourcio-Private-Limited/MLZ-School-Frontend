@@ -235,7 +235,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                         ))}
                     </div>
                 ) : isError ? (
-                    <EmptyState title="Announcements couldn't be loaded." hint="Check your connection, then try again." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
+                    <EmptyState title="Announcements couldn't be loaded." hint="It might be a temporary problem — try again in a moment." action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>} />
                 ) : announcements.length === 0 ? (
                     <EmptyState
                         icon={<Megaphone size={28} />}

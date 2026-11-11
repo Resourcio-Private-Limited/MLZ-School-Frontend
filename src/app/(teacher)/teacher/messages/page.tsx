@@ -308,7 +308,7 @@ function MessagesContent() {
                     ) : isError ? (
                         <EmptyState
                             title="Your contacts couldn't be loaded."
-                            hint="Check your connection, then try again."
+                            hint="It might be a temporary problem — try again in a moment."
                             action={<button type="button" onClick={() => { recipientsQ.refetch(); if (classId) studentsQ.refetch(); }} className={secondaryBtn}>Try again</button>}
                         />
                     ) : rows.length === 0 ? (

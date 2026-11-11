@@ -375,7 +375,7 @@ export default function AdmitCardPage() {
                                 <EmptyState
                                     icon={<CalendarDays size={32} />}
                                     title="Exam dates didn't load."
-                                    hint="Check your connection, then try again."
+                                    hint="It might be a temporary problem — try again in a moment."
                                     action={
                                         <button type="button" onClick={() => (subjectsQ.isError ? subjectsQ.refetch() : scheduleQ.refetch())} className={secondaryBtn}>
                                             Try again
@@ -520,7 +520,7 @@ export default function AdmitCardPage() {
                             <EmptyState
                                 icon={<Users size={32} />}
                                 title="Students didn't load."
-                                hint="Check your connection, then try again."
+                                hint="It might be a temporary problem — try again in a moment."
                                 action={
                                     <button type="button" onClick={() => studentsQ.refetch()} className={secondaryBtn}>
                                         Try again

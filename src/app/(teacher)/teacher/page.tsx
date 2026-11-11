@@ -5,6 +5,7 @@ import { BookOpen, ChevronRight, School, Users } from "lucide-react";
 import { useGetTeacherClassesQuery, useGetTeacherProfileQuery, type TeacherClass } from "@/redux/api/teacherApi";
 import { heroGradient } from "@/components/teacher/brand";
 import { EmptyState, PageHeader, Skeleton, focusRing, linkOnDark, secondaryBtn } from "@/components/teacher/ui";
+import { firstNameOf } from "@/lib/names";
 
 function ClassCard({ cls }: { cls: TeacherClass }) {
     return (
@@ -53,7 +54,7 @@ export default function TeacherHomePage() {
     const students = classes.reduce((sum, c) => sum + c.studentCount, 0);
     const own = classes.find((c) => c.isClassTeacher);
     const subjects = new Set(classes.flatMap((c) => c.subjects)).size;
-    const firstName = profile?.fullName?.split(/\s+/)[0];
+    const firstName = firstNameOf(profile?.fullName);
 
     return (
         <div className="max-w-7xl space-y-6">
@@ -104,7 +105,7 @@ export default function TeacherHomePage() {
                     <div className="rounded-xl border border-gray-200 bg-white">
                         <EmptyState
                             title="Your classes couldn't be loaded."
-                            hint="Check your connection, then try again."
+                            hint="It might be a temporary problem — try again in a moment."
                             action={<button type="button" onClick={() => refetch()} className={secondaryBtn}>Try again</button>}
                         />
                     </div>

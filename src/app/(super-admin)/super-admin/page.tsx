@@ -323,22 +323,18 @@ export default function SuperAdminDashboard() {
                     </Panel>
 
                     <div className="space-y-6">
-                        <Panel title="Pending admissions">
+                        {/* The API's "pendingAdmissions" actually counts students admitted
+                            this calendar year, and there is no approval flow in the app —
+                            so the card says what the number really is. */}
+                        <Panel title={`Admissions in ${new Date().getFullYear()}`}>
                             <div className="px-6 pt-3 pb-6">
-                                <p className="flex items-center gap-2.5 text-4xl font-semibold tracking-tight text-gray-900 tabular-nums">
-                                    {kpiQ.isLoading ? (
-                                        <Skeleton className="h-9 w-16" />
-                                    ) : (
-                                        <>
-                                            {(kpis?.pendingAdmissions ?? 0) > 0 && <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-amber-500" />}
-                                            {(kpis?.pendingAdmissions ?? 0).toLocaleString("en-IN")}
-                                        </>
-                                    )}
+                                <p className="text-4xl font-semibold tracking-tight text-gray-900 tabular-nums">
+                                    {kpiQ.isLoading ? <Skeleton className="h-9 w-16" /> : (kpis?.pendingAdmissions ?? 0).toLocaleString("en-IN")}
                                 </p>
                                 <p className="mt-1 text-sm text-gray-600">
                                     {!kpiQ.isLoading && (kpis?.pendingAdmissions ?? 0) === 0
-                                        ? "No students are waiting for approval."
-                                        : "Students waiting for admission approval."}
+                                        ? "No students have been admitted this year yet."
+                                        : "Students admitted this year, from each classroom's admission form."}
                                 </p>
                             </div>
                         </Panel>
