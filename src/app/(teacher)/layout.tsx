@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Bell, ClipboardList, LogOut, ChevronLeft, ChevronRight, Loader2, Menu, School, X, type LucideIcon } from "lucide-react";
+import { Bell, ClipboardList, LogOut, ChevronLeft, ChevronRight, Loader2, Menu, MessageSquare, School, X, type LucideIcon } from "lucide-react";
 import { useGetTeacherProfileQuery } from "@/redux/api/teacherApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { heroGradient, sidebarGradient } from "@/components/teacher/brand";
@@ -17,6 +17,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     {
         label: "Communication",
         items: [
+            { href: "/teacher/messages", label: "Messages", icon: MessageSquare },
             { href: "/teacher/noticeboard", label: "Notice board", icon: Bell },
         ],
     },
