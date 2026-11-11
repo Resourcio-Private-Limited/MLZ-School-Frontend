@@ -66,6 +66,7 @@ export interface ClassStudent {
   userId: string;
   fullName: string;
   rollNumber: string | null;
+  classRoll?: number | null;
   attendance: string | null;
   overallGrade: string | null;
   lastExam: { name: string; examDate: string } | null;
@@ -127,6 +128,8 @@ export interface AttendanceByDateRecord {
   studentId: string;
   fullName: string;
   rollNumber: string;
+  // Class roll (1, 2, 3…), the same number marks entry shows. Null when not assigned.
+  classRoll?: number | null;
   status: 'PRESENT' | 'ABSENT';
 }
 
@@ -194,9 +197,76 @@ export interface SaveMarksPayload {
   }>;
 }
 
+// ─── Component-wise marks entry ────────────────────────────────────
+
+export type ExamTerm = 'HALF_YEARLY' | 'FINAL';
+export type PrimaryGradeCode = 'BG' | 'PG' | 'PF' | 'NA';
+export type SecondaryComponentKey = 'periodicTest' | 'multipleAssessment' | 'subjectEnrichment' | 'examMarks';
+/** PRIMARY: Half Yearly → term1Grade + term2Grade, Final → term3Grade. */
+export type PrimaryGradeField = 'term1Grade' | 'term2Grade' | 'term3Grade';
+
+export interface SubjectAssessmentEntry {
+  subjectId: string;
+  term1Grade: PrimaryGradeCode | null;
+  term2Grade: PrimaryGradeCode | null;
+  term3Grade: PrimaryGradeCode | null;
+  periodicTest: number | null;
+  multipleAssessment: number | null;
+  subjectEnrichment: number | null;
+  examMarks: number | null;
+  total: number | null;
+}
+
+export interface ClassAssessmentStudent {
+  studentId: string;
+  fullName: string;
+  rollNumber: string | null;
+  classRoll: number | null;
+  /** Present only for the class teacher on the FINAL exam. */
+  remarks?: string | null;
+  assessments: SubjectAssessmentEntry[];
+}
+
+export interface ClassAssessments {
+  classroomId: string;
+  classroomName: string;
+  classType: 'PRIMARY' | 'SECONDARY';
+  examType: ExamTerm;
+  session: string;
+  entryEnabled: boolean;
+  isClassTeacher: boolean;
+  showRemarks: boolean;
+  gradeOptions: Array<{ code: PrimaryGradeCode; label: string }>;
+  /** Grade columns for this exam (PRIMARY only). */
+  gradeFields: Array<{ key: PrimaryGradeField; label: string }>;
+  components: Array<{ key: SecondaryComponentKey; label: string; maxMarks: number }>;
+  subjectMaxMarks: number | null;
+  subjects: Array<{ id: string; name: string; editable: boolean }>;
+  students: ClassAssessmentStudent[];
+}
+
+export interface SaveStudentAssessmentPayload {
+  classroomId: string;
+  examType: ExamTerm;
+  studentId: string;
+  subjects: Array<{
+    subjectId: string;
+    term1Grade?: PrimaryGradeCode | null;
+    term2Grade?: PrimaryGradeCode | null;
+    term3Grade?: PrimaryGradeCode | null;
+    periodicTest?: number | null;
+    multipleAssessment?: number | null;
+    subjectEnrichment?: number | null;
+    examMarks?: number | null;
+  }>;
+  remarks?: string | null;
+}
+
 // ─── API ───────────────────────────────────────────────────────────
 
 export const teacherApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getTeacherProfile: builder.query<TeacherFullProfile, void>({
       query: () => ({ url: '/teacher/full-profile', method: 'GET' }),
@@ -273,6 +343,22 @@ export const teacherApi = baseApi.injectEndpoints({
     saveStudentMarks: builder.mutation<{ success: boolean; count: number }, SaveMarksPayload>({
       query: (body) => ({ url: '/teacher/marks', method: 'POST', body }),
     }),
+
+    // All students × subjects for one exam term (Half Yearly / Final)
+    getClassAssessments: builder.query<ClassAssessments, { classroomId: string; examType: ExamTerm }>({
+      query: ({ classroomId, examType }) => ({
+        url: `/teacher/class/${classroomId}/assessments`,
+        method: 'GET',
+        params: { examType },
+      }),
+      providesTags: (_result, _error, { classroomId, examType }) => [{ type: 'ClassAssessments', id: `${classroomId}:${examType}` }],
+    }),
+
+    // Save one student's marks for every subject of an exam term
+    saveStudentAssessment: builder.mutation<{ success: boolean; savedSubjects: number }, SaveStudentAssessmentPayload>({
+      query: ({ classroomId, ...body }) => ({ url: `/teacher/class/${classroomId}/assessments`, method: 'PUT', body }),
+      invalidatesTags: (_result, _error, { classroomId, examType }) => [{ type: 'ClassAssessments', id: `${classroomId}:${examType}` }],
+    }),
   }),
 });
 
@@ -292,4 +378,6 @@ export const {
   useGetTeacherSubjectsQuery,
   useGetStudentMarksQuery,
   useSaveStudentMarksMutation,
+  useGetClassAssessmentsQuery,
+  useSaveStudentAssessmentMutation,
 } = teacherApi;

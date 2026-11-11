@@ -1,478 +1,522 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Bell, Filter, Link2, Plus, X, Edit2, Trash2 } from "lucide-react";
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Bell, Edit2, ExternalLink, Paperclip, Plus, Trash2, X } from "lucide-react";
+import toast from "react-hot-toast";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Dialog } from "@/components/ui/dialog";
 import {
     useGetNoticesQuery,
     useCreateNoticeMutation,
     useUpdateNoticeMutation,
     useDeleteNoticeMutation,
-    NoticeTag,
-    Notice,
+    type NoticeTag,
+    type Notice,
 } from "@/redux/api/operationsApi";
-import { Tooltip } from "@/components/ui/tooltip";
+import {
+    EASE_OUT,
+    EmptyState,
+    FilterChips,
+    PageHeader,
+    Pager,
+    SearchBox,
+    clock,
+    errorMessage,
+    fileName,
+    focusRing,
+    groupByDay,
+    hostname,
+    inputClass,
+    paginate,
+    primaryBtn,
+    secondaryBtn,
+} from "@/components/principal/ui";
 
-const TAG_TO_LABEL: Record<NoticeTag, string> = {
-    ALL_NOTICES: "All Notices",
-    GENERAL: "General",
-    HOLIDAYS: "Holidays",
-    EVENTS: "Events",
-    EXAMS: "Exams",
-    EMERGENCY: "Emergency",
-};
+type Category = Exclude<NoticeTag, "ALL_NOTICES">;
 
-const LABEL_TO_TAG: Record<string, NoticeTag> = {
-    "All Notices": "ALL_NOTICES",
-    General: "GENERAL",
-    Holidays: "HOLIDAYS",
-    Events: "EVENTS",
-    Exams: "EXAMS",
-    Emergency: "EMERGENCY",
-};
+// One map for every category's label and colour, so the tag shown always matches the tag saved.
+const CATEGORIES: { tag: Category; label: string; dot: string }[] = [
+    { tag: "GENERAL", label: "General", dot: "bg-gray-400" },
+    { tag: "HOLIDAYS", label: "Holidays", dot: "bg-emerald-500" },
+    { tag: "EVENTS", label: "Events", dot: "bg-sky-500" },
+    { tag: "EXAMS", label: "Exams", dot: "bg-violet-500" },
+    { tag: "EMERGENCY", label: "Emergency", dot: "bg-red-600" },
+];
 
-const TAG_COLORS: Record<string, string> = {
-    Holidays: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-    Exams: "bg-purple-50 text-purple-700 border border-purple-100",
-    Events: "bg-orange-50 text-orange-700 border border-orange-100",
-    Emergency: "bg-red-50 text-red-700 border border-red-100",
-    GENERAL: "bg-blue-50 text-blue-700 border border-blue-100",
-    ALL_NOTICES: "bg-rose-50 text-rose-700 border border-rose-100",
-};
+// Older notices may carry the legacy ALL_NOTICES tag; they are shown and filtered as General.
+const categoryOf = (tag: NoticeTag): Category => (tag === "ALL_NOTICES" ? "GENERAL" : tag);
+const categoryMeta = (tag: NoticeTag) => CATEGORIES.find((c) => c.tag === categoryOf(tag)) ?? CATEGORIES[0];
 
-const TAG_LIST: NoticeTag[] = ["ALL_NOTICES", "GENERAL", "HOLIDAYS", "EVENTS", "EXAMS", "EMERGENCY"];
+const SENDER = "Principal's Desk";
+const iconBtn = `inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:scale-95 motion-safe:transition ${focusRing}`;
 
-function formatDate(dateStr: string) {
+function isValidUrl(value: string) {
     try {
-        return new Date(dateStr).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
+        const u = new URL(value);
+        return u.protocol === "http:" || u.protocol === "https:";
     } catch {
-        return dateStr;
+        return false;
     }
 }
 
-function formatTime(dateStr: string) {
-    try {
-        return new Date(dateStr).toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-        });
-    } catch {
-        return "";
-    }
+type NoticeForm = { title: string; tag: Category; content: string; link: string };
+const emptyForm: NoticeForm = { title: "", tag: "GENERAL", content: "", link: "" };
+
+function NoticeItem({
+    notice,
+    highlight = false,
+    preview = false,
+    onEdit,
+    onDelete,
+}: {
+    notice: Pick<Notice, "title" | "content" | "senderName" | "link" | "file" | "tag" | "createdAt">;
+    highlight?: boolean;
+    preview?: boolean;
+    onEdit?: () => void;
+    onDelete?: () => void;
+}) {
+    const reduceMotion = useReducedMotion();
+    const meta = categoryMeta(notice.tag);
+    const emergency = meta.tag === "EMERGENCY";
+    const title = notice.title.trim() || "Untitled notice";
+
+    return (
+        <motion.article
+            initial={highlight && !reduceMotion ? { backgroundColor: "rgba(250,245,255,1)" } : false}
+            animate={{ backgroundColor: "rgba(250,245,255,0)" }}
+            transition={{ duration: 2.4, delay: 0.5, ease: "easeOut" }}
+            className="relative grid gap-x-6 gap-y-1 px-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-6"
+        >
+            {emergency && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-600" />}
+            <time dateTime={notice.createdAt} className="text-sm tabular-nums text-gray-500 sm:pt-0.5">
+                {clock(notice.createdAt)}
+            </time>
+            <div className="min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                    <h3 className={`min-w-0 break-words text-base font-semibold ${notice.title.trim() ? "text-gray-900" : "text-gray-400"}`}>{title}</h3>
+                    {!preview && (
+                        <div className="-mr-2 -mt-1 flex shrink-0 items-center gap-0.5">
+                            <Tooltip content="Edit notice" side="top">
+                                <button type="button" onClick={onEdit} aria-label={`Edit “${title}”`} className={iconBtn}>
+                                    <Edit2 size={15} aria-hidden="true" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content="Delete notice" side="top">
+                                <button type="button" onClick={onDelete} aria-label={`Delete “${title}”`} className={`${iconBtn} hover:bg-red-50 hover:text-red-700`}>
+                                    <Trash2 size={15} aria-hidden="true" />
+                                </button>
+                            </Tooltip>
+                        </div>
+                    )}
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span className={`inline-flex items-center gap-1.5 font-medium ${emergency ? "text-red-700" : "text-gray-700"}`}>
+                        <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        {meta.label}
+                    </span>
+                    <span>Posted by {notice.senderName}</span>
+                </p>
+                <p className={`mt-3 max-w-prose whitespace-pre-line break-words text-sm leading-relaxed ${notice.content.trim() ? "text-gray-700" : "text-gray-400"}`}>
+                    {notice.content.trim() || "Your message will appear here."}
+                </p>
+                {(notice.link || notice.file) && (
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                        {notice.link && (
+                            <a
+                                href={notice.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-purple-700 underline-offset-4 hover:text-purple-800 hover:underline ${focusRing}`}
+                            >
+                                <ExternalLink size={14} aria-hidden="true" />
+                                {hostname(notice.link)}
+                                <span className="sr-only">(opens in a new tab)</span>
+                            </a>
+                        )}
+                        {notice.file && (
+                            <a
+                                href={notice.file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-sm text-sm font-medium text-purple-700 underline-offset-4 hover:text-purple-800 hover:underline ${focusRing}`}
+                            >
+                                <Paperclip size={14} aria-hidden="true" className="shrink-0" />
+                                <span className="truncate">{fileName(notice.file)}</span>
+                                <span className="sr-only">(opens in a new tab)</span>
+                            </a>
+                        )}
+                    </div>
+                )}
+            </div>
+        </motion.article>
+    );
 }
 
 export default function PrincipalNoticeBoardPage() {
-    const [selectedCategory, setSelectedCategory] = useState("All Notices");
-    const [showCreateForm, setShowCreateForm] = useState(false);
-
-    const [form, setForm] = useState({
-        title: "",
-        tag: "GENERAL" as NoticeTag,
-        content: "",
-        link: "",
-    });
-
+    const reduceMotion = useReducedMotion();
+    const [filter, setFilter] = useState<Category | "ALL">("ALL");
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [showForm, setShowForm] = useState(false);
     const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
-    const [editForm, setEditForm] = useState({
-        title: "",
-        tag: "GENERAL" as NoticeTag,
-        content: "",
-        link: "",
-    });
+    const [deleteTarget, setDeleteTarget] = useState<Notice | null>(null);
+    const [form, setForm] = useState<NoticeForm>(emptyForm);
+    const [highlight, setHighlight] = useState<{ id: string; n: number } | null>(null);
+    const composerRef = useRef<HTMLElement>(null);
+    const titleRef = useRef<HTMLInputElement>(null);
 
-    const [deletingNotice, setDeletingNotice] = useState<Notice | null>(null);
-
-    const { data: notices = [], isLoading } = useGetNoticesQuery();
+    const { data: notices = [], isLoading, isError, refetch } = useGetNoticesQuery();
     const [createNotice, { isLoading: isCreating }] = useCreateNoticeMutation();
     const [updateNotice, { isLoading: isUpdating }] = useUpdateNoticeMutation();
     const [deleteNotice, { isLoading: isDeleting }] = useDeleteNoticeMutation();
 
-    const filteredNotices = selectedCategory === "All Notices"
-        ? notices
-        : notices.filter((n) => n.tag === LABEL_TO_TAG[selectedCategory]);
+    const sorted = [...notices].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const countFor = (tag: Category) => notices.filter((n) => categoryOf(n.tag) === tag).length;
+    const q = search.trim().toLowerCase();
+    const visible = sorted.filter(
+        (n) => (filter === "ALL" || categoryOf(n.tag) === filter) && (!q || [n.title, n.content, n.senderName].some((v) => v.toLowerCase().includes(q)))
+    );
+    const { pageCount, current, pageRows } = paginate(visible, page);
+    const groups = groupByDay(pageRows, (n) => n.createdAt);
 
-    const getCategoryColor = (tag: NoticeTag) => {
-        return TAG_COLORS[tag] ?? "bg-blue-50 text-blue-700 border border-blue-100";
+    // Bring the composer into view and focus the title whenever it opens (new or edit).
+    useEffect(() => {
+        if (!showForm) return;
+        composerRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        titleRef.current?.focus({ preventScroll: true });
+    }, [showForm, editingNotice, reduceMotion]);
+
+    const linkInvalid = form.link.trim() !== "" && !isValidUrl(form.link.trim());
+    const canSubmit = form.title.trim() !== "" && form.content.trim() !== "" && !linkInvalid && !isCreating && !isUpdating;
+
+    const closeForm = () => {
+        setShowForm(false);
+        setEditingNotice(null);
+        setForm(emptyForm);
     };
 
-    const handleCreateNotice = async () => {
-        if (!form.title.trim() || !form.content.trim()) return;
-        try {
-            await createNotice({
-                title: form.title.trim(),
-                content: form.content.trim(),
-                senderName: "Principal's Desk",
-                tag: form.tag,
-                link: form.link.trim() || undefined,
-            }).unwrap();
-            toast.success("Notice published successfully!");
-            setShowCreateForm(false);
-            setForm({ title: "", tag: "GENERAL", content: "", link: "" });
-        } catch {
-            toast.error("Failed to publish notice. Please try again.");
-        }
+    const openCreate = () => {
+        setEditingNotice(null);
+        setForm(emptyForm);
+        setShowForm(true);
     };
 
-    const handleOpenEdit = (notice: Notice) => {
+    const openEdit = (notice: Notice) => {
         setEditingNotice(notice);
-        setEditForm({
-            title: notice.title,
-            tag: notice.tag,
-            content: notice.content,
-            link: notice.link ?? "",
-        });
+        setForm({ title: notice.title, tag: categoryOf(notice.tag), content: notice.content, link: notice.link ?? "" });
+        setShowForm(true);
     };
 
-    const handleSaveEdit = async () => {
-        if (!editingNotice || !editForm.title.trim() || !editForm.content.trim()) return;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!canSubmit) return;
+        const payload = { title: form.title.trim(), content: form.content.trim(), tag: form.tag, link: form.link.trim() || undefined };
         try {
-            await updateNotice({
-                noticeId: editingNotice.id,
-                data: {
-                    title: editForm.title.trim(),
-                    content: editForm.content.trim(),
-                    tag: editForm.tag,
-                    link: editForm.link.trim() || undefined,
-                },
-            }).unwrap();
-            toast.success("Notice updated successfully!");
-            setEditingNotice(null);
-        } catch {
-            toast.error("Failed to update notice.");
+            if (editingNotice) {
+                await updateNotice({ noticeId: editingNotice.id, data: payload }).unwrap();
+                setHighlight({ id: editingNotice.id, n: Date.now() });
+                toast.success("Changes saved.");
+            } else {
+                const created = await createNotice({ ...payload, senderName: SENDER }).unwrap();
+                if (created?.id) setHighlight({ id: created.id, n: Date.now() });
+                setFilter("ALL");
+                setSearch("");
+                setPage(1);
+                toast.success("Notice published.");
+            }
+            closeForm();
+        } catch (err) {
+            toast.error(
+                errorMessage(
+                    err,
+                    editingNotice ? "Couldn't save your changes. Check your connection and try again." : "Couldn't publish the notice. Check your connection and try again."
+                )
+            );
         }
     };
 
-    const handleConfirmDelete = async () => {
-        if (!deletingNotice) return;
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
         try {
-            await deleteNotice(deletingNotice.id).unwrap();
-            toast.success("Notice deleted successfully!");
-            setDeletingNotice(null);
-        } catch {
-            toast.error("Failed to delete notice.");
+            await deleteNotice(deleteTarget.id).unwrap();
+            if (editingNotice?.id === deleteTarget.id) closeForm();
+            setDeleteTarget(null);
+            toast.success("Notice deleted.");
+        } catch (err) {
+            toast.error(errorMessage(err, "Couldn't delete the notice. Check your connection and try again."));
         }
+    };
+
+    const filters: { value: Category | "ALL"; label: string; count?: number }[] = [
+        { value: "ALL", label: "All", count: isLoading ? undefined : notices.length },
+        ...CATEGORIES.map((c) => ({ value: c.tag, label: c.label, count: isLoading ? undefined : countFor(c.tag) })),
+    ];
+
+    const changeFilter = (v: Category | "ALL") => {
+        setFilter(v);
+        setPage(1);
+    };
+    const changeSearch = (v: string) => {
+        setSearch(v);
+        setPage(1);
+    };
+    const changePage = (n: number) => {
+        setPage(n);
+        document.getElementById("published-notices")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                   
-                    <div className="h-6 w-px bg-gray-300"></div>
-                    <h1 className="text-3xl font-bold text-gray-800">School Notice Board</h1>
-                </div>
-                <button
-                    onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors shadow-md hover:shadow-lg font-medium"
-                >
-                    {showCreateForm ? <X size={20} /> : <Plus size={20} />}
-                    <span>{showCreateForm ? "Cancel" : "Create Notice"}</span>
-                </button>
-            </div>
+        <div className="max-w-7xl space-y-6">
+            <PageHeader
+                title="Notice board"
+                subtitle="Notices published here appear in every portal."
+                actions={
+                    <button type="button" onClick={openCreate} className={primaryBtn}>
+                        <Plus size={18} aria-hidden="true" />
+                        New notice
+                    </button>
+                }
+            />
 
-            {/* Create Notice Form */}
-            {showCreateForm && (
-                <div className="bg-white rounded-xl shadow-md border-t-4 border-purple-600 p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Create New Notice</h2>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Notice Title <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.title}
-                                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                                    placeholder="Enter notice title..."
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
-                                />
+            {/* Composer with live preview */}
+            <AnimatePresence initial={false}>
+                {showForm && (
+                    <motion.section
+                        ref={composerRef}
+                        key="composer"
+                        aria-labelledby="composer-heading"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.22, ease: EASE_OUT }}
+                        className="scroll-mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white"
+                    >
+                        <form onSubmit={handleSubmit}>
+                            <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-4 sm:px-6">
+                                <h2 id="composer-heading" className="text-base font-semibold text-gray-900">
+                                    {editingNotice ? "Edit notice" : "New notice"}
+                                </h2>
+                                <button type="button" onClick={closeForm} aria-label="Close" className={iconBtn}>
+                                    <X size={16} aria-hidden="true" />
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Category <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={form.tag}
-                                    onChange={(e) => setForm({ ...form, tag: e.target.value as NoticeTag })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
-                                >
-                                    {TAG_LIST.filter(t => t !== "ALL_NOTICES").map((tag) => (
-                                        <option key={tag} value={tag}>{TAG_TO_LABEL[tag]}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Message <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                                value={form.content}
-                                onChange={(e) => setForm({ ...form, content: e.target.value })}
-                                placeholder="Enter notice message..."
-                                rows={4}
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none text-gray-900"
-                            />
-                        </div>
+                            <div className="grid lg:grid-cols-2">
+                                <div className="space-y-5 px-4 py-5 sm:px-6">
+                                    <div>
+                                        <label htmlFor="notice-title" className="mb-1.5 block text-sm font-medium text-gray-700">Title</label>
+                                        <input
+                                            ref={titleRef}
+                                            id="notice-title"
+                                            type="text"
+                                            value={form.title}
+                                            onChange={(e) => setForm({ ...form, title: e.target.value })}
+                                            placeholder="e.g. School closed on Friday for Diwali"
+                                            className={inputClass}
+                                        />
+                                    </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                External Link (Optional)
-                            </label>
-                            <input
-                                type="url"
-                                value={form.link}
-                                onChange={(e) => setForm({ ...form, link: e.target.value })}
-                                placeholder="https://..."
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900 placeholder-gray-500"
-                            />
-                        </div>
-
-                        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                            <button
-                                onClick={() => setShowCreateForm(false)}
-                                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleCreateNotice}
-                                disabled={!form.title.trim() || !form.content.trim() || isCreating}
-                                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                                    form.title.trim() && form.content.trim() && !isCreating
-                                        ? "bg-purple-600 text-white hover:bg-purple-700"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                }`}
-                            >
-                                {isCreating ? "Publishing..." : "Publish Notice"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Notice Board Section */}
-            <div className="bg-white rounded-xl shadow-md border-t-4 border-purple-600">
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="bg-purple-50 p-2 rounded-lg text-purple-600">
-                            <Bell size={24} />
-                        </div>
-                        <h2 className="text-xl font-bold text-gray-800">All Notices</h2>
-                    </div>
-                    <div className="relative">
-                        <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        <select
-                            value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none appearance-none transition-all hover:border-purple-300 shadow-sm"
-                        >
-                            {TAG_LIST.map((tag) => (
-                                <option key={tag} value={TAG_TO_LABEL[tag]}>{TAG_TO_LABEL[tag]}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="p-6 space-y-4">
-                    {isLoading ? (
-                        <div className="flex justify-center py-12">
-                            <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    ) : filteredNotices.length > 0 ? (
-                        filteredNotices.map((notice) => (
-                            <div key={notice.id} className="group flex w-full justify-between border border-gray-100 rounded-xl p-5 hover:bg-gray-50 transition-all duration-200 hover:shadow-sm relative">
-                                <div className="flex flex-col">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="space-y-1 flex-1">
-                                        <div className="flex items-center space-x-3 flex-wrap gap-1">
-                                            <h3 className="font-bold text-gray-800">{notice.senderName}</h3>
-                                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${getCategoryColor(notice.tag)}`}>
-                                                {TAG_TO_LABEL[notice.tag] ?? notice.tag}
-                                            </span>
+                                    <fieldset>
+                                        <legend className="mb-1.5 block text-sm font-medium text-gray-700">Category</legend>
+                                        <div className="flex flex-wrap gap-2">
+                                            {CATEGORIES.map((c) => (
+                                                <label key={c.tag} className="cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="notice-category"
+                                                        value={c.tag}
+                                                        checked={form.tag === c.tag}
+                                                        onChange={() => setForm({ ...form, tag: c.tag })}
+                                                        className="peer sr-only"
+                                                    />
+                                                    <span className="inline-flex h-8 items-center gap-2 rounded-full border border-gray-300 bg-white px-3 text-sm text-gray-700 hover:border-gray-400 peer-checked:border-gray-900 peer-checked:bg-gray-900 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-purple-500 peer-focus-visible:ring-offset-2 motion-safe:transition">
+                                                        <span aria-hidden="true" className={`h-2 w-2 rounded-full ${c.dot}`} />
+                                                        {c.label}
+                                                    </span>
+                                                </label>
+                                            ))}
                                         </div>
-                                        <p className="text-sm font-medium text-gray-600">{notice.title}</p>
-                                    </div>
-                                    
-                                </div>
-                                <p className="text-gray-600 text-sm leading-relaxed mb-4">{notice.content}</p>
-                                </div>
-                                {notice.link && (
-                                    <a
-                                        href={notice.link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium mb-3"
-                                    >
-                                        <Link2 size={14} />
-                                        {notice.link}
-                                    </a>
-                                )}
-                                {/* Admin Actions */}
-                                <div className="flex flex-col items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                                    <div className="text-left">
-                                        <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                    <Tooltip content="Edit Notice" side="top">
-                                    <button
-                                        onClick={() => handleOpenEdit(notice)}
-                                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                    >
-                                        <Edit2 size={16} />
-                                    </button>
-                                    </Tooltip>
-                                    <Tooltip content="Delete Notice" side="top">
-                                    <button
-                                        onClick={() => setDeletingNotice(notice)}
-                                        className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                    </Tooltip>
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="text-center py-12">
-                            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                                <Bell size={32} />
-                            </div>
-                            <p className="text-gray-500 font-medium">
-                                {selectedCategory === "All Notices"
-                                    ? "No notices published yet"
-                                    : `No notices in ${selectedCategory} category`}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
+                                    </fieldset>
 
-            {/* Edit Notice Modal */}
-            {editingNotice && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-800">Edit Notice</h2>
-                            <button onClick={() => setEditingNotice(null)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                                <X size={20} className="text-gray-600" />
+                                    <div>
+                                        <label htmlFor="notice-content" className="mb-1.5 block text-sm font-medium text-gray-700">Message</label>
+                                        <textarea
+                                            id="notice-content"
+                                            value={form.content}
+                                            onChange={(e) => setForm({ ...form, content: e.target.value })}
+                                            placeholder="What should students, parents and staff know?"
+                                            rows={5}
+                                            className={`${inputClass} resize-y leading-relaxed`}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label htmlFor="notice-link" className="mb-1.5 block text-sm font-medium text-gray-700">
+                                            Link <span className="font-normal text-gray-500">(optional)</span>
+                                        </label>
+                                        <input
+                                            id="notice-link"
+                                            type="url"
+                                            inputMode="url"
+                                            value={form.link}
+                                            onChange={(e) => setForm({ ...form, link: e.target.value })}
+                                            placeholder="https://"
+                                            aria-invalid={linkInvalid}
+                                            aria-describedby={linkInvalid ? "notice-link-error" : undefined}
+                                            className={`${inputClass} ${linkInvalid ? "border-red-400 focus:border-red-500 focus:ring-red-500/30" : ""}`}
+                                        />
+                                        {linkInvalid && (
+                                            <p id="notice-link-error" className="mt-1.5 text-xs text-red-700">
+                                                Enter a full link starting with https://
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-gray-100 bg-gray-50 px-4 py-5 sm:px-6 lg:border-l lg:border-t-0">
+                                    <p className="mb-2 text-sm font-medium text-gray-700">Preview</p>
+                                    <div aria-live="polite" className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                                        <NoticeItem
+                                            preview
+                                            notice={{
+                                                title: form.title,
+                                                content: form.content,
+                                                senderName: editingNotice?.senderName ?? SENDER,
+                                                link: form.link.trim() && !linkInvalid ? form.link.trim() : null,
+                                                file: editingNotice?.file ?? null,
+                                                tag: form.tag,
+                                                createdAt: editingNotice?.createdAt ?? new Date().toISOString(),
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-4 py-4 sm:px-6">
+                                <button type="button" onClick={closeForm} className={secondaryBtn}>
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={!canSubmit} className={primaryBtn}>
+                                    {editingNotice ? (isUpdating ? "Saving…" : "Save changes") : isCreating ? "Publishing…" : "Publish notice"}
+                                </button>
+                            </div>
+                        </form>
+                    </motion.section>
+                )}
+            </AnimatePresence>
+
+            <section id="published-notices" aria-label="Published notices" className="scroll-mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                    <FilterChips label="Filter by category" value={filter} options={filters} onChange={changeFilter} layoutId="principal-notice-filter" />
+                    <SearchBox id="notice-search" label="Search notices" value={search} onChange={changeSearch} placeholder="Search notices" className="lg:w-72" />
+                </div>
+
+                {isLoading ? (
+                    <div aria-hidden="true" className="divide-y divide-gray-100">
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="grid gap-x-6 gap-y-2 px-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)] sm:px-6">
+                                <span className="h-4 w-14 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                <div className="space-y-2">
+                                    <span className="block h-4 w-2/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="block h-3 w-1/4 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="block h-3.5 w-4/5 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : isError ? (
+                    <EmptyState
+                        title="Notices couldn't be loaded."
+                        hint="It might be a temporary problem — try again in a moment."
+                        action={
+                            <button type="button" onClick={() => refetch()} className={secondaryBtn}>
+                                Try again
                             </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Notice Title <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.title}
-                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Category <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={editForm.tag}
-                                    onChange={(e) => setEditForm({ ...editForm, tag: e.target.value as NoticeTag })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
-                                >
-                                    {TAG_LIST.filter(t => t !== "ALL_NOTICES").map((tag) => (
-                                        <option key={tag} value={tag}>{TAG_TO_LABEL[tag]}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Message <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    value={editForm.content}
-                                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                                    rows={4}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none resize-none text-gray-900"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    External Link (Optional)
-                                </label>
-                                <input
-                                    type="url"
-                                    value={editForm.link}
-                                    onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-900"
-                                />
-                            </div>
-                            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                                <button
-                                    onClick={() => setEditingNotice(null)}
-                                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                                >
-                                    Cancel
+                        }
+                    />
+                ) : groups.length === 0 ? (
+                    notices.length === 0 ? (
+                        <EmptyState
+                            icon={<Bell size={32} />}
+                            title="No notices yet."
+                            hint="Publish the first one and it will appear in every portal."
+                            action={
+                                <button type="button" onClick={openCreate} className={primaryBtn}>
+                                    <Plus size={16} aria-hidden="true" />
+                                    New notice
                                 </button>
-                                <button
-                                    onClick={handleSaveEdit}
-                                    disabled={!editForm.title.trim() || !editForm.content.trim() || isUpdating}
-                                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                                        editForm.title.trim() && editForm.content.trim() && !isUpdating
-                                            ? "bg-purple-600 text-white hover:bg-purple-700"
-                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    }`}
-                                >
-                                    {isUpdating ? "Saving..." : "Save Changes"}
+                            }
+                        />
+                    ) : (
+                        <EmptyState
+                            title={
+                                q
+                                    ? `No notices match “${search.trim()}”${filter !== "ALL" ? ` in ${categoryMeta(filter).label}` : ""}.`
+                                    : `No ${categoryMeta(filter as Category).label.toLowerCase()} notices.`
+                            }
+                            action={
+                                <button type="button" onClick={() => { changeSearch(""); changeFilter("ALL"); }} className={secondaryBtn}>
+                                    Show all notices
                                 </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            }
+                        />
+                    )
+                ) : (
+                    <>
+                        {groups.map((g, gi) => (
+                            <section key={g.label} aria-label={g.label}>
+                                <h2 className={`border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600 sm:px-6 ${gi > 0 ? "border-t" : ""}`}>{g.label}</h2>
+                                <ul className="divide-y divide-gray-100">
+                                    <AnimatePresence initial={false}>
+                                        {g.items.map((n) => (
+                                            <motion.li
+                                                key={n.id}
+                                                layout={!reduceMotion}
+                                                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                                                transition={{ duration: reduceMotion ? 0 : 0.22, ease: EASE_OUT }}
+                                                className="overflow-hidden"
+                                            >
+                                                <NoticeItem
+                                                    key={highlight?.id === n.id ? `${n.id}-${highlight.n}` : n.id}
+                                                    notice={n}
+                                                    highlight={highlight?.id === n.id}
+                                                    onEdit={() => openEdit(n)}
+                                                    onDelete={() => setDeleteTarget(n)}
+                                                />
+                                            </motion.li>
+                                        ))}
+                                    </AnimatePresence>
+                                </ul>
+                            </section>
+                        ))}
+                        <Pager total={visible.length} page={current} pageCount={pageCount} onPage={changePage} />
+                    </>
+                )}
+            </section>
 
-            {/* Delete Confirmation Modal */}
-            {deletingNotice && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-                        <div className="p-6 text-center">
-                            <div className="flex items-center justify-center mb-4">
-                                <div className="p-3 rounded-full bg-red-100">
-                                    <Trash2 size={24} className="text-red-600" />
-                                </div>
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2">Delete Notice</h3>
-                            <p className="text-gray-600 mb-6">
-                                Are you sure you want to delete the notice <strong>"{deletingNotice.title}"</strong>? This action cannot be undone.
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setDeletingNotice(null)}
-                                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleConfirmDelete}
-                                    disabled={isDeleting}
-                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
-                                >
-                                    {isDeleting ? "Deleting..." : "Delete"}
-                                </button>
-                            </div>
-                        </div>
+            {/* Delete confirmation */}
+            <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} labelledBy="delete-heading" className="sm:max-w-md">
+                <div className="px-6 pb-6 pt-6">
+                    <h2 id="delete-heading" className="text-base font-semibold text-gray-900">Delete this notice?</h2>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                        “{deleteTarget?.title}” will be removed from every portal. This can&apos;t be undone.
+                    </p>
+                    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button type="button" autoFocus onClick={() => setDeleteTarget(null)} className={secondaryBtn}>
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className={`inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700 active:scale-[0.97] disabled:cursor-wait disabled:opacity-70 motion-safe:transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2`}
+                        >
+                            {isDeleting ? "Deleting…" : "Delete notice"}
+                        </button>
                     </div>
                 </div>
-            )}
+            </Dialog>
         </div>
     );
 }

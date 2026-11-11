@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Users, Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle, IndianRupee } from "lucide-react";
+import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Search, Plus, Trash2, UserPlus, X, Eye, EyeOff, User, Briefcase, CheckCircle2, Edit2, Key, AlertCircle } from "lucide-react";
 import toast from 'react-hot-toast';
 import {
-    useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
     useAddUserMutation,
     useDeleteUserMutation,
     useUpdateUserMutation,
     useChangeUserPasswordMutation,
     UserSummary,
+    type UpdateUserPayload,
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
+import { apiErrorMessage } from "@/lib/apiError";
+import { aadhaarIssue, emailIssue, passwordIssue, phoneIssue } from "@/lib/validation";
 
 type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
 
@@ -85,8 +87,22 @@ const TAB_ROLE_MAP: Record<string, Role[]> = {
     Staff: ['PRINCIPAL', 'ACCOUNTANT', 'STAFF'],
 };
 
+// Page numbers to render: first, last, and a window around the current page,
+// with 'gap' markers where pages are skipped. Keeps the width constant (max 7 slots).
+function getPageItems(current: number, total: number): (number | 'gap')[] {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current <= 4) return [1, 2, 3, 4, 5, 'gap', total];
+    if (current >= total - 3) return [1, 'gap', total - 4, total - 3, total - 2, total - 1, total];
+    return [1, 'gap', current - 1, current, current + 1, 'gap', total];
+}
+
 export default function UserManagementPage() {
-    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Staff" | "Students">("Teachers");
+    // Dashboard links open a specific tab via ?tab=students|teachers|staff.
+    // Safe to read window here: the super-admin layout only renders children client-side, after its auth check.
+    const [selectedTab, setSelectedTab] = useState<"Teachers" | "Staff" | "Students">(() => {
+        const tab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+        return (["Teachers", "Staff", "Students"] as const).find((t) => t.toLowerCase() === tab?.toLowerCase()) ?? "Teachers";
+    });
     const [searchQuery, setSearchQuery] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -98,6 +114,9 @@ export default function UserManagementPage() {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+    const [togglingId, setTogglingId] = useState<string | null>(null);
+    const reduceMotion = useReducedMotion();
     const [editForm, setEditForm] = useState({
         fullName: '',
         email: '',
@@ -128,7 +147,6 @@ export default function UserManagementPage() {
     const [pendingPrincipalActivation, setPendingPrincipalActivation] = useState<{ userId: string; userName: string; action: 'activate' | 'add' } | null>(null);
     const ITEMS_PER_PAGE = 10;
 
-    const { data: kpis } = useGetUserManagementKpisQuery();
     const { data: allUsers, isLoading, refetch } = useGetAllUsersQuery();
     const [addUser, { isLoading: isAdding }] = useAddUserMutation();
     const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
@@ -149,11 +167,11 @@ export default function UserManagementPage() {
     };
 
     const allTabUsers = getTabUsers();
-    const filteredUsers = allTabUsers.filter(
-        (u) =>
-            u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const q = searchQuery.trim().toLowerCase();
+    const filteredUsers = q
+        ? allTabUsers.filter((u) =>
+            [u.fullName, u.email, u.employeeId, u.admissionNumber].some((v) => v?.toLowerCase().includes(q)))
+        : allTabUsers;
 
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
     const paginatedUsers = filteredUsers.slice(
@@ -162,6 +180,22 @@ export default function UserManagementPage() {
     );
 
     const handleAddUser = async () => {
+        // Field checks first — the dialog submits via a button click, so native
+        // form validation never runs and the server accepts anything (§1.3 of the QA audit).
+        const issues: Array<[field: string, issue: string | null]> = [
+            ["Full Name", newUser.fullName.trim() ? null : "Enter the person's full name."],
+            ["Email", emailIssue(newUser.email)],
+            ["Password", passwordIssue(newUser.password)],
+            ["Primary Contact", phoneIssue(newUser.primaryContact)],
+            ["Secondary / Emergency Contact", phoneIssue(newUser.secondaryContact)],
+            ["Aadhar No.", aadhaarIssue(newUser.aadharNo)],
+        ];
+        const firstIssue = issues.find(([, issue]) => issue);
+        if (firstIssue) {
+            toast.error(`${firstIssue[0]}: ${firstIssue[1]}`);
+            return;
+        }
+
         // Validate age for all non-student roles (must be at least 20 years old)
         if (!newUser.dob) {
             toast.error("Date of Birth is required for all users. Please enter the DOB.");
@@ -191,28 +225,26 @@ export default function UserManagementPage() {
         }
 
         try {
-            await addUser(newUser as any).unwrap();
+            await addUser(newUser as unknown as Parameters<typeof addUser>[0]).unwrap();
             setShowAddModal(false);
             setNewUser(emptyForm);
             toast.success("User added successfully!");
             refetch();
-        } catch (err: unknown) {
-            const error = err as { data?: { message?: string }; message?: string };
-            toast.error(error?.data?.message ?? "Failed to add user. Email may already be in use.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "User not added. The email may already be in use."));
         }
     };
 
     const confirmPrincipalAdd = async () => {
         try {
-            await addUser(newUser as any).unwrap();
+            await addUser(newUser as unknown as Parameters<typeof addUser>[0]).unwrap();
             setShowAddModal(false);
             setShowPrincipalWarningModal(false);
             setNewUser(emptyForm);
             toast.success("Principal added successfully! The previous principal has been deactivated.");
             refetch();
-        } catch (err: unknown) {
-            const error = err as { data?: { message?: string }; message?: string };
-            toast.error(error?.data?.message ?? "Failed to add principal. Email may already be in use.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Principal not added. The email may already be in use."));
         }
     };
 
@@ -224,8 +256,8 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to delete user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "User not deactivated. Check your connection and try again."));
         }
     };
 
@@ -237,25 +269,25 @@ export default function UserManagementPage() {
             fullName: user.fullName,
             email: user.email,
             primaryContact: user.primaryContact ?? '',
-            secondaryContact: (user as any).secondaryContact ?? '',
+            secondaryContact: user.secondaryContact ?? '',
             dob: formattedDob,
             gender: user.gender ?? '',
             residentialAddress: user.residentialAddress ?? '',
-            nationality: (user as any).nationality ?? 'Indian',
-            caste: (user as any).caste ?? '',
-            isPwd: (user as any).isPwd ?? false,
-            aadharNo: (user as any).aadharNo ?? '',
-            identificationMark: (user as any).identificationMark ?? '',
+            nationality: user.nationality ?? 'Indian',
+            caste: user.caste ?? '',
+            isPwd: user.isPwd ?? false,
+            aadharNo: user.aadharNo ?? '',
+            identificationMark: user.identificationMark ?? '',
             employeeId: user.employeeId ?? '',
             highestQualification: user.highestQualification ?? '',
-            designation: (user as any).designation ?? '',
-            department: (user as any).department ?? '',
-            joiningDate: (user as any).joiningDate ? new Date((user as any).joiningDate).toISOString().split('T')[0] : '',
+            designation: user.designation ?? '',
+            department: user.department ?? '',
+            joiningDate: user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : '',
             salary: user.salary ?? '',
-            status: (user as any).status ?? 'Active',
-            officialDocType: (user as any).officialDocType ?? 'Aadhar',
-            officialDocNumber: (user as any).officialDocNumber ?? '',
-            employmentType: (user as any).employmentType ?? 'Permanent',
+            status: user.status ?? 'Active',
+            officialDocType: user.officialDocType ?? 'Aadhar',
+            officialDocNumber: user.officialDocNumber ?? '',
+            employmentType: user.employmentType ?? 'Permanent',
             customRole: user.customRole ?? '',
         });
         setShowEditModal(true);
@@ -269,8 +301,20 @@ export default function UserManagementPage() {
 
     const handleUpdateUser = async () => {
         if (!selectedUser) return;
+        const editIssues: Array<[string, string | null]> = [
+            ["Full Name", editForm.fullName.trim() ? null : "Enter the person's full name."],
+            ["Email", emailIssue(editForm.email)],
+            ["Primary Contact", phoneIssue(editForm.primaryContact)],
+            ["Secondary / Emergency Contact", phoneIssue(editForm.secondaryContact)],
+            ["Aadhar No.", aadhaarIssue(editForm.aadharNo)],
+        ];
+        const editIssue = editIssues.find(([, issue]) => issue);
+        if (editIssue) {
+            toast.error(`${editIssue[0]}: ${editIssue[1]}`);
+            return;
+        }
         try {
-            const updateData: any = {
+            const updateData: UpdateUserPayload = {
                 fullName: editForm.fullName,
                 email: editForm.email,
                 primaryContact: editForm.primaryContact,
@@ -301,14 +345,19 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User updated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Changes not saved. Check your connection and try again."));
         }
     };
 
     const handleChangePassword = async () => {
         if (!selectedUser) return;
         if (!passwordForm.currentPassword || !passwordForm.newPassword) return;
+        const pwIssue = passwordIssue(passwordForm.newPassword);
+        if (pwIssue) {
+            toast.error(`New password: ${pwIssue}`);
+            return;
+        }
         try {
             await changePassword({
                 userId: selectedUser.userId,
@@ -320,8 +369,8 @@ export default function UserManagementPage() {
             setPasswordForm({ currentPassword: '', newPassword: '' });
             toast.success("Password changed successfully!");
             refetch();
-        } catch (err: any) {
-            toast.error(err?.data?.message ?? "Failed to change password.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Password not changed. Check the current password and try again."));
         }
     };
 
@@ -338,223 +387,383 @@ export default function UserManagementPage() {
     };
 
     const confirmToggleStatus = async (userId: string, activate: boolean) => {
+        setTogglingId(userId);
         try {
             await updateUser({ userId, data: { isActive: activate } }).unwrap();
             setShowPrincipalWarningModal(false);
             setPendingPrincipalActivation(null);
             toast.success(activate ? "User activated successfully!" : "User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user status.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Status not changed. Check your connection and try again."));
+        } finally {
+            setTogglingId(null);
         }
     };
 
     const roleLabel = (role: string) =>
-        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant', STAFF: 'Staff' }[role] ?? role);
+        ({ TEACHER: 'Teacher', PRINCIPAL: 'Principal', ACCOUNTANT: 'Accountant', STAFF: 'Staff', STUDENT: 'Student' }[role] ?? role);
 
-    const roleBadge = (role: string) => {
-        const styles: Record<string, string> = {
-            TEACHER: 'bg-emerald-100 text-emerald-700',
-            PRINCIPAL: 'bg-purple-100 text-purple-700',
-            ACCOUNTANT: 'bg-amber-100 text-amber-700',
-            STAFF: 'bg-gray-100 text-gray-700',
-        };
-        return `px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[role] ?? 'bg-gray-100 text-gray-700'}`;
+    const TABS = ["Teachers", "Staff", "Students"] as const;
+    const countFor = (tab: (typeof TABS)[number]) => {
+        if (!allUsers) return null;
+        if (tab === 'Students') return allUsers.students.length;
+        const roles = TAB_ROLE_MAP[tab];
+        return [...allUsers.teachers, ...allUsers.staff, ...allUsers.principals].filter((u) => roles.includes(u.role as Role)).length;
+    };
+    const totalAccounts = TABS.reduce((sum, t) => sum + (countFor(t) ?? 0), 0);
+
+    const switchTab = (tab: (typeof TABS)[number]) => {
+        setSelectedTab(tab);
+        setSearchQuery("");
+        setCurrentPage(1);
+        // Keep the tab in the URL so a reload (or a shared link) opens the same list.
+        window.history.replaceState(null, "", `?tab=${tab.toLowerCase()}`);
     };
 
+    const toggleReveal = (id: string) =>
+        setRevealedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+
+    const handleStatusSwitch = async (user: UserSummary) => {
+        if (!user.isActive) {
+            handleToggleUserStatus(user);
+            return;
+        }
+        setTogglingId(user.userId);
+        try {
+            await updateUser({ userId: user.userId, data: { isActive: false } }).unwrap();
+            refetch();
+            toast(
+                (t) => (
+                    <span className="flex items-center gap-4 text-sm text-gray-800">
+                        {user.fullName} deactivated.
+                        <button
+                            type="button"
+                            onClick={() => { toast.dismiss(t.id); handleToggleUserStatus({ ...user, isActive: false }); }}
+                            className="font-semibold text-rose-700 hover:text-rose-800 hover:underline underline-offset-4"
+                        >
+                            Undo
+                        </button>
+                    </span>
+                ),
+                { duration: 6000 }
+            );
+        } catch (err) {
+            toast.error(apiErrorMessage(err, `Couldn't deactivate ${user.fullName}. Try again.`));
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
+    const isStudents = selectedTab === 'Students';
+    const isStaff = selectedTab === 'Staff';
+    const colCount = isStudents ? 6 : isStaff ? 6 : 5;
+    const singular = { Teachers: 'teacher', Staff: 'staff member', Students: 'student' }[selectedTab];
+
+    const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500";
+    const iconBtn = `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:scale-95 motion-safe:transition ${focusRing}`;
+    const th = "px-6 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap";
+    const pageBtn = `h-9 px-3 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 active:scale-[0.97] ${focusRing} focus-visible:ring-offset-1 disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:hover:bg-gray-50 disabled:hover:text-gray-400 disabled:active:scale-100 disabled:cursor-not-allowed motion-safe:transition`;
+
+    const initials = (name: string) =>
+        name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
+
+    const passwordControl = (user: UserSummary) => {
+        const revealed = revealedIds.has(user.id);
+        return user.password ? (
+            <div className="flex items-center gap-1">
+                <span className={`min-w-[7.5rem] text-sm tabular-nums ${revealed ? "text-gray-900" : "text-gray-500 tracking-widest"}`}>
+                    {revealed ? user.password : "••••••••"}
+                </span>
+                <Tooltip content={revealed ? "Hide password" : "Show password"} side="top">
+                    <button
+                        type="button"
+                        onClick={() => toggleReveal(user.id)}
+                        aria-label={`${revealed ? "Hide" : "Show"} password for ${user.fullName}`}
+                        aria-pressed={revealed}
+                        className={iconBtn}
+                    >
+                        {revealed ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+                    </button>
+                </Tooltip>
+            </div>
+        ) : (
+            <span className="text-sm text-gray-500">—</span>
+        )
+    };
+
+    const statusSwitch = (user: UserSummary) => (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={user.isActive}
+            aria-label={`Account active for ${user.fullName}`}
+            disabled={togglingId === user.userId}
+            onClick={() => handleStatusSwitch(user)}
+            className={`group inline-flex items-center gap-2.5 rounded-full disabled:cursor-wait ${focusRing} focus-visible:ring-offset-2`}
+        >
+            <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full group-disabled:opacity-60 motion-safe:transition-colors motion-safe:duration-200 ${user.isActive ? "bg-emerald-600 group-hover:bg-emerald-700" : "bg-gray-300 group-hover:bg-gray-400"}`}>
+                <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm motion-safe:transition-transform motion-safe:duration-200 ${user.isActive ? "translate-x-4" : "translate-x-0"}`} />
+            </span>
+            <span className={`text-sm ${user.isActive ? "text-gray-900" : "text-gray-500"}`}>
+                {togglingId === user.userId ? "Saving…" : user.isActive ? "Active" : "Inactive"}
+            </span>
+        </button>
+    );
+
+    const rowActions = (user: UserSummary) => (
+        <div className="flex items-center justify-end gap-1">
+            <Tooltip content="Edit details" side="top">
+                <button type="button" onClick={() => openEditModal(user)} aria-label={`Edit ${user.fullName}`} className={iconBtn}>
+                    <Edit2 size={15} aria-hidden="true" />
+                </button>
+            </Tooltip>
+            <Tooltip content="Change password" side="top">
+                <button type="button" onClick={() => openPasswordModal(user)} aria-label={`Change password for ${user.fullName}`} className={iconBtn}>
+                    <Key size={15} aria-hidden="true" />
+                </button>
+            </Tooltip>
+        </div>
+    );
+
+    const emptyState =
+        searchQuery ? (
+            <>
+                <p className="text-sm font-medium text-gray-900">No {selectedTab.toLowerCase()} match “{searchQuery}”.</p>
+                <p className="mt-1 text-sm text-gray-500">Check the spelling, or search by email or ID.</p>
+                <button
+                    type="button"
+                    onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+                    className={`mt-4 inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 active:scale-[0.97] motion-safe:transition ${focusRing}`}
+                >
+                    Clear search
+                </button>
+            </>
+        ) : isStudents ? (
+            <>
+                <p className="text-sm font-medium text-gray-900">No students yet.</p>
+                <p className="mt-1 text-sm text-gray-500">Students appear here once their admission is approved.</p>
+            </>
+        ) : (
+            <>
+                <p className="text-sm font-medium text-gray-900">No {selectedTab.toLowerCase()} yet.</p>
+                <button
+                    type="button"
+                    onClick={() => setShowAddModal(true)}
+                    className={`mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-medium text-white hover:bg-rose-700 active:scale-[0.97] motion-safe:transition ${focusRing} focus-visible:ring-offset-2`}
+                >
+                    <Plus size={16} aria-hidden="true" />
+                    Add user
+                </button>
+            </>
+        );
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
+        <div className="max-w-7xl space-y-6">
+            <header className="flex flex-wrap items-end justify-between gap-4 border-b border-gray-200 pb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
-                    <p className="text-gray-500 mt-1">Manage all system users and permissions</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">User Management</h1>
+                    <p className="mt-1 text-sm text-gray-500 tabular-nums">
+                        {isLoading ? "Loading accounts…" : `${totalAccounts.toLocaleString("en-IN")} accounts across teachers, staff and students`}
+                    </p>
                 </div>
                 <button
+                    type="button"
                     onClick={() => setShowAddModal(true)}
-                    className="flex items-center space-x-2 bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 transition-colors shadow-md hover:shadow-lg font-medium"
+                    className={`inline-flex h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-rose-700 active:scale-[0.97] motion-safe:transition ${focusRing} focus-visible:ring-offset-2`}
                 >
-                    <Plus size={20} />
-                    <span>Add User</span>
+                    <Plus size={18} aria-hidden="true" />
+                    Add user
                 </button>
-            </div>
+            </header>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-emerald-500">
-                    <p className="text-sm text-gray-600 font-medium">Total Teachers</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalTeachers ?? '—'}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-                    <p className="text-sm text-gray-600 font-medium">Total Students</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalStudents ?? '—'}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-amber-500">
-                    <p className="text-sm text-gray-600 font-medium">Total Staff</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.staffMembers ?? '—'}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-rose-500">
-                    <p className="text-sm text-gray-600 font-medium">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-800 mt-1">{kpis?.totalUsers ?? '—'}</p>
-                </div>
-            </div>
-
-            {/* Main Table */}
-            <div className="bg-white rounded-xl shadow-md border-t-4 border-rose-600">
-                {/* Tabs */}
-                <div className="border-b border-gray-200">
-                    <div className="flex space-x-8 px-6">
-                        {(["Teachers", "Staff", "Students"] as const).map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => { setSelectedTab(tab); setSearchQuery(""); setCurrentPage(1); }}
-                                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${selectedTab === tab
-                                    ? "border-rose-600 text-rose-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
+            <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {/* Toolbar: tabs carry the counts; search sits beside them */}
+                <div className="flex flex-col gap-3 border-b border-gray-200 px-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div role="tablist" aria-label="User type" className="-mb-px flex gap-6 overflow-x-auto">
+                        {TABS.map((tab) => {
+                            const active = selectedTab === tab;
+                            const count = countFor(tab);
+                            return (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    onClick={() => switchTab(tab)}
+                                    className={`relative flex shrink-0 items-center gap-2 py-4 text-sm font-medium rounded-sm motion-safe:transition-colors ${focusRing} ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
+                                >
+                                    {tab}
+                                    <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums motion-safe:transition-colors ${active ? "bg-rose-50 text-rose-700" : "bg-gray-100 text-gray-600"}`}>
+                                        {count == null ? "…" : count.toLocaleString("en-IN")}
+                                    </span>
+                                    {active && (
+                                        <motion.span
+                                            layoutId="users-tab-underline"
+                                            className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-rose-600"
+                                            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                                        />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
-                </div>
 
-                {/* Search */}
-                <div className="p-6 border-b border-gray-100">
-                    <div className="relative">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <div className="pb-3 lg:w-80 lg:pb-0"><div className="relative">
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                        <label htmlFor="user-search" className="sr-only">Search {selectedTab.toLowerCase()}</label>
                         <input
-                            type="text"
+                            id="user-search"
+                            type="search"
                             value={searchQuery}
                             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                            placeholder={`Search ${selectedTab.toLowerCase()}...`}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 focus:outline-none"
+                            onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setCurrentPage(1); } }}
+                            placeholder={isStudents ? "Search by name, email or admission no." : "Search by name, email or employee ID"}
+                            className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 text-sm text-gray-900 placeholder:text-gray-400 hover:border-gray-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 motion-safe:transition [&::-webkit-search-cancel-button]:appearance-none"
                         />
-                    </div>
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+                                aria-label="Clear search"
+                                className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                            >
+                                <X size={14} aria-hidden="true" />
+                            </button>
+                        )}
+                    </div></div>
                 </div>
 
-                {/* Table */}
-                <div className="overflow-x-auto">
+                {/* Phones and tablets: one card per person instead of a cramped table */}
+                <ul className="divide-y divide-gray-100 xl:hidden">
+                    {isLoading ? (
+                        Array.from({ length: 5 }, (_, i) => (
+                            <li key={i} aria-hidden="true" className="flex items-center gap-3 px-4 py-4">
+                                <span className="h-9 w-9 shrink-0 rounded-full bg-gray-100 motion-safe:animate-pulse" />
+                                <span className="flex-1 space-y-1.5">
+                                    <span className="block h-3.5 w-36 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                    <span className="block h-3 w-48 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                </span>
+                            </li>
+                        ))
+                    ) : filteredUsers.length > 0 ? (
+                        paginatedUsers.map((user) => (
+                            <li key={user.id} className={`px-4 py-4 ${user.isActive ? "" : "bg-gray-50/60"}`}>
+                                <div className="flex items-start gap-3">
+                                    <span
+                                        aria-hidden="true"
+                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${user.isActive ? "bg-rose-50 text-rose-700" : "bg-gray-100 text-gray-500"}`}
+                                    >
+                                        {initials(user.fullName)}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className={`truncate text-sm font-medium ${user.isActive ? "text-gray-900" : "text-gray-500"}`}>{user.fullName}</p>
+                                        <p className="truncate text-xs text-gray-500">{user.email}</p>
+                                        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-600 tabular-nums">
+                                            {isStaff && (
+                                                <span>
+                                                    {roleLabel(user.role)}
+                                                    {user.role === 'STAFF' && user.customRole ? ` (${user.customRole})` : ""}
+                                                </span>
+                                            )}
+                                            {isStudents && user.classroom && <span>{user.classroom}</span>}
+                                            {(isStudents ? user.admissionNumber : user.employeeId) && <span className="text-gray-500">{isStudents ? user.admissionNumber : user.employeeId}</span>}
+                                        </p>
+                                    </div>
+                                    <div className="-mr-1 shrink-0">{rowActions(user)}</div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pl-12">
+                                    {statusSwitch(user)}
+                                    {passwordControl(user)}
+                                </div>
+                            </li>
+                        ))
+                    ) : (
+                        <li className="px-4 py-14 text-center">{emptyState}</li>
+                    )}
+                </ul>
+
+                <div className="hidden overflow-x-auto xl:block">
                     <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
-                                {selectedTab === 'Students' && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Admission No</th>
-                                )}
-                                {selectedTab !== 'Students' && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Employee ID</th>
-                                )}
-                                {selectedTab === 'Students' && (
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Class</th>
-                                )}
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Password</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                                <th scope="col" className={th}>Name</th>
+                                {isStaff && <th scope="col" className={th}>Role</th>}
+                                <th scope="col" className={th}>{isStudents ? "Admission no." : "Employee ID"}</th>
+                                {isStudents && <th scope="col" className={th}>Class</th>}
+                                <th scope="col" className={th}>Password</th>
+                                <th scope="col" className={th}>Status</th>
+                                <th scope="col" className={th}><span className="sr-only">Actions</span></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-100">
                             {isLoading ? (
-                                <tr>
-                                    <td colSpan={selectedTab === 'Students' ? 8 : 7} className="px-6 py-10 text-center text-gray-500">
-                                        <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                                        <p>Loading users...</p>
-                                    </td>
-                                </tr>
-                            ) : filteredUsers.length > 0 ? (
-                                paginatedUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-sm">
-                                                    {user.fullName.charAt(0)}
-                                                </div>
-                                                <div className="ml-3">
-                                                    <p className="text-sm font-medium text-gray-800">{user.fullName}</p>
+                                Array.from({ length: 6 }, (_, i) => (
+                                    <tr key={i} aria-hidden="true">
+                                        <td className="px-6 py-3.5">
+                                            <div className="flex items-center gap-3">
+                                                <span className="h-9 w-9 rounded-full bg-gray-100 motion-safe:animate-pulse" />
+                                                <div className="space-y-1.5">
+                                                    <span className="block h-3.5 w-36 rounded bg-gray-100 motion-safe:animate-pulse" />
+                                                    <span className="block h-3 w-44 rounded bg-gray-100 motion-safe:animate-pulse" />
                                                 </div>
                                             </div>
                                         </td>
-                                        {selectedTab === 'Students' && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-600">
-                                                {(user as any).admissionNumber || '-'}
-                                            </td>
-                                        )}
-                                        {selectedTab !== 'Students' && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-600">
-                                                {user.employeeId || '-'}
-                                            </td>
-                                        )}
-                                        {selectedTab === 'Students' && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {(user as any).classroom || '-'}
-                                            </td>
-                                        )}
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={roleBadge(user.role)}>{roleLabel(user.role)}{user.role === 'STAFF' && user.customRole ? ` (${user.customRole})` : ''}</span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <code className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
-                                                {user.password || '-'}
-                                            </code>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${user.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
-                                                {user.isActive ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <div className="flex items-center space-x-1">
-                                                
-                                                <Tooltip content="Edit User" side="top">
-                                                <button
-                                                    onClick={() => openEditModal(user)}
-                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                </Tooltip>
-                                                <Tooltip content="Change Password" side="top">
-                                                <button
-                                                    onClick={() => openPasswordModal(user)}
-                                                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                                >
-                                                    <Key size={16} />
-                                                </button>
-                                                </Tooltip>
-                                                <Tooltip content={user.isActive ? "Deactivate User" : "Activate User"} side="top">
-                                                <button
-                                                    onClick={() => {
-                                                        if (user.isActive) {
-                                                            updateUser({ userId: user.userId, data: { isActive: false } }).unwrap()
-                                                                .then(() => { toast.success("User deactivated."); refetch(); })
-                                                                .catch(() => toast.error("Failed to deactivate user."));
-                                                        } else {
-                                                            handleToggleUserStatus(user);
-                                                        }
-                                                    }}
-                                                    className={`p-1.5 rounded transition-colors ${
-                                                        user.isActive
-                                                            ? 'text-gray-500 hover:bg-gray-100'
-                                                            : 'text-green-600 hover:bg-green-50'
-                                                    }`}
-                                                >
-                                                    {user.isActive ? (
-                                                        <span className="text-xs font-medium">Off</span>
-                                                    ) : (
-                                                        <span className="text-xs font-medium">On</span>
-                                                    )}
-                                                </button>
-                                                </Tooltip>
-                                            </div>
-                                        </td>
+                                        {Array.from({ length: colCount }, (_, j) => (
+                                            <td key={j} className="px-6 py-3.5"><span className="block h-3.5 w-20 rounded bg-gray-100 motion-safe:animate-pulse" /></td>
+                                        ))}
                                     </tr>
                                 ))
+                            ) : filteredUsers.length > 0 ? (
+                                paginatedUsers.map((user) => {
+                                    return (
+                                        <tr key={user.id} className={`hover:bg-gray-50 motion-safe:transition-colors ${user.isActive ? "" : "bg-gray-50/60"}`}>
+                                            <td className="px-6 py-3 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${user.isActive ? "bg-rose-50 text-rose-700" : "bg-gray-100 text-gray-500"}`}
+                                                    >
+                                                        {initials(user.fullName)}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className={`text-sm font-medium ${user.isActive ? "text-gray-900" : "text-gray-500"}`}>{user.fullName}</p>
+                                                        <p className="text-xs text-gray-500">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            {isStaff && (
+                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                    {roleLabel(user.role)}
+                                                    {user.role === 'STAFF' && user.customRole && <span className="text-gray-500"> ({user.customRole})</span>}
+                                                </td>
+                                            )}
+                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600 tabular-nums">
+                                                {(isStudents ? user.admissionNumber : user.employeeId) || <span className="text-gray-500">—</span>}
+                                            </td>
+                                            {isStudents && (
+                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{user.classroom || <span className="text-gray-500">—</span>}</td>
+                                            )}
+                                            <td className="px-6 py-3 whitespace-nowrap">
+                                                {passwordControl(user)}
+                                            </td>
+                                            <td className="px-6 py-3 whitespace-nowrap">
+                                                {statusSwitch(user)}
+                                            </td>
+                                            <td className="px-6 py-3 whitespace-nowrap">
+                                                {rowActions(user)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
-                                    <td colSpan={selectedTab === 'Students' ? 8 : 7} className="px-6 py-12 text-center">
-                                        <Users className="mx-auto text-gray-300 mb-2" size={48} />
-                                        <p className="text-gray-500 font-medium">No {selectedTab.toLowerCase()} found</p>
+                                    <td colSpan={colCount + 1} className="px-6 py-14 text-center">
+                                        {emptyState}
                                     </td>
                                 </tr>
                             )}
@@ -562,48 +771,45 @@ export default function UserManagementPage() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {!isLoading && filteredUsers.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-                        <p className="text-sm text-gray-500">
-                            Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-                            {" – "}
-                            <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 border-t border-gray-200 sm:px-6">
+                        <p className="text-sm text-gray-500 whitespace-nowrap tabular-nums">
+                            Showing <span className="font-medium text-gray-700">{(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)}</span>
                             {" of "}
-                            <span className="font-medium">{filteredUsers.length}</span>
+                            <span className="font-medium text-gray-700">{filteredUsers.length.toLocaleString("en-IN")}</span>
+                            {" "}{filteredUsers.length === 1 ? singular : selectedTab === 'Staff' ? 'staff' : selectedTab.toLowerCase()}
                         </p>
-                        <div className="flex items-center space-x-1">
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Prev
-                            </button>
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`w-9 h-9 text-sm rounded-lg transition-colors ${
-                                        currentPage === page
-                                            ? 'bg-rose-600 text-white'
-                                            : 'border border-gray-200 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {page}
+                        {totalPages > 1 && (
+                            <nav aria-label="Pagination" className="flex flex-wrap items-center gap-1">
+                                <button type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className={pageBtn}>
+                                    Prev
                                 </button>
-                            ))}
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Next
-                            </button>
-                        </div>
+                                {getPageItems(currentPage, totalPages).map((page, idx) => page === 'gap' ? (
+                                    <span key={`gap-${idx}`} aria-hidden="true" className="w-9 h-9 flex items-center justify-center text-sm text-gray-500 select-none">…</span>
+                                ) : (
+                                    <button
+                                        key={page}
+                                        type="button"
+                                        onClick={() => setCurrentPage(page)}
+                                        aria-label={`Page ${page}`}
+                                        aria-current={currentPage === page ? 'page' : undefined}
+                                        className={`w-9 h-9 text-sm font-medium rounded-lg border tabular-nums active:scale-[0.95] motion-safe:transition ${focusRing} focus-visible:ring-offset-1 ${
+                                            currentPage === page
+                                                ? 'border-rose-600 bg-rose-600 text-white'
+                                                : 'border-gray-300 bg-white text-gray-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={pageBtn}>
+                                    Next
+                                </button>
+                            </nav>
+                        )}
                     </div>
                 )}
-            </div>
+            </section>
 
             {/* Add User Modal */}
             {showAddModal && (
@@ -614,7 +820,7 @@ export default function UserManagementPage() {
                                 <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
                                 <p className="text-sm text-gray-500 mt-1">Create a new user account. Employee ID will be auto-generated.</p>
                             </div>
-                            <button onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <button type="button" aria-label="Close" onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={24} className="text-gray-600" />
                             </button>
                         </div>
@@ -645,8 +851,8 @@ export default function UserManagementPage() {
                                             <input type={showPassword ? "text" : "password"} value={newUser.password}
                                                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                                                 className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
                                         </div>
@@ -667,7 +873,7 @@ export default function UserManagementPage() {
                                         <input type="text" value={newUser.employeeId} readOnly
                                             placeholder="Auto-generated (MLZS/BKP/...)"
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono cursor-not-allowed" />
-                                        <p className="text-xs text-gray-400 mt-1">Auto-generated based on role & joining year.</p>
+                                        <p className="text-xs text-gray-500 mt-1">Auto-generated based on role & joining year.</p>
                                     </div>
                                 </div>
                             </div>
@@ -891,7 +1097,7 @@ export default function UserManagementPage() {
                                 </h2>
                                 <p className="text-sm text-gray-500 mt-1">{roleLabel(selectedUser.role)} — {selectedUser.fullName} {selectedUser.employeeId ? `(ID: ${selectedUser.employeeId})` : ''}</p>
                             </div>
-                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                            <button type="button" aria-label="Close" onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={20} className="text-gray-600" />
                             </button>
@@ -1079,14 +1285,14 @@ export default function UserManagementPage() {
                         </div>
 
                         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
-                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                            <button type="button" aria-label="Close" onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
                                 className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                 Cancel
                             </button>
                             <button
                                 onClick={handleUpdateUser}
                                 disabled={isUpdating || !editForm.fullName || !editForm.email}
-                                className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                                className="flex items-center space-x-2 px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors font-medium"
                             >
                                 <Edit2 size={16} />
                                 {isUpdating ? "Saving..." : "Save Changes"}
@@ -1106,7 +1312,7 @@ export default function UserManagementPage() {
                                     <Key size={20} className="text-amber-600" />
                                     Change Password
                                 </h2>
-                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1123,8 +1329,8 @@ export default function UserManagementPage() {
                                         <input type={showCurrentPassword ? "text" : "password"} value={passwordForm.currentPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                                             className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                        <button type="button" aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                             {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
@@ -1135,8 +1341,8 @@ export default function UserManagementPage() {
                                         <input type={showNewPassword ? "text" : "password"} value={passwordForm.newPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                                             className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                        <button type="button" aria-label={showNewPassword ? "Hide new password" : "Show new password"} onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                             {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
@@ -1144,7 +1350,7 @@ export default function UserManagementPage() {
                             </div>
 
                             <div className="flex justify-end space-x-3 mt-6">
-                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>
@@ -1172,7 +1378,7 @@ export default function UserManagementPage() {
                                     <AlertCircle size={22} className="text-amber-500" />
                                     Principal Activation Warning
                                 </h2>
-                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1199,7 +1405,7 @@ export default function UserManagementPage() {
                                 )}
                             </div>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>
@@ -1235,7 +1441,7 @@ export default function UserManagementPage() {
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-bold text-gray-800">Confirm Delete</h2>
-                                <button onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1246,7 +1452,7 @@ export default function UserManagementPage() {
                                 </p>
                             </div>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>

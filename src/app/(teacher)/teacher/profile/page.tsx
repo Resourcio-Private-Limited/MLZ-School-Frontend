@@ -2,45 +2,68 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-    Briefcase,
-    IdCard,
-    Calendar,
-    User,
-    MapPin,
-    Phone,
-    Mail,
-    IndianRupee,
-    GraduationCap,
-    Book,
-    ArrowLeft,
-    Camera,
-    Loader2,
-    Globe,
-    CheckCircle2,
-    FileText,
-    Award,
-} from "lucide-react";
-import { useRef } from "react";
-import { useGetTeacherProfileQuery, useUploadProfileImageMutation } from "@/redux/api/teacherApi";
+import { useRef, useState } from "react";
+import { BadgeCheck, Briefcase, Camera, IdCard, Loader2, School, User } from "lucide-react";
+import toast from "react-hot-toast";
+import { useGetTeacherProfileQuery, useUploadProfileImageMutation, type TeacherFullProfile } from "@/redux/api/teacherApi";
+import { heroGradient } from "@/components/teacher/brand";
+import { errorMessage, focusRing, inr, secondaryBtn } from "@/components/teacher/ui";
 
-function formatDate(dateStr: string | null | undefined) {
-    if (!dateStr) return "—";
-    try {
-        return new Date(dateStr).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    } catch {
-        return "—";
-    }
+// Fields the full-profile endpoint can return beyond the typed ones.
+type Extra = Partial<{
+    joiningDate: string;
+    department: string;
+    secondaryContact: string;
+    nationality: string;
+    caste: string;
+    isPwd: boolean;
+    aadharNo: string;
+    identificationMark: string;
+    bloodGroup: string;
+    officialDocType: string;
+    officialDocNumber: string;
+}>;
+
+function formatDate(value: string | null | undefined) {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+const sentence = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, " ") : null);
+
+type Field = { label: string; value: string | null | undefined; wide?: boolean };
+
+function Details({ fields }: { fields: Field[] }) {
+    return (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-5 sm:gap-x-6 sm:px-6 lg:grid-cols-3">
+            {fields.map((f) => (
+                <div key={f.label} className={`min-w-0 ${f.wide ? "col-span-2 lg:col-span-3" : ""}`}>
+                    <dt className="text-sm text-gray-500">{f.label}</dt>
+                    <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+    return (
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="border-b border-gray-100 px-4 py-4 sm:px-6">
+                <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+                {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+            </div>
+            {children}
+        </section>
+    );
 }
 
 export default function TeacherProfilePage() {
-    const { data: profile, isLoading, refetch } = useGetTeacherProfileQuery();
+    const { data, isLoading, isError, refetch } = useGetTeacherProfileQuery();
     const [uploadProfileImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Shows the new photo straight away while the profile refetches.
+    const [localImage, setLocalImage] = useState<string | null>(null);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -49,15 +72,15 @@ export default function TeacherProfilePage() {
         const reader = new FileReader();
         reader.onload = async () => {
             try {
+                // Compress the image before uploading.
                 const img = new window.Image();
                 img.src = reader.result as string;
                 await new Promise((resolve) => { img.onload = resolve; });
 
-                const canvas = document.createElement('canvas');
+                const canvas = document.createElement("canvas");
                 const maxSize = 800;
                 let width = img.width;
                 let height = img.height;
-
                 if (width > maxSize || height > maxSize) {
                     if (width > height) {
                         height = (height / width) * maxSize;
@@ -67,202 +90,154 @@ export default function TeacherProfilePage() {
                         height = maxSize;
                     }
                 }
-
                 canvas.width = width;
                 canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
+                canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
 
-                const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
-                await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                await uploadProfileImage({ imageUrl: compressed }).unwrap();
+                setLocalImage(compressed);
+                toast.success("Photo updated.");
                 refetch();
             } catch (err) {
-                console.error('Failed to upload image:', err);
+                toast.error(errorMessage(err, "Photo not uploaded. Try a smaller image."));
             }
         };
         reader.readAsDataURL(file);
+        e.target.value = "";
     };
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="max-w-7xl space-y-6" aria-busy="true">
+                <div className={`h-40 rounded-xl ${heroGradient} motion-safe:animate-pulse`} />
+                <div className="h-64 rounded-xl border border-gray-200 bg-white" />
             </div>
         );
     }
 
-    if (!profile) {
+    if (!data || isError) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <p className="text-slate-500">Failed to load profile. Please refresh.</p>
+            <div className="max-w-7xl rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
+                <p className="font-medium text-gray-900">Your profile couldn&apos;t be loaded</p>
+                <p className="mt-1 text-sm text-gray-500">It might be a temporary problem — try again in a moment.</p>
+                <button type="button" onClick={() => refetch()} className={`${secondaryBtn} mt-4`}>Try again</button>
             </div>
         );
     }
 
-    const employeeId = profile.employeeId ?? '—';
-    const joiningDate = (profile as any).joiningDate ? formatDate((profile as any).joiningDate) : '—';
-    const designation = (profile as any).designation ?? 'Teacher';
-    const department = (profile as any).department ?? '—';
-    const currentSalary = (profile as any).salary;
-    const status = profile.status ?? 'Active';
-    const officialDocType = (profile as any).officialDocType ?? '—';
-    const officialDocNumber = (profile as any).officialDocNumber ?? '—';
-    const secondaryContact = (profile as any).secondaryContact ?? '—';
-    const nationality = (profile as any).nationality ?? 'Indian';
-    const caste = (profile as any).caste ?? '—';
-    const isPwd = (profile as any).isPwd ?? false;
-    const aadharNo = (profile as any).aadharNo ?? '—';
-    const identificationMark = (profile as any).identificationMark ?? '—';
+    const profile = data as TeacherFullProfile & Extra;
+    const photo = localImage ?? profile.profileImage;
+    const salary = profile.salary !== null && profile.salary !== undefined && profile.salary !== "" && Number.isFinite(Number(profile.salary)) ? inr(Number(profile.salary)) : null;
+    const status = sentence(profile.status);
+    const doc = [profile.officialDocType, profile.officialDocNumber].filter(Boolean).join(", ");
+    const classrooms = [...(profile.assignedClassrooms ?? [])].sort((a, b) => Number(b.isClassTeacher) - Number(a.isClassTeacher) || a.name.localeCompare(b.name, "en-IN", { numeric: true }));
+
+    const personal: Field[] = [
+        { label: "Full name", value: profile.fullName },
+        { label: "Date of birth", value: formatDate(profile.dob) },
+        { label: "Gender", value: sentence(profile.gender) },
+        { label: "Nationality", value: profile.nationality },
+        { label: "Caste", value: profile.caste },
+        { label: "Person with disability", value: profile.isPwd === undefined ? null : profile.isPwd ? "Yes" : "No" },
+        { label: "Blood group", value: profile.bloodGroup },
+        { label: "Aadhaar number", value: profile.aadharNo },
+        { label: "Email", value: profile.email || profile.userEmail },
+        { label: "Primary contact", value: profile.primaryContact },
+        { label: "Emergency contact", value: profile.secondaryContact },
+        { label: "Identification mark", value: profile.identificationMark, wide: true },
+        { label: "Residential address", value: profile.residentialAddress, wide: true },
+    ];
+
+    const work: Field[] = [
+        { label: "Employee ID", value: profile.employeeId },
+        { label: "Designation", value: profile.designation ?? "Teacher" },
+        { label: "Department", value: profile.department },
+        { label: "Highest qualification", value: profile.highestQualification },
+        { label: "Date of joining", value: formatDate(profile.joiningDate) },
+        { label: "Monthly salary", value: salary },
+        { label: "Status", value: status },
+        { label: "Official document", value: doc || null, wide: true },
+    ];
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-12">
-            {/* Hero Section */}
-            <div className="bg-slate-900 pt-12 pb-32 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center space-x-4 mb-6">
-                        <Link href="/teacher" className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </Link>
-                    </div>
-                    <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-                        <div className="relative group">
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
-                                {profile.profileImage ? (
-                                    <Image
-                                        src={profile.profileImage}
-                                        alt="Teacher Photo"
-                                        width={160}
-                                        height={160}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-slate-700">
-                                        <User size={48} className="text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-50"
-                                title="Upload Photo"
-                            >
-                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
+        <div className="max-w-7xl space-y-6">
+            <section className={`overflow-hidden rounded-xl px-4 py-6 shadow-sm sm:px-8 sm:py-8 ${heroGradient}`}>
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="relative shrink-0">
+                        <div className="h-20 w-20 overflow-hidden rounded-full bg-white/10 ring-4 ring-white/10 sm:h-28 sm:w-28">
+                            {photo ? (
+                                <Image src={photo} alt="" width={112} height={112} unoptimized className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-emerald-200 sm:text-4xl">
+                                    {profile.fullName?.[0]?.toUpperCase() ?? <User size={36} aria-hidden="true" />}
+                                </span>
+                            )}
                         </div>
-                        <div className="text-center md:text-left text-white">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{profile.fullName}</h1>
-                            <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
-                                <span className="flex items-center gap-1">
-                                    <Briefcase size={18} className="text-blue-400" />
-                                    {designation}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            aria-label="Change photo"
+                            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-900 bg-emerald-600 text-white shadow-lg hover:bg-emerald-500 disabled:opacity-60 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                            {isUploading ? <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{profile.fullName}</h1>
+                        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
+                            <span className="inline-flex items-center gap-1.5">
+                                <Briefcase size={15} aria-hidden="true" className="text-emerald-300" />
+                                {profile.designation ?? "Teacher"}
+                            </span>
+                            {profile.employeeId && (
+                                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                                    <IdCard size={15} aria-hidden="true" className="text-emerald-300" />
+                                    Employee ID {profile.employeeId}
                                 </span>
-                                <span className="flex items-center gap-1 font-mono">
-                                    <IdCard size={18} className="text-blue-400" />
-                                    ID: {employeeId}
+                            )}
+                            {profile.classTeacherOf && (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <BadgeCheck size={15} aria-hidden="true" className="text-emerald-300" />
+                                    Class teacher, {profile.classTeacherOf.name}
                                 </span>
-                                <span className="flex items-center gap-1">
-                                    <Calendar size={18} className="text-blue-400" />
-                                    {status}
-                                </span>
-                                {profile.classTeacherOf && (
-                                    <span className="flex items-center gap-1">
-                                        <User size={18} className="text-emerald-400" />
-                                        Class Teacher: {profile.classTeacherOf.name}
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <Section title="Personal details" subtitle="To correct anything here, ask the school office.">
+                <Details fields={personal} />
+            </Section>
+
+            <Section title="Work details">
+                <Details fields={work} />
+            </Section>
+
+            <Section title="Classes and subjects" subtitle="What the school has assigned to you this year.">
+                {classrooms.length === 0 ? (
+                    <p className="px-4 py-6 text-sm text-gray-500 sm:px-6">No classes are assigned to you yet.</p>
+                ) : (
+                    <ul className="divide-y divide-gray-100">
+                        {classrooms.map((c) => (
+                            <li key={c.id}>
+                                <Link href={`/teacher/classroom/${c.id}`} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3.5 hover:bg-gray-50 motion-safe:transition-colors sm:px-6 ${focusRing} focus-visible:ring-inset`}>
+                                    <School size={16} aria-hidden="true" className="shrink-0 text-emerald-600" />
+                                    <span className="text-sm font-medium text-gray-900">{c.name}</span>
+                                    {c.isClassTeacher && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">Class teacher</span>}
+                                    <span className="min-w-0 basis-full text-sm text-gray-500 sm:ml-auto sm:basis-auto">
+                                        {c.subjects.length ? c.subjects.join(", ") : "No subjects"}
+                                        <span className="ml-3 tabular-nums">{c.studentCount} students</span>
                                     </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Floating Cards */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 space-y-8">
-                {/* Personal Details Card */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <User size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                <p className="text-sm text-gray-500">Your personal information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <InfoField label="Full Name" value={profile.fullName} icon={<User size={16} />} />
-                            <InfoField label="Date of Birth" value={formatDate(profile.dob)} icon={<Calendar size={16} />} />
-                            <InfoField label="Gender" value={profile.gender} icon={<User size={16} />} />
-                            <InfoField label="Email ID" value={profile.email ?? "—"} icon={<Mail size={16} />} />
-                            <InfoField label="Primary Contact" value={profile.primaryContact ?? "—"} icon={<Phone size={16} />} />
-                            <InfoField label="Secondary / Emergency Contact" value={secondaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Nationality" value={nationality} icon={<Globe size={16} />} />
-                            <InfoField label="Caste" value={caste} icon={<FileText size={16} />} />
-                            <InfoField label="PWD" value={isPwd ? 'Yes' : 'No'} icon={<CheckCircle2 size={16} />} />
-                            <InfoField label="Aadhar No." value={aadharNo} icon={<IdCard size={16} />} />
-                            <InfoField label="Identification Mark" value={identificationMark} icon={<FileText size={16} />} className="md:col-span-2 lg:col-span-3" />
-                            <InfoField label="Residential Address" value={profile.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-2 lg:col-span-3" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Professional Details Section */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <Briefcase size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Professional Details</h2>
-                                <p className="text-sm text-gray-500">Official records and information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <InfoField label="Employee ID" value={employeeId} icon={<IdCard size={16} />} />
-                            <InfoField label="Designation" value={designation} icon={<Briefcase size={16} />} />
-                            <InfoField label="Department / Subject(s)" value={department} icon={<Book size={16} />} />
-                            <InfoField label="Highest Qualification" value={profile.highestQualification ?? "—"} icon={<GraduationCap size={16} />} />
-                            <InfoField label="Date of Joining" value={joiningDate} icon={<Calendar size={16} />} />
-                            <InfoField label="Current Salary" value={currentSalary != null && currentSalary !== '' ? `₹ ${Number(currentSalary).toLocaleString('en-IN')}` : '—'} icon={<IndianRupee size={16} />} />
-                            <div>
-                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                    <Award size={14} /> Status
-                                </label>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status === 'Active' || status === 'ACTIVE' ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-red-100 text-red-800"}`}>
-                                    {status}
-                                </span>
-                            </div>
-                            <InfoField label="Official Document" value={`${officialDocType} - ${officialDocNumber}`} icon={<FileText size={16} />} className="md:col-span-2" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function InfoField({ label, value, icon, className = "" }: { label: string; value: string; icon?: React.ReactNode; className?: string }) {
-    return (
-        <div className={`group ${className}`}>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
-            <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
-                {value || "—"}
-            </p>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </Section>
         </div>
     );
 }

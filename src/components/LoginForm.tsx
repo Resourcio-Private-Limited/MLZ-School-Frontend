@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
@@ -34,8 +35,9 @@ export default function LoginForm({
     identifierPlaceholder = "name@school.com",
     identifierType = "email",
 }: LoginFormProps) {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    // Uncontrolled inputs: anything typed before React hydrates stays in the field.
+    const emailRef = useRef<HTMLInputElement>(null);
+    const passwordRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -47,6 +49,8 @@ export default function LoginForm({
         e.preventDefault();
         setError("");
         setLoading(true);
+        const email = emailRef.current?.value.trim() ?? "";
+        const password = passwordRef.current?.value ?? "";
 
         try {
             const res = await login({ email, password }).unwrap();
@@ -96,8 +100,8 @@ export default function LoginForm({
                         <Image
                             src="/sidebar_logo_expanded.png"
                             alt="Mount Litera Zee School"
-                            width={120}
-                            height={40}
+                            width={128}
+                            height={64}
                             className="h-16 w-auto opacity-90"
                             priority
                         />
@@ -121,8 +125,9 @@ export default function LoginForm({
                         <Image
                             src="/MLZS_contents/Students Stage 1.png"
                             alt="Mount Litera Zee School, North Kolkata, Barrackpore"
-                            width={500}
-                            height={300}
+                            width={640}
+                            height={408}
+                            priority
                             className="object-cover w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
@@ -145,9 +150,9 @@ export default function LoginForm({
                             <Image
                                 src="/MLZS_contents/Horizontal MLZS Logo.png"
                                 alt="Mount Litera Zee School, North Kolkata, Barrackpore"
-                                width={180}
-                                height={50}
-                                className="h-auto"
+                                width={160}
+                                height={90}
+                                className="h-auto w-40"
                             />
                         </div>
                         <h2 className="text-3xl font-bold text-slate-800 mb-2">
@@ -172,8 +177,8 @@ export default function LoginForm({
                             </label>
                             <input
                                 type={identifierType}
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                ref={emailRef}
+                                defaultValue=""
                                 className="w-full border rounded p-2 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500"
                                 placeholder={identifierPlaceholder}
                                 required
@@ -194,8 +199,8 @@ export default function LoginForm({
                             <div className="relative">
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    ref={passwordRef}
+                                    defaultValue=""
                                     className="w-full border rounded p-2 pr-10 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500"
                                     placeholder="••••••••"
                                     required
@@ -203,6 +208,7 @@ export default function LoginForm({
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                                     tabIndex={-1}
                                 >
@@ -245,7 +251,7 @@ export default function LoginForm({
                         </button>
 
                         <div className="text-center pt-2">
-                            <a
+                            <Link
                                 href="/"
                                 className="inline-flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors"
                             >
@@ -264,7 +270,7 @@ export default function LoginForm({
                                     <path d="M19 12H5" />
                                 </svg>
                                 <span>Back to Home</span>
-                            </a>
+                            </Link>
                         </div>
                     </form>
                 </div>

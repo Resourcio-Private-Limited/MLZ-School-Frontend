@@ -1,15 +1,47 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { RetiredRouteNotice } from "@/components/RetiredRouteNotice";
+import { useRouter, usePathname } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Bell, FileText, GraduationCap, LogOut, MessageSquare, ChevronLeft, ChevronRight, Loader2, Menu, School, X, type LucideIcon } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
-import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
+import { heroGradient, sidebarGradient } from "@/components/principal/brand";
+
+type NavItem = { href: string; label: string; icon: LucideIcon };
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+    { label: "Overview", items: [{ href: "/principal", label: "Classrooms", icon: School }] },
+    { label: "School", items: [{ href: "/principal/teachers", label: "Teachers", icon: GraduationCap }] },
+    { label: "Exams", items: [{ href: "/principal/admit-card", label: "Admit cards", icon: FileText }] },
+    {
+        label: "Communication",
+        items: [
+            { href: "/principal/messages", label: "Messages", icon: MessageSquare },
+            { href: "/principal/noticeboard", label: "Notice board", icon: Bell },
+        ],
+    },
+];
+
+const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
+
+// Every classroom page lives under Classrooms. Elsewhere the most specific match wins.
+function activeHref(pathname: string) {
+    if (pathname === "/principal" || pathname.startsWith("/principal/classroom/")) return "/principal";
+    return ALL_ITEMS.filter((i) => i.href !== "/principal" && (pathname === i.href || pathname.startsWith(`${i.href}/`))).sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
+}
+
+function pageTitle(pathname: string) {
+    if (pathname.startsWith("/principal/profile")) return "Your profile";
+    if (pathname.startsWith("/principal/classroom/")) return "Classroom";
+    const href = activeHref(pathname);
+    return ALL_ITEMS.find((i) => i.href === href)?.label ?? "Principal";
+}
 
 function PrincipalLayoutContent({
     children,
@@ -17,9 +49,8 @@ function PrincipalLayoutContent({
     children: React.ReactNode;
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const showMobileMenu = pathname === '/principal' && !searchParams.get('view');
     const [isAuthChecked, setIsAuthChecked] = useState(false);
     const dispatch = useDispatch();
     const router = useRouter();
@@ -41,6 +72,7 @@ function PrincipalLayoutContent({
                     router.push("/login/principal");
                 }
             }
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot localStorage auth gate; project rule: keep portal auth checks as they are (CLAUDE.md)
             setIsAuthChecked(true);
         }
     }, [router]);
@@ -53,109 +85,76 @@ function PrincipalLayoutContent({
         router.push("/login/principal");
     };
 
-    const displayName = profile?.fullName ?? "Principal";
-    const displayEmail = profile?.userEmail ?? profile?.email ?? "principal@school.com";
-
     if (!isAuthChecked || (isLoading && isAuthChecked)) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="flex flex-col items-center">
-                    <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" />
-                    <p className="text-gray-500">Loading...</p>
+                    <Loader2 className="w-10 h-10 motion-safe:animate-spin text-purple-600 mb-4" aria-hidden="true" />
+                    <p className="text-gray-500">Loading…</p>
                 </div>
             </div>
         );
     }
 
+    const account: Account = {
+        name: profile?.fullName ?? "Principal",
+        detail: profile?.designation ?? profile?.userEmail ?? profile?.email ?? "",
+        image: profile?.profileImage ?? null,
+    };
+
     return (
-        <div className="flex h-screen bg-gray-50">
-            {/* Sidebar */}
-            <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-slate-900 shadow-xl flex-col transition-all duration-300 relative border-r border-slate-800`}>
-                {/* Toggle Button */}
+        <div className="flex h-dvh bg-gray-50">
+            {/* Sidebar (tablet and up) */}
+            <aside
+                aria-label="Principal portal"
+                className={`relative hidden shrink-0 flex-col border-r border-white/5 md:flex ${sidebarGradient} ${isCollapsed ? "w-20" : "w-64"} motion-safe:transition-[width] motion-safe:duration-300`}
+            >
                 <button
+                    type="button"
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-8 bg-purple-600 text-white rounded-full p-1.5 shadow-lg hover:bg-purple-500 transition-colors z-10 border-2 border-slate-900"
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    aria-expanded={!isCollapsed}
+                    className="absolute -right-3 top-8 z-10 rounded-full border-2 border-slate-900 bg-purple-600 p-1.5 text-white shadow-lg hover:bg-purple-500 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
                 >
-                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                    {isCollapsed ? <ChevronRight size={16} aria-hidden="true" /> : <ChevronLeft size={16} aria-hidden="true" />}
                 </button>
-
-                <div className="p-4 border-b border-slate-800">
-                    {!isCollapsed ? (
-                        <div className="flex flex-col items-center">
-                            {/* Expanded Logo */}
-                            <div className="relative w-32 h-auto mb-2">
-                                <Image
-                                    src="/sidebar_logo_expanded.png"
-                                    alt="Mount Litera Zee School"
-                                    width={128}
-                                    height={40}
-                                    className="object-contain rounded-lg"
-                                />
-                            </div>
-                            <p className="text-xs text-slate-400 font-medium tracking-wider uppercase">Principal Portal</p>
-                        </div>
-                    ) : (
-                        /* Collapsed Logo (Favicon) */
-                        <div className="flex justify-center">
-                            <Image
-                                src="/favicon.png"
-                                alt="Mount Litera Zee School, North Kolkata, Barrackpore"
-                                width={40}
-                                height={40}
-                                className="h-10 w-10 object-contain rounded-lg"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-                    <NavLink href="/principal" icon={<Home size={20} />} label="Home" isCollapsed={isCollapsed} />
-                    <NavLink href="/principal/admit-card" icon={<FileText size={20} />} label="Create Admit Card" isCollapsed={isCollapsed} />
-                    <NavLink href="/principal/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
-                    <NavLink href="/principal/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} />
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 bg-slate-900/50 space-y-3">
-                    {!isCollapsed ? (
-                        <>
-                            <div className="flex items-center space-x-3 mb-3">
-                                <div className="w-10 h-10 rounded-full bg-purple-900/50 border border-purple-700/50 flex items-center justify-center text-purple-400 font-bold">
-                                    {displayName?.[0] ?? "P"}
-                                </div>
-                                <div>
-                                    <p className="font-medium text-sm text-slate-200 truncate max-w-35">{displayName}</p>
-                                    <p className="text-xs text-slate-500 truncate max-w-35">{displayEmail}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors text-sm font-semibold shadow-lg hover:shadow-red-600/50 w-full"
-                            >
-                                <LogOut size={18} />
-                                <span>Logout</span>
-                            </button>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center space-y-3">
-                            <div className="w-10 h-10 rounded-full bg-purple-900/50 border border-purple-700/50 flex items-center justify-center text-purple-400 font-bold">
-                                {displayName?.[0] ?? "P"}
-                            </div>
-                            <Tooltip content="Logout" side="right">
-                            <button
-                                onClick={handleLogout}
-                                className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white p-3 rounded-lg transition-colors shadow-lg hover:shadow-red-600/50"
-                            >
-                                <LogOut size={18} />
-                            </button>
-                            </Tooltip>
-                        </div>
-                    )}
-                </div>
+                <SidebarContent pathname={pathname} isCollapsed={isCollapsed} account={account} onLogout={handleLogout} layoutGroup="desktop" />
             </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Principal Portal" subtitle="Choose an area to continue" items={[{href:'/principal?view=home',label:'Home',icon:Home},{href:'/principal/admit-card',label:'Admit Cards',icon:FileText},{href:'/principal/noticeboard',label:'Notice Board',icon:Bell},{href:'/principal/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/principal" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
-            </main>
+            <div className="flex min-w-0 flex-1 flex-col">
+                {/* Top bar (phones) */}
+                <header className={`flex h-14 shrink-0 items-center gap-3 px-2 shadow-sm md:hidden ${heroGradient}`}>
+                    <button
+                        type="button"
+                        onClick={() => setDrawerOpen(true)}
+                        aria-label="Open menu"
+                        aria-expanded={drawerOpen}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    >
+                        <Menu size={22} aria-hidden="true" />
+                    </button>
+                    <Link href="/principal" className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                        <Image src="/favicon.png" alt="Mount Litera Zee School" width={32} height={32} className="h-8 w-8 rounded-md object-contain" />
+                    </Link>
+                    <p className="min-w-0 flex-1 truncate text-sm font-semibold">{pageTitle(pathname)}</p>
+                    <Link
+                        href="/principal/profile"
+                        aria-label="Your profile"
+                        className="mr-1 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    >
+                        <Avatar account={account} size="sm" />
+                    </Link>
+                </header>
+
+                <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
+                    <RetiredRouteNotice />
+                    {children}
+                </main>
+            </div>
+
+            <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+                <SidebarContent pathname={pathname} isCollapsed={false} account={account} onLogout={handleLogout} onNavigate={() => setDrawerOpen(false)} layoutGroup="mobile" />
+            </MobileDrawer>
         </div>
     );
 }
@@ -164,16 +163,202 @@ export default function PrincipalLayout(props: { children: React.ReactNode }) {
     return <Suspense fallback={<div className="min-h-screen bg-gray-50" />}><PrincipalLayoutContent {...props} /></Suspense>;
 }
 
-function NavLink({ href, icon, label, isCollapsed }: { href: string; icon: React.ReactNode; label: string; isCollapsed: boolean }) {
+type Account = { name: string; detail: string; image: string | null };
+
+function Avatar({ account, size = "md" }: { account: Account; size?: "sm" | "md" }) {
+    const dim = size === "sm" ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm";
+    return account.image ? (
+        <Image src={account.image} alt="" width={36} height={36} unoptimized className={`${dim} shrink-0 rounded-full object-cover ring-2 ring-white/10`} />
+    ) : (
+        <span aria-hidden="true" className={`flex ${dim} shrink-0 items-center justify-center rounded-full bg-purple-500/20 font-semibold text-purple-200 ring-1 ring-purple-400/30`}>
+            {account.name?.[0]?.toUpperCase() ?? "P"}
+        </span>
+    );
+}
+
+/** Slide-in navigation for phones. Escape or the backdrop closes it; focus returns to the menu button. */
+function MobileDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+    const reduceMotion = useReducedMotion();
+    const closeRef = useRef<HTMLButtonElement>(null);
+    const onCloseRef = useRef(onClose);
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    });
+    useEffect(() => {
+        if (!open) return;
+        const opener = document.activeElement as HTMLElement | null;
+        closeRef.current?.focus();
+        const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("keydown", onKey);
+            opener?.focus?.();
+        };
+    }, [open]);
+
     return (
+        <AnimatePresence>
+            {open && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    <motion.div
+                        className="absolute inset-0 bg-slate-950/50"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                        onClick={onClose}
+                    />
+                    <motion.div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Menu"
+                        className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col shadow-2xl ${sidebarGradient}`}
+                        initial={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
+                        animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
+                        exit={reduceMotion ? { opacity: 0 } : { x: "-100%" }}
+                        transition={{ duration: reduceMotion ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                        <button
+                            ref={closeRef}
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Close menu"
+                            className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                            <X size={20} aria-hidden="true" />
+                        </button>
+                        {children}
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+    );
+}
+
+function SidebarContent({
+    pathname,
+    isCollapsed,
+    account,
+    onLogout,
+    onNavigate,
+    layoutGroup,
+}: {
+    pathname: string;
+    isCollapsed: boolean;
+    account: Account;
+    onLogout: () => void;
+    onNavigate?: () => void;
+    layoutGroup: string;
+}) {
+    const onProfile = pathname.startsWith("/principal/profile");
+    const current = activeHref(pathname);
+    return (
+        <>
+            <Link
+                href="/principal"
+                onClick={onNavigate}
+                className="block border-b border-white/10 px-4 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-purple-400"
+            >
+                {!isCollapsed ? (
+                    <span className="flex flex-col items-center gap-2">
+                        <Image src="/sidebar_logo_expanded.png" alt="Mount Litera Zee School" width={128} height={64} priority className="h-auto w-32 rounded-lg object-contain" />
+                        <span className="text-xs font-medium text-slate-400">Principal portal</span>
+                    </span>
+                ) : (
+                    <span className="flex justify-center">
+                        <Image src="/favicon.png" alt="Mount Litera Zee School" width={40} height={40} className="h-10 w-10 rounded-lg object-contain" />
+                    </span>
+                )}
+            </Link>
+
+            <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+                {NAV_GROUPS.map((group) => (
+                    <div key={group.label}>
+                        {isCollapsed ? (
+                            <div aria-hidden="true" className="mx-3 mb-2 border-t border-white/10" />
+                        ) : (
+                            <p className="mb-2 px-3 text-xs font-medium text-slate-500">{group.label}</p>
+                        )}
+                        <ul className="space-y-1">
+                            {group.items.map((item) => (
+                                <li key={item.href} className={isCollapsed ? "flex justify-center" : undefined}>
+                                    <NavLink item={item} active={current === item.href} isCollapsed={isCollapsed} onNavigate={onNavigate} layoutGroup={layoutGroup} />
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </nav>
+
+            <div className="space-y-2 border-t border-white/10 p-3">
+                <Link
+                    href="/principal/profile"
+                    onClick={onNavigate}
+                    aria-current={onProfile ? "page" : undefined}
+                    className={`flex items-center gap-3 rounded-lg p-2 hover:bg-white/5 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${isCollapsed ? "justify-center" : ""} ${onProfile ? "bg-white/10" : ""}`}
+                >
+                    <Avatar account={account} />
+                    {isCollapsed ? (
+                        <span className="sr-only">Your profile</span>
+                    ) : (
+                        <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-slate-100">{account.name}</span>
+                            {account.detail && <span className="block truncate text-xs text-slate-400">{account.detail}</span>}
+                        </span>
+                    )}
+                </Link>
+                {isCollapsed ? (
+                    <div className="flex justify-center">
+                        <Tooltip content="Log out" side="right">
+                            <button
+                                type="button"
+                                onClick={onLogout}
+                                aria-label="Log out"
+                                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-white/5 hover:text-white motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                            >
+                                <LogOut size={18} aria-hidden="true" />
+                            </button>
+                        </Tooltip>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={onLogout}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                    >
+                        <LogOut size={18} aria-hidden="true" />
+                        Log out
+                    </button>
+                )}
+            </div>
+        </>
+    );
+}
+
+function NavLink({ item, active, isCollapsed, onNavigate, layoutGroup }: { item: NavItem; active: boolean; isCollapsed: boolean; onNavigate?: () => void; layoutGroup: string }) {
+    const reduceMotion = useReducedMotion();
+    const Icon = item.icon;
+    const link = (
         <Link
-            href={href}
-            className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} p-3 rounded-lg text-slate-400 hover:bg-purple-600 hover:text-white transition-all duration-200 group`}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            aria-label={isCollapsed ? item.label : undefined}
+            className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${isCollapsed ? "h-11 w-11 justify-center px-0 py-0" : ""} ${active ? "text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
         >
-            <Tooltip content={label} side="right">
-                <span className="group-hover:scale-110 transition-transform duration-200">{icon}</span>
-            </Tooltip>
-            {!isCollapsed && <span className="font-medium">{label}</span>}
+            {active && (
+                <motion.span
+                    layoutId={`principal-sidebar-active-${layoutGroup}`}
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-lg bg-white/10"
+                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
+                >
+                    <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-purple-400" />
+                </motion.span>
+            )}
+            <Icon size={20} aria-hidden="true" className={`relative shrink-0 ${active ? "text-purple-300" : "group-hover:text-white"}`} />
+            {!isCollapsed && <span className="relative truncate">{item.label}</span>}
         </Link>
     );
+    return isCollapsed ? <Tooltip content={item.label} side="right">{link}</Tooltip> : link;
 }

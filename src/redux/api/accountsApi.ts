@@ -158,6 +158,8 @@ export interface ProfitLoss {
 }
 
 export const accountsApi = baseApi.injectEndpoints({
+    // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+    overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
         // Classroom Fees
         getClassroomsWithFees: builder.query<ClassroomWithFees[], void>({
@@ -283,7 +285,7 @@ export const accountsApi = baseApi.injectEndpoints({
             }),
         }),
 
-        upsertStudentMonthlyFee: builder.mutation<any, {
+        upsertStudentMonthlyFee: builder.mutation<unknown, {
             studentId: string;
             classroomId: string;
             month: number;

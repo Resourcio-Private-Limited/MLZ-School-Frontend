@@ -16,24 +16,28 @@ function ResetPasswordForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [touched, setTouched] = useState(false);
 
     const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
+    const tooShort = password.length > 0 && password.length < 8;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setTouched(true);
 
         if (!token) {
             toast.error("Invalid or expired reset link. Please request a new password reset.");
             return;
         }
 
-        if (password !== confirm) {
-            toast.error("Passwords do not match");
+        if (password.length < 8) {
+            toast.error("Password must be at least 8 characters");
             return;
         }
 
-        if (password.length < 8) {
-            toast.error("Password must be at least 8 characters");
+        if (password !== confirm) {
+            toast.error("Passwords do not match");
             return;
         }
 
@@ -49,6 +53,34 @@ function ResetPasswordForm() {
             toast.error(msg);
         }
     };
+
+    // Opening this page without a token (typed URL, truncated email link) used to
+    // show a form that could never succeed. Say what happened and where to go.
+    if (!token) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+                <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center">
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2">This reset link isn&apos;t valid</h1>
+                    <p className="text-gray-500 mb-6">
+                        The link is incomplete or has expired. Request a new one and use the latest email we send you.
+                    </p>
+                    <button
+                        onClick={() => router.push("/change-password")}
+                        className="w-full bg-blue-900 text-white py-2.5 rounded-lg font-bold hover:bg-blue-800 transition-colors"
+                    >
+                        Request a new reset link
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/login")}
+                        className="mt-3 text-sm text-gray-500 hover:text-gray-700"
+                    >
+                        Back to Login
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (showSuccess) {
         return (
@@ -78,7 +110,7 @@ function ResetPasswordForm() {
                     Enter your new password below.
                 </p>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} noValidate className="space-y-4">
                     <div>
                         <label className="block text-sm font-bold mb-1 text-gray-700">
                             New Password
@@ -96,11 +128,15 @@ function ResetPasswordForm() {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
+                        {(tooShort || (touched && password.length === 0)) && (
+                            <p className="text-xs text-red-500 mt-1">Use at least 8 characters.</p>
+                        )}
                     </div>
 
                     <div>
@@ -119,6 +155,7 @@ function ResetPasswordForm() {
                             <button
                                 type="button"
                                 onClick={() => setShowConfirm(!showConfirm)}
+                                aria-label={showConfirm ? "Hide password" : "Show password"}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}

@@ -5,6 +5,7 @@ import { Plus, X, Users, AlertCircle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAddStudentMutation, ClassroomSummary } from "@/redux/api/principalApi";
 
+import { todayLocal } from "@/lib/dates";
 const MAX_STUDENTS_PER_SECTION = 100;
 const ROLL_PREFIX = "EZNK";
 
@@ -88,13 +89,13 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
 
         setLoading(true);
         try {
-            await addStudent(data as any).unwrap();
+            await addStudent(data as Parameters<typeof addStudent>[0]).unwrap();
             toast.success("Student admitted successfully!");
             setIsOpen(false);
             setSelectedClassroomId("");
             formEl.reset();
-        } catch (err: any) {
-            const msg = err?.data?.message ?? "Failed to create student.";
+        } catch (err) {
+            const msg = (err as { data?: { message?: string } })?.data?.message ?? "Failed to create student.";
             setError(msg);
             toast.error(msg);
         } finally {
@@ -201,7 +202,7 @@ export default function CreateStudentForm({ classrooms }: { classrooms: Classroo
                             <div>
                                 <label className="label">Date of Admission <span className="text-red-500">*</span></label>
                                 <input name="admissionDate" type="date" required className="input"
-                                    defaultValue={new Date().toISOString().split('T')[0]} />
+                                    defaultValue={todayLocal()} />
                             </div>
                             <div>
                                 <label className="label">Admission Year</label>

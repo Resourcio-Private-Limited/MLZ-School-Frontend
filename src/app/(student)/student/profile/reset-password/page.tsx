@@ -2,135 +2,124 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import toast from 'react-hot-toast';
+import { Check, Eye, EyeOff } from "lucide-react";
+import toast from "react-hot-toast";
 import { useResetPasswordMutation } from "@/redux/api/authApi";
-import { useAppSelector } from "@/redux/hooks";
+import { PageHeader, focusRing, inputClass, primaryBtn, secondaryBtn } from "@/components/student/ui";
+
+const MIN_LENGTH = 8;
 
 export default function ResetPasswordPage() {
-    const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [show, setShow] = useState(false);
+    const [touched, setTouched] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-
     const [resetPassword] = useResetPasswordMutation();
 
-    // For a logged-in user we use their session token.
-    // The backend auth guard attaches the user to the request.
-    // Since the backend /auth/reset-password requires a token from the email link,
-    // we fall back to the user's JWT session token if no ?token= query param is present.
-    const sessionToken = typeof window !== "undefined"
-        ? localStorage.getItem("accessToken")
-        : null;
+    const longEnough = newPassword.length >= MIN_LENGTH;
+    const matches = confirmPassword.length > 0 && newPassword === confirmPassword;
+    const mismatch = touched && confirmPassword.length > 0 && !matches;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setTouched(true);
+        if (!longEnough || !matches) return;
 
-        if (newPassword !== confirmPassword) {
-            toast.error("Passwords do not match");
-            return;
-        }
-
-        if (newPassword.length < 8) {
-            toast.error("Password must be at least 8 characters long");
-            return;
-        }
-
-        // If the student arrived here via email link, use that token.
-        // Otherwise use the session token from localStorage.
+        // If the student arrived here from an email link, use that token.
+        // Otherwise use the session token; the backend auth guard attaches the user to the request.
         const urlToken = new URLSearchParams(window.location.search).get("token");
-        const token = urlToken ?? sessionToken;
-
+        const token = urlToken ?? localStorage.getItem("accessToken");
         if (!token) {
-            toast.error("Session expired. Please log in again.");
+            toast.error("Your session has ended. Log in again, then change your password.");
             return;
         }
 
         setLoading(true);
-
         try {
             await resetPassword({ token, newPassword }).unwrap();
-            toast.success("Password reset successful! Redirecting to profile...");
-            setTimeout(() => {
-                router.push("/student/profile");
-            }, 2000);
+            toast.success("Password changed.");
+            router.push("/student/profile");
         } catch (err: unknown) {
             const e2 = err as { data?: { message?: string }; message?: string };
-            const msg =
-                typeof e2?.data?.message === "string"
-                    ? e2.data.message
-                    : e2?.message ?? "Failed to reset password.";
-            toast.error(msg);
+            const msg = typeof e2?.data?.message === "string" ? e2.data.message : e2?.message;
+            toast.error(msg ? `Password not changed. ${msg}` : "Password not changed. Check your connection and try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl w-full max-w-2xl border border-white/50 overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white">
-                    <Link href="/student/profile" className="flex items-center space-x-2 text-white/90 hover:text-white mb-4 transition-colors">
-                        <ArrowLeft size={20} />
-                        <span>Back to Profile</span>
-                    </Link>
-                    <div className="flex justify-center mb-4">
-                        <Image
-                            src="/MLZS_contents/Horizontal MLZS Logo.png"
-                            alt="Mount Litera Zee School"
-                            width={200}
-                            height={60}
-                            className="h-auto brightness-0 invert"
-                        />
-                    </div>
-                    <h1 className="text-2xl font-bold text-center">Reset Password</h1>
-                    <p className="text-center text-purple-100 mt-2">Enter your details to reset your password</p>
-                </div>
+        <div className="max-w-7xl space-y-6">
+            <PageHeader title="Change password" subtitle="You'll use the new password the next time you log in." crumb={{ href: "/student/profile", label: "Your profile" }} />
 
-                {/* Form */}
-                <div className="p-8">
-                    <form onSubmit={handleSubmit} className="space-y-5">
+            <section className="max-w-xl overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <form onSubmit={handleSubmit} noValidate>
+                    <div className="space-y-5 px-4 py-5 sm:px-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                            <div className="flex items-center justify-between">
+                                <label htmlFor="new-password" className="text-sm font-medium text-gray-700">New password</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShow((s) => !s)}
+                                    aria-pressed={show}
+                                    className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm font-medium text-gray-600 hover:text-gray-900 ${focusRing}`}
+                                >
+                                    {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+                                    {show ? "Hide" : "Show"}
+                                </button>
+                            </div>
                             <input
-                                type="password"
+                                id="new-password"
+                                type={show ? "text" : "password"}
+                                autoComplete="new-password"
+                                autoFocus
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:outline-none transition-all"
-                                placeholder="Enter new password"
-                                required
-                                minLength={8}
+                                aria-describedby="password-rule"
+                                aria-invalid={touched && !longEnough}
+                                className={`${inputClass} mt-1.5`}
                             />
-                            <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters long</p>
+                            <p id="password-rule" className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${longEnough ? "text-emerald-700" : touched ? "text-red-700" : "text-gray-500"}`}>
+                                {longEnough && <Check size={14} aria-hidden="true" />}
+                                At least {MIN_LENGTH} characters
+                            </p>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                            <label htmlFor="confirm-password" className="text-sm font-medium text-gray-700">Confirm new password</label>
                             <input
-                                type="password"
+                                id="confirm-password"
+                                type={show ? "text" : "password"}
+                                autoComplete="new-password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:outline-none transition-all"
-                                placeholder="Re-enter new password"
-                                required
-                                minLength={8}
+                                onBlur={() => confirmPassword && setTouched(true)}
+                                aria-describedby={mismatch ? "confirm-error" : undefined}
+                                aria-invalid={mismatch}
+                                className={`${inputClass} mt-1.5 ${mismatch ? "border-red-400 focus:border-red-500 focus:ring-red-500/30" : ""}`}
                             />
+                            {mismatch && (
+                                <p id="confirm-error" className="mt-1.5 text-xs text-red-700">The two passwords don&apos;t match. Type the new password again.</p>
+                            )}
+                            {matches && longEnough && (
+                                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-emerald-700">
+                                    <Check size={14} aria-hidden="true" />
+                                    Passwords match
+                                </p>
+                            )}
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg shadow-purple-200 disabled:opacity-50"
-                        >
-                            {loading ? "Resetting Password..." : "Reset Password"}
+                    </div>
+                    <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+                        <Link href="/student/profile" className={`${secondaryBtn} h-10`}>Cancel</Link>
+                        <button type="submit" disabled={loading} className={primaryBtn}>
+                            {loading ? "Changing password…" : "Change password"}
                         </button>
-                    </form>
-                </div>
-            </div>
+                    </div>
+                </form>
+            </section>
         </div>
     );
 }

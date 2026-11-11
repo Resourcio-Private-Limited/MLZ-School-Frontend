@@ -1,107 +1,149 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquare, Users, BookOpen, ArrowLeft } from "lucide-react";
-import { useGetDashboardQuery } from "@/redux/api/studentApi";
+import { Paperclip } from "lucide-react";
+import { useGetDashboardQuery, useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
+import { useGetAnnouncementsQuery, useGetClassroomTeachersQuery } from "@/redux/api/operationsApi";
+import { heroGradient } from "@/components/student/brand";
+import { PageHeader, Panel, Skeleton, focusRing, linkClass, linkOnDark, shortDate } from "@/components/student/ui";
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
 export default function ClassroomPage() {
-    const { data: dashboard, isLoading } = useGetDashboardQuery();
+    const dashQ = useGetDashboardQuery();
+    const classroom = dashQ.data?.classroom;
+    const classroomId = classroom?.id ?? "";
 
-    const classroom = dashboard?.classroom;
+    const annQ = useGetAnnouncementsQuery(classroomId, { skip: !classroomId });
+    const teachersQ = useGetClassroomTeachersQuery(classroomId, { skip: !classroomId });
+    const { data: recipients = [] } = useGetMessageRecipientsQuery();
+
+    const announcements = [...(annQ.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const teachers = [...(teachersQ.data ?? [])].sort((a, b) => Number(b.isClassTeacher) - Number(a.isClassTeacher) || a.fullName.localeCompare(b.fullName));
+    // Teachers come from the classroom; messaging needs their user id, which the recipients list carries. Match on name.
+    const recipientFor = (name: string) => recipients.find((r) => r.name === name)?.id;
+
+    const announcementsHref = `/student/classroom/announcements${classroomId ? `?classroomId=${classroomId}` : ""}`;
+    const loadingLists = dashQ.isLoading || (!!classroomId && (annQ.isLoading || teachersQ.isLoading));
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    
-                    <div className="h-6 w-px bg-slate-300" />
-                    <h1 className="text-3xl font-bold text-slate-800">Classroom</h1>
+        <div className="max-w-7xl space-y-6">
+            <PageHeader title="Classroom" subtitle="Your class, your teachers and their announcements." />
+
+            {dashQ.isError && (
+                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    Your classroom couldn&apos;t be loaded. Check your connection, then reload the page.
                 </div>
-                <div className="text-sm text-slate-500 font-medium">
-                    {classroom?.name ?? "—"}
+            )}
+
+            <section aria-labelledby="class-summary" className={`overflow-hidden rounded-xl shadow-sm ${heroGradient}`}>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-5 sm:px-6">
+                    <h2 id="class-summary" className="text-base font-semibold">
+                        {dashQ.isLoading ? <Skeleton onDark className="h-5 w-40 align-middle" /> : classroom?.name ?? "Your classroom"}
+                    </h2>
+                    <Link href="/student/classroom/messages" className={linkOnDark}>Message a teacher</Link>
                 </div>
-            </div>
-
-            {/* Class Info Banner */}
-            <div className="bg-linear-to-r from-blue-600 to-blue-700 rounded-xl shadow-md p-6 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-
-                {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} className="h-16 bg-white/10 rounded-lg animate-pulse" />
-                        ))}
+                <dl className="grid grid-cols-1 gap-6 px-4 pb-6 pt-4 sm:px-6 lg:grid-cols-3">
+                    <div className="min-w-0">
+                        <dt className="text-sm text-slate-300">Class teacher</dt>
+                        <dd className="mt-1 truncate text-2xl font-semibold tracking-tight">
+                            {dashQ.isLoading ? <Skeleton onDark className="h-7 w-40 align-middle" /> : classroom?.classTeacher ?? "Not assigned yet"}
+                        </dd>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                        <div className="flex items-center space-x-4">
-                            <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm text-blue-100 font-medium">Class Teacher</p>
-                                <p className="font-bold text-lg">{classroom?.classTeacher ?? "—"}</p>
-                            </div>
-                        </div>
-                        {/* <div className="flex items-center space-x-4">
-                            <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm text-blue-100 font-medium">Total Students</p>
-                                <p className="font-bold text-lg">{classroom?.studentCount ?? "—"}</p>
-                            </div>
-                        </div> */}
-                        <div className="flex items-center space-x-4">
-                            <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
-                                <BookOpen size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm text-blue-100 font-medium">Subjects</p>
-                                <p className="font-bold text-lg">{classroom?.subjectCount ?? "—"}</p>
-                            </div>
-                        </div>
+                    <div>
+                        <dt className="text-sm text-slate-300">Subjects</dt>
+                        <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                            {dashQ.isLoading ? <Skeleton onDark className="h-7 w-12 align-middle" /> : classroom?.subjectCount ?? "—"}
+                        </dd>
                     </div>
-                )}
-            </div>
+                    <div>
+                        <dt className="text-sm text-slate-300">Teachers</dt>
+                        <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                            {loadingLists ? <Skeleton onDark className="h-7 w-12 align-middle" /> : teachers.length || "—"}
+                        </dd>
+                    </div>
+                </dl>
+            </section>
 
-            {/* Cards Grid - Responsive Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Teacher Announcements Card */}
-                <Link href={`/student/classroom/announcements?classroomId=${classroom?.id ?? ''}`} className="group h-full">
-                    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-t-4 border-blue-500 h-full">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="bg-blue-50 p-3 rounded-lg text-blue-600 group-hover:bg-blue-100 transition-colors">
-                                    <MessageSquare size={24} />
-                                </div>
-                                <div className="text-slate-300 group-hover:text-blue-500 transform group-hover:translate-x-1 transition-all duration-300">
-                                    <ArrowLeft size={20} className="rotate-180" />
-                                </div>
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <Panel
+                    title="Latest announcements"
+                    subtitle="Posted by your teachers"
+                    action={<Link href={announcementsHref} className={linkClass}>All announcements</Link>}
+                    className="lg:col-span-2"
+                >
+                    <div className="mt-3">
+                        {loadingLists ? (
+                            <div className="space-y-3 px-4 pb-5 pt-2 sm:px-6">
+                                {[0, 1, 2].map((i) => <Skeleton key={i} className="block h-10 w-full" />)}
                             </div>
-                            <h2 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-blue-700 transition-colors">Announcements</h2>
-                            <p className="text-slate-500 text-sm">Updates from your teachers</p>
-                        </div>
+                        ) : annQ.isError ? (
+                            <p className="px-4 pb-6 pt-2 text-sm text-gray-500 sm:px-6">Announcements couldn&apos;t be loaded. Check your connection, then reload the page.</p>
+                        ) : announcements.length === 0 ? (
+                            <p className="px-4 pb-6 pt-2 text-sm text-gray-500 sm:px-6">No announcements yet. When a teacher posts one, it appears here.</p>
+                        ) : (
+                            <ul className="divide-y divide-gray-100 border-t border-gray-100">
+                                {announcements.slice(0, 4).map((a) => (
+                                    <li key={a.id} className="grid gap-x-6 gap-y-0.5 px-4 py-4 sm:grid-cols-[6rem_minmax(0,1fr)] sm:px-6">
+                                        <time dateTime={a.createdAt} className="text-sm tabular-nums text-gray-500">{shortDate(a.createdAt)}</time>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-900">{a.title}</p>
+                                            <p className="text-xs text-gray-500">{a.teacher.fullName}</p>
+                                            <p className="mt-1.5 line-clamp-2 text-sm text-gray-600">{a.content}</p>
+                                            {a.fileUrl && (
+                                                <a href={a.fileUrl} target="_blank" rel="noopener noreferrer" className={`mt-2 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium text-sky-700 hover:text-sky-800 hover:underline underline-offset-4 ${focusRing}`}>
+                                                    <Paperclip size={14} aria-hidden="true" />
+                                                    Attachment
+                                                    <span className="sr-only">(opens in a new tab)</span>
+                                                </a>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
-                </Link>
+                </Panel>
 
-                {/* Student Message Section Card */}
-                <Link href="/student/classroom/messages" className="group h-full">
-                    <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-t-4 border-emerald-500 h-full">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="bg-emerald-50 p-3 rounded-lg text-emerald-600 group-hover:bg-emerald-100 transition-colors">
-                                    <MessageSquare size={24} />
-                                </div>
-                                <div className="text-slate-300 group-hover:text-emerald-500 transform group-hover:translate-x-1 transition-all duration-300">
-                                    <ArrowLeft size={20} className="rotate-180" />
-                                </div>
+                <Panel title="Your teachers">
+                    <div className="mt-3">
+                        {loadingLists ? (
+                            <div className="space-y-3 px-4 pb-5 pt-2 sm:px-6">
+                                {[0, 1, 2].map((i) => <Skeleton key={i} className="block h-9 w-full" />)}
                             </div>
-                            <h2 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">Messages</h2>
-                            <p className="text-slate-500 text-sm">Contact teachers & principal</p>
-                        </div>
+                        ) : teachers.length === 0 ? (
+                            <p className="px-4 pb-6 pt-2 text-sm text-gray-500 sm:px-6">No teachers are assigned to your class yet.</p>
+                        ) : (
+                            <ul className="divide-y divide-gray-100 border-t border-gray-100">
+                                {teachers.map((t) => {
+                                    const userId = recipientFor(t.fullName);
+                                    return (
+                                        <li key={t.id} className="flex items-center gap-3 px-4 py-3 sm:px-6">
+                                            <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-xs font-semibold text-sky-700">
+                                                {initials(t.fullName)}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-medium text-gray-900">{t.fullName}</span>
+                                                <span className="block truncate text-xs text-gray-500">
+                                                    {t.isClassTeacher ? "Class teacher" : t.designation ?? "Teacher"}
+                                                </span>
+                                            </span>
+                                            {userId && (
+                                                <Link
+                                                    href={`/student/classroom/messages?to=${encodeURIComponent(userId)}`}
+                                                    aria-label={`Message ${t.fullName}`}
+                                                    className={`shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-medium text-sky-700 hover:bg-sky-50 motion-safe:transition-colors ${focusRing}`}
+                                                >
+                                                    Message
+                                                </Link>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
                     </div>
-                </Link>
+                </Panel>
             </div>
         </div>
     );

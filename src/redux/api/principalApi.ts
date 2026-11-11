@@ -148,7 +148,14 @@ export interface SubjectSummary {
 }
 
 export const principalApi = baseApi.injectEndpoints({
+    // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+    overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
+        // Active super admin, accountants and teachers the principal can message.
+        getPrincipalMessageRecipients: builder.query<Array<{ id: string; name: string; role: string }>, void>({
+            query: () => ({ url: '/principal/message-recipients', method: 'GET' }),
+        }),
+
         getAllClassrooms: builder.query<ClassroomSummary[], void>({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),
             providesTags: ['Classroom'],
@@ -205,22 +212,22 @@ export const principalApi = baseApi.injectEndpoints({
             invalidatesTags: (_result, _error, arg) => [{ type: 'ExamSchedule', id: `${arg.classroomId}:${arg.examType}` }],
         }),
 
-        assignClassTeacher: builder.mutation<any, { teacherId: string; classroomId: string }>({
+        assignClassTeacher: builder.mutation<unknown, { teacherId: string; classroomId: string }>({
             query: (body) => ({ url: '/principal/class-teacher', method: 'POST', body }),
             invalidatesTags: ['Classroom'],
         }),
 
-        addSubjectWithTeacher: builder.mutation<any, { subjectName: string; classroomId: string; teacherId: string }>({
+        addSubjectWithTeacher: builder.mutation<unknown, { subjectName: string; classroomId: string; teacherId: string }>({
             query: (body) => ({ url: '/principal/subjects', method: 'POST', body }),
             invalidatesTags: ['Subject'],
         }),
 
-        updateSubject: builder.mutation<any, { subjectId: string; name: string; teacherId?: string }>({
+        updateSubject: builder.mutation<unknown, { subjectId: string; name: string; teacherId?: string }>({
             query: ({ subjectId, ...body }) => ({ url: `/principal/subjects/${subjectId}`, method: 'PATCH', body }),
             invalidatesTags: ['Subject'],
         }),
 
-        deleteSubject: builder.mutation<any, string>({
+        deleteSubject: builder.mutation<unknown, string>({
             query: (subjectId) => ({ url: `/principal/subjects/${subjectId}`, method: 'DELETE' }),
             invalidatesTags: ['Subject'],
         }),
@@ -228,7 +235,7 @@ export const principalApi = baseApi.injectEndpoints({
         getPrincipalProfile: builder.query<PrincipalFullProfile, void>({
             query: () => ({ url: '/principal/profile', method: 'GET' }),
             providesTags: ['PrincipalProfile'],
-            transformResponse: (res: any) => ({
+            transformResponse: (res: PrincipalFullProfile & { user?: { email?: string }; email?: string }) => ({
                 ...res,
                 userEmail: res.user?.email ?? res.email,
             }),
@@ -242,7 +249,7 @@ export const principalApi = baseApi.injectEndpoints({
             query: (body) => ({ url: '/principal/update-profile', method: 'PATCH', body }),
         }),
 
-        addStudent: builder.mutation<any, {
+        addStudent: builder.mutation<unknown, {
             userEmail: string;
             password: string;
             admissionNumber: string;
@@ -268,7 +275,7 @@ export const principalApi = baseApi.injectEndpoints({
             query: (body) => ({ url: '/principal/students', method: 'POST', body }),
         }),
 
-        promoteStudents: builder.mutation<any, { studentIds: string[]; targetClassroomId: string }>({
+        promoteStudents: builder.mutation<unknown, { studentIds: string[]; targetClassroomId: string }>({
             query: (body) => ({ url: '/principal/promote', method: 'POST', body }),
         }),
 
@@ -288,10 +295,10 @@ export const principalApi = baseApi.injectEndpoints({
                 url: '/principal/admit-cards',
                 method: 'POST',
                 body,
-                // RTK Query's TypeScript types don't include 'blob' as a literal
-                // for `responseHandler` in some versions — cast through any to
-                // keep the public API typed. The runtime behaviour is correct.
-                responseHandler: 'blob' as any,
+                // fetchBaseQuery only understands 'json' | 'text' | 'content-type'
+                // or a function; the string 'blob' was silently not applied, so the
+                // page received a non-Blob and the download failed.
+                responseHandler: (response: Response) => response.blob(),
             }),
         }),
 
@@ -306,6 +313,7 @@ export const principalApi = baseApi.injectEndpoints({
 
 export const {
     useGetPrincipalProfileQuery,
+    useGetPrincipalMessageRecipientsQuery,
     useUpdateMarksEntrySettingMutation,
     useUpdatePrincipalProfileMutation,
     useGetAllClassroomsQuery,

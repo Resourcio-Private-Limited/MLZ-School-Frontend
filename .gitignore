@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# separate QA/CI build output
+/.next-qa/
+
+# local-only screenshot tour and its mocked API (kept on disk, not tracked)
+/scripts/ui-tour/*
+

@@ -1,3 +1,7 @@
+NOTE (Nov 2026): Superseded where it conflicts by docs/portal-ui-standard.md, the standard for
+all portals after the Super Admin redesign (gradient summaries, sentence case, no hover lift,
+mobile drawer, pagination). Read that first.
+
 DESIGN STYLE DOCUMENT - MLZS PORTAL
 =====================================
 

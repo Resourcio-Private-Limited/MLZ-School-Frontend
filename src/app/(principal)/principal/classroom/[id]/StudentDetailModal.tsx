@@ -1,400 +1,255 @@
 "use client";
 
-import { X, User, BookOpen, Calendar, FileText, DollarSign, CheckCircle, XCircle, AlertCircle, Edit, RefreshCw, Loader2 } from "lucide-react";
-import { useState } from "react";
-import toast from 'react-hot-toast';
-import { useGetStudentDetailQuery, useUpdateExamEligibilityMutation } from "@/redux/api/accountsApi";
+import { useState, type ReactNode } from "react";
+import toast from "react-hot-toast";
+import { AlertCircle, CheckCircle2, CircleDashed, RefreshCw } from "lucide-react";
+import { useGetStudentDetailQuery, useUpdateExamEligibilityMutation, type StudentDetailResponse } from "@/redux/api/accountsApi";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { EmptyState, Skeleton, Tabs, errorMessage, focusRing, initials, inr, longDate, secondaryBtn } from "@/components/principal/ui";
 
-type Tab = 'personal' | 'academic' | 'attendance' | 'exams' | 'fees';
+type Tab = "details" | "fees";
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Student record in a dialog (a bottom sheet on phones). Open while studentId is set. */
 export default function StudentDetailModal({
     studentId,
     onClose,
-    onStudentUpdate
+    onStudentUpdate,
 }: {
-    studentId: string;
+    studentId: string | null;
     onClose: () => void;
     onStudentUpdate?: () => void;
 }) {
-    const [activeTab, setActiveTab] = useState<Tab>('personal');
-    const { data: student, isLoading, error, refetch } = useGetStudentDetailQuery({ studentId });
-    const [updateEligibility] = useUpdateExamEligibilityMutation();
+    return (
+        <Dialog open={!!studentId} onClose={onClose} labelledBy="student-detail-title" className="sm:max-w-2xl">
+            {studentId && <StudentDetailBody studentId={studentId} onClose={onClose} onStudentUpdate={onStudentUpdate} />}
+        </Dialog>
+    );
+}
 
-    const handleToggleEligibility = async () => {
+function StudentDetailBody({ studentId, onClose, onStudentUpdate }: { studentId: string; onClose: () => void; onStudentUpdate?: () => void }) {
+    const [tab, setTab] = useState<Tab>("details");
+    const { data: student, isLoading, isError, error, refetch } = useGetStudentDetailQuery({ studentId });
+    const [updateEligibility, { isLoading: updating }] = useUpdateExamEligibilityMutation();
+
+    const toggleEligibility = async () => {
         if (!student) return;
+        const next = !student.examEligibility;
         try {
-            await updateEligibility({ studentId, examEligibility: !student.examEligibility }).unwrap();
-            toast.success(`Exam eligibility ${!student.examEligibility ? 'enabled' : 'disabled'} successfully!`);
+            await updateEligibility({ studentId, examEligibility: next }).unwrap();
+            toast.success(next ? `${student.fullName} is now eligible for exams.` : `${student.fullName} is no longer eligible for exams.`);
             refetch();
-            if (onStudentUpdate) onStudentUpdate();
-        } catch {
-            toast.error("Failed to update exam eligibility");
+            onStudentUpdate?.();
+        } catch (err) {
+            toast.error(errorMessage(err, "Couldn't change exam eligibility. Try again in a moment."));
         }
     };
 
-    const tabs = [
-        { id: 'personal' as Tab, label: 'Personal', icon: User },
-        { id: 'academic' as Tab, label: 'Academic', icon: BookOpen },
-        { id: 'attendance' as Tab, label: 'Attendance', icon: Calendar },
-        { id: 'exams' as Tab, label: 'Exams', icon: FileText },
-        { id: 'fees' as Tab, label: 'Fees', icon: DollarSign },
-    ];
-
-    if (isLoading) {
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col items-center justify-center p-12">
-                    <Loader2 size={48} className="animate-spin text-purple-600 mb-4" />
-                    <p className="text-gray-600 font-medium">Loading student details...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error || !student) {
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col items-center justify-center p-12">
-                    <XCircle size={48} className="text-red-500 mb-4" />
-                    <p className="text-gray-600 font-medium">Failed to load student details</p>
-                    <button onClick={onClose} className="mt-4 px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-                        Close
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-bold">{student.fullName}</h2>
-                            <p className="text-purple-100 text-sm mt-1">
-                                {student.admissionNumber} • {student.classroom?.name || 'N/A'}
-                            </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                                <X size={24} />
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <>
+            <DialogHeader
+                id="student-detail-title"
+                title={student?.fullName ?? (isError ? "Student record" : "Loading student…")}
+                subtitle={student ? `${student.admissionNumber}, ${student.classroom?.name ?? "No class"}` : undefined}
+                leading={
+                    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-50 text-sm font-semibold text-purple-700 ring-1 ring-purple-100">
+                        {student ? initials(student.fullName) : ""}
+                    </span>
+                }
+                onClose={onClose}
+                accent="purple"
+            />
 
-                {/* Tabs */}
-                <div className="border-b border-gray-200 bg-gray-50">
-                    <div className="flex space-x-1 p-2">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition ${activeTab === tab.id
-                                        ? 'bg-white text-purple-600 shadow-sm'
-                                        : 'text-gray-600 hover:bg-white/50'
-                                        }`}
-                                >
-                                    <Icon size={18} />
-                                    <span>{tab.label}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    {activeTab === 'personal' && <PersonalTab student={student} />}
-                    {activeTab === 'academic' && <AcademicTab student={student} onToggleEligibility={handleToggleEligibility} />}
-                    {activeTab === 'attendance' && <AttendanceTab student={student} />}
-                    {activeTab === 'exams' && <ExamsTab student={student} />}
-                    {activeTab === 'fees' && <FeesTab student={student} />}
-                </div>
-
-                {/* Footer */}
-                <div className="border-t border-gray-200 p-6 bg-gray-50">
-                    <div className="flex justify-end">
-                        <button
-                            onClick={onClose}
-                            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function PersonalTab({ student }: { student: any }) {
-    const InfoRow = ({ label, value }: { label: string; value: string | null | undefined }) => (
-        <div className="grid grid-cols-3 gap-4 py-3 border-b border-gray-100">
-            <span className="text-gray-600 font-medium">{label}</span>
-            <span className="col-span-2 text-gray-900">{value || 'N/A'}</span>
-        </div>
-    );
-
-    return (
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <InfoRow label="Full Name" value={student.fullName} />
-                    <InfoRow label="Email" value={student.email} />
-                    <InfoRow label="Date of Birth" value={student.dob ? new Date(student.dob).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'} />
-                    <InfoRow label="Gender" value={student.gender} />
-                    <InfoRow label="Primary Contact" value={student.primaryContact} />
-                </div>
-            </div>
-
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Parent Details</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <InfoRow label="Parent Name" value={student.parentName} />
-                    <InfoRow label="Parent Contact" value={student.parentContact} />
-                </div>
-            </div>
-
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Classroom</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <InfoRow label="Classroom" value={student.classroom?.name} />
-                    <InfoRow label="Grade" value={student.classroom?.grade} />
-                    <InfoRow label="Section" value={student.classroom?.section} />
-                    <InfoRow label="Roll Number" value={student.rollNumber} />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function AcademicTab({ student, onToggleEligibility }: { student: any; onToggleEligibility: () => void }) {
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <p className="text-purple-600 font-medium text-sm">Admission Number</p>
-                    <p className="text-purple-900 font-mono font-bold text-lg mt-1">{student.admissionNumber}</p>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-blue-600 font-medium text-sm">Classroom</p>
-                    <p className="text-blue-900 font-bold text-lg mt-1">{student.classroom?.name || 'N/A'}</p>
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-green-600 font-medium text-sm">Roll Number</p>
-                    <p className="text-green-900 font-bold text-lg mt-1">{student.rollNumber || 'N/A'}</p>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <p className="text-orange-600 font-medium text-sm">Exam Eligibility</p>
-                    <div className="flex items-center justify-between mt-2">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${student.examEligibility ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {student.examEligibility ? 'Eligible' : 'Not Eligible'}
-                        </span>
-                        <button
-                            onClick={onToggleEligibility}
-                            className="text-orange-600 hover:text-orange-800 text-sm font-medium"
-                        >
-                            Toggle
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Fee Structure</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="grid grid-cols-3 gap-4">
-                        <div>
-                            <p className="text-gray-600 text-sm">Tuition Fees</p>
-                            <p className="text-gray-900 font-bold text-lg">₹{student.feeStructure?.tuitionFees?.toLocaleString() || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-600 text-sm">Annual Charges</p>
-                            <p className="text-gray-900 font-bold text-lg">₹{student.feeStructure?.annualCharges?.toLocaleString() || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-gray-600 text-sm">Transport</p>
-                            <p className="text-gray-900 font-bold text-lg">{student.feeStructure?.transportOpted ? 'Opted' : 'Not Opted'}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function AttendanceTab({ student }: { student: any }) {
-    const attendancePercentage = student.attendancePercentage || 0;
-    const getColor = () => {
-        if (attendancePercentage >= 75) return 'text-green-600 bg-green-50 border-green-200';
-        if (attendancePercentage >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-        return 'text-red-600 bg-red-50 border-red-200';
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className={`border-2 rounded-lg p-6 ${getColor()}`}>
-                <div className="text-center">
-                    <p className="text-sm font-medium opacity-80">Attendance Percentage</p>
-                    <p className="text-5xl font-bold mt-2">{attendancePercentage.toFixed(1)}%</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <CheckCircle className="mx-auto text-green-600 mb-2" size={32} />
-                    <p className="text-green-600 font-medium text-sm">Present</p>
-                    <p className="text-green-900 font-bold text-2xl mt-1">{student.totalPresent || 0}</p>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <XCircle className="mx-auto text-red-600 mb-2" size={32} />
-                    <p className="text-red-600 font-medium text-sm">Absent</p>
-                    <p className="text-red-900 font-bold text-2xl mt-1">{student.totalAbsent || 0}</p>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <Calendar className="mx-auto text-blue-600 mb-2" size={32} />
-                    <p className="text-blue-600 font-medium text-sm">Total Days</p>
-                    <p className="text-blue-900 font-bold text-2xl mt-1">{student.totalDays || 0}</p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function ExamsTab({ student }: { student: any }) {
-    return (
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Exam Performance</h3>
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                        <p className="text-blue-600 font-medium text-sm">Average Marks</p>
-                        <p className="text-blue-900 font-bold text-3xl mt-2">{student.averageMarks?.toFixed(1) || 'N/A'}</p>
-                    </div>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                        <p className="text-green-600 font-medium text-sm">Highest Marks</p>
-                        <p className="text-green-900 font-bold text-3xl mt-2">{student.highestMarks || 'N/A'}</p>
-                    </div>
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-                        <p className="text-orange-600 font-medium text-sm">Lowest Marks</p>
-                        <p className="text-orange-900 font-bold text-3xl mt-2">{student.lowestMarks || 'N/A'}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Exam Results</h3>
-                {student.examResults && student.examResults.length > 0 ? (
-                    <div className="space-y-3">
-                        {student.examResults.map((exam: any, idx: number) => (
-                            <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="font-semibold text-gray-900">{exam.examName}</p>
-                                        <p className="text-sm text-gray-600 mt-1">
-                                            {exam.marks}/{exam.maxMarks} • Grade: {exam.grade}
-                                        </p>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${exam.status === 'PASS'
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700'
-                                        }`}>
-                                        {exam.status}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-8 text-gray-500">
-                        <FileText size={48} className="mx-auto text-gray-300 mb-2" />
-                        <p>No exam results available</p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function FeesTab({ student }: { student: any }) {
-    const getStatusColor = () => {
-        if (student.paymentSummary?.totalDue === 0) return 'text-green-600 bg-green-50 border-green-200';
-        if (student.paymentSummary?.totalDue > 0) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-        return 'text-gray-600 bg-gray-50 border-gray-200';
-    };
-
-    const getStatusIcon = () => {
-        if (student.paymentSummary?.totalDue === 0) return <CheckCircle size={32} />;
-        if (student.paymentSummary?.totalDue > 0) return <AlertCircle size={32} />;
-        return <DollarSign size={32} />;
-    };
-
-    const getStatusText = () => {
-        if (student.paymentSummary?.totalDue === 0) return 'CLEARED';
-        if (student.paymentSummary?.totalDue > 0) return 'PENDING';
-        return 'UNKNOWN';
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className={`border-2 rounded-lg p-6 ${getStatusColor()}`}>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium opacity-80">Fee Status</p>
-                        <p className="text-3xl font-bold mt-2">{getStatusText()}</p>
-                    </div>
-                    {getStatusIcon()}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-blue-600 font-medium text-sm">Total Paid</p>
-                    <p className="text-blue-900 font-bold text-2xl mt-2">₹{student.paymentSummary?.totalPaid?.toLocaleString() || '0'}</p>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-600 font-medium text-sm">Total Due</p>
-                    <p className="text-red-900 font-bold text-2xl mt-2">₹{student.paymentSummary?.totalDue?.toLocaleString() || '0'}</p>
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-green-600 font-medium text-sm">Paid Months</p>
-                    <p className="text-green-900 font-bold text-2xl mt-2">{student.paymentSummary?.paidMonths || 0}</p>
-                </div>
-            </div>
-
-            {student.feeHistory && student.feeHistory.length > 0 && (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Payment History</h3>
-                    <div className="space-y-3">
-                        {student.feeHistory.map((payment: any, idx: number) => (
-                            <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="font-semibold text-gray-900">
-                                            {new Date(payment.year, payment.month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-                                        </p>
-                                        <p className="text-sm text-gray-600 mt-1">
-                                            ₹{payment.paidAmount?.toLocaleString() || 0} • {payment.paymentMode || 'N/A'}
-                                        </p>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${payment.isPaid
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-red-100 text-red-700'
-                                        }`}>
-                                        {payment.isPaid ? 'Paid' : 'Unpaid'}
-                                    </span>
-                                </div>
-                            </div>
+            {isLoading ? (
+                <div className="space-y-4 px-6 py-6" aria-label="Loading student">
+                    <Skeleton className="block h-16 w-full rounded-lg" />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        {Array.from({ length: 6 }, (_, i) => (
+                            <span key={i} className="space-y-2">
+                                <Skeleton className="block h-3 w-20" />
+                                <Skeleton className="block h-4 w-36" />
+                            </span>
                         ))}
                     </div>
                 </div>
+            ) : isError || !student ? (
+                <EmptyState
+                    icon={<AlertCircle size={36} />}
+                    title="This student's record couldn't be loaded"
+                    hint={errorMessage(error, "Check your connection and try again.")}
+                    action={
+                        <button type="button" onClick={() => refetch()} className={secondaryBtn}>
+                            <RefreshCw size={16} aria-hidden="true" />
+                            Try again
+                        </button>
+                    }
+                />
+            ) : (
+                <>
+                    <div className="border-b border-gray-200 px-6">
+                        <Tabs<Tab>
+                            label="Student record"
+                            value={tab}
+                            onChange={setTab}
+                            layoutId="principal-student-detail-tab"
+                            tabs={[
+                                { key: "details", label: "Details" },
+                                { key: "fees", label: "Fees" },
+                            ]}
+                        />
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5" role="tabpanel" aria-label={tab === "details" ? "Details" : "Fees"}>
+                        {tab === "details" ? <DetailsTab student={student} updating={updating} onToggle={toggleEligibility} /> : <FeesTab student={student} />}
+                    </div>
+                </>
             )}
+
+            <div className="flex justify-end border-t border-gray-200 px-6 py-4">
+                <button type="button" onClick={onClose} className={secondaryBtn}>
+                    Close
+                </button>
+            </div>
+        </>
+    );
+}
+
+function DetailsTab({ student, updating, onToggle }: { student: StudentDetailResponse; updating: boolean; onToggle: () => void }) {
+    const eligible = student.examEligibility;
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4">
+                <div className="min-w-0">
+                    <p id="exam-eligibility-label" className="text-sm font-medium text-gray-900">
+                        Eligible for exams
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-sm text-gray-500">
+                        {eligible ? <CheckCircle2 size={14} aria-hidden="true" className="text-emerald-600" /> : <CircleDashed size={14} aria-hidden="true" className="text-red-600" />}
+                        {eligible ? "This student is cleared to sit exams." : "This student isn't cleared to sit exams."}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={eligible}
+                    aria-labelledby="exam-eligibility-label"
+                    disabled={updating}
+                    onClick={onToggle}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full motion-safe:transition-colors disabled:cursor-wait disabled:opacity-60 ${focusRing} focus-visible:ring-offset-2 ${eligible ? "bg-purple-600" : "bg-gray-300"}`}
+                >
+                    <span className={`inline-block h-5 w-5 rounded-full bg-white shadow motion-safe:transition-transform ${eligible ? "translate-x-5" : "translate-x-0.5"}`} />
+                </button>
+            </div>
+
+            <Section title="Student">
+                <Field label="Class roll" value={student.classRoll != null ? String(student.classRoll) : null} numeric />
+                <Field label="Admission roll" value={student.rollNumber} numeric />
+                <Field label="Admission number" value={student.admissionNumber} numeric />
+                <Field label="Class" value={student.classroom ? `${student.classroom.name}` : null} />
+                <Field label="Date of birth" value={student.dob ? longDate(student.dob) : null} />
+                <Field label="Gender" value={student.gender ? student.gender.charAt(0) + student.gender.slice(1).toLowerCase() : null} />
+                <Field label="Transport" value={student.transportOpted ? "Uses school transport" : "Doesn't use school transport"} />
+            </Section>
+
+            <Section title="Contact">
+                <Field label="Email" value={student.email} />
+                <Field label="Primary contact" value={student.primaryContact} numeric />
+                <Field label="Secondary contact" value={student.secondaryContact} numeric />
+                <Field label="Address" value={student.residentialAddress} wide />
+            </Section>
+
+            <Section title="Parent or guardian">
+                <Field label="Name" value={student.parentName} />
+                <Field label="Contact" value={student.parentContact} numeric />
+            </Section>
+        </div>
+    );
+}
+
+function FeesTab({ student }: { student: StudentDetailResponse }) {
+    const k = student.kpis;
+    const months = student.monthlyBreakdown ?? [];
+    const year = months[0]?.year;
+    return (
+        <div className="space-y-6">
+            {k ? (
+                <dl className="grid gap-3 sm:grid-cols-3">
+                    <Figure label="Paid" value={inr(k.totalPaid)} />
+                    <Figure label="Due" value={inr(k.totalDue)} tone={k.totalDue > 0 ? "text-red-700" : "text-gray-900"} note={k.totalDue > 0 ? "Outstanding" : "Nothing due"} />
+                    <Figure label="Months paid" value={`${k.paidMonths} of ${k.paidMonths + k.unpaidMonths}`} />
+                </dl>
+            ) : (
+                <p className="text-sm text-gray-500">No fee summary for this student yet.</p>
+            )}
+
+            {student.feeStructure && (
+                <Section title="Fee structure">
+                    <Field label="Tuition (monthly)" value={inr(student.feeStructure.tuitionFees)} numeric />
+                    <Field label="Annual charges" value={inr(student.feeStructure.annualCharges)} numeric />
+                </Section>
+            )}
+
+            <section>
+                <h3 className="text-sm font-semibold text-gray-900">Monthly fees{year ? ` for ${year}` : ""}</h3>
+                {months.length === 0 ? (
+                    <p className="mt-2 text-sm text-gray-500">No monthly fee records yet.</p>
+                ) : (
+                    <ul className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
+                        {months.map((m) => (
+                            <li key={`${m.year}-${m.month}`} className="flex items-center justify-between gap-3 px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-gray-900">
+                                        {MONTHS[m.month - 1]} {m.year !== year ? m.year : ""}
+                                    </p>
+                                    <p className="text-sm tabular-nums text-gray-500">
+                                        {inr(m.totalAmount)}
+                                        {m.isPaid && m.paymentMode ? `, paid by ${m.paymentMode.toLowerCase()}` : ""}
+                                    </p>
+                                </div>
+                                {m.isPaid ? (
+                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
+                                        <CheckCircle2 size={12} aria-hidden="true" />
+                                        Paid
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                                        <CircleDashed size={12} aria-hidden="true" />
+                                        Not paid
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+        </div>
+    );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+    return (
+        <section>
+            <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+            <dl className="mt-3 grid gap-x-6 gap-y-4 sm:grid-cols-2">{children}</dl>
+        </section>
+    );
+}
+
+function Field({ label, value, numeric, wide }: { label: string; value: string | null | undefined; numeric?: boolean; wide?: boolean }) {
+    return (
+        <div className={`min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
+            <dt className="text-sm text-gray-500">{label}</dt>
+            <dd className={`mt-0.5 break-words text-sm ${value ? "text-gray-900" : "text-gray-400"} ${numeric ? "tabular-nums" : ""}`}>{value || "Not added"}</dd>
+        </div>
+    );
+}
+
+function Figure({ label, value, tone = "text-gray-900", note }: { label: string; value: string; tone?: string; note?: string }) {
+    return (
+        <div className="rounded-lg border border-gray-200 px-4 py-3">
+            <dt className="text-sm text-gray-500">{label}</dt>
+            <dd className={`mt-1 text-xl font-semibold tabular-nums ${tone}`}>{value}</dd>
+            {note && <dd className="text-xs text-gray-500">{note}</dd>}
         </div>
     );
 }

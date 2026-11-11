@@ -204,7 +204,27 @@ export interface PaymentReceipt {
 
 // ─── API ───────────────────────────────────────────────────────────
 
+export interface ReportCardExamStatus {
+  completedSubjects: number;
+  totalSubjects: number;
+  /** True once every subject is fully entered for this exam. */
+  released: boolean;
+}
+
+export interface StudentReportCard {
+  session: string;
+  classType: 'PRIMARY' | 'SECONDARY';
+  classroomName: string;
+  studentName: string;
+  exams: { HALF_YEARLY: ReportCardExamStatus; FINAL: ReportCardExamStatus };
+  available: boolean;
+  issuedOn: string | null;
+  svg: string | null;
+}
+
 export const studentApi = baseApi.injectEndpoints({
+  // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
+  overrideExisting: process.env.NODE_ENV === "development",
   endpoints: (builder) => ({
     getProfile: builder.query<StudentProfileResponse, void>({
       query: () => ({ url: '/student/profile', method: 'GET' }),
@@ -218,6 +238,9 @@ export const studentApi = baseApi.injectEndpoints({
       query: () => ({ url: '/student/exams', method: 'GET' }),
     }),
     getAdmitCards: builder.query<StudentAdmitCard[], void>({ query: () => ({ url: '/student/admit-cards', method: 'GET' }) }),
+
+    // Report card for the current session; refetched on every visit so newly released results appear.
+    getReportCard: builder.query<StudentReportCard, void>({ query: () => ({ url: '/student/report-card', method: 'GET' }) }),
 
     updateProfile: builder.mutation<StudentProfileResponse, UpdateProfilePayload>({
       query: (body) => ({ url: '/student/update-profile', method: 'PATCH', body }),
@@ -261,6 +284,7 @@ export const {
   useGetDashboardQuery,
   useGetExamsQuery,
   useGetAdmitCardsQuery,
+  useGetReportCardQuery,
   useUpdateProfileMutation,
   useGetMessageRecipientsQuery,
   useGetMonthlyFeesQuery,

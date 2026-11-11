@@ -11,6 +11,28 @@ interface TooltipProps {
   className?: string;
 }
 
+/** True when a React subtree renders any visible text. */
+function hasText(node: React.ReactNode): boolean {
+  if (typeof node === "string") return node.trim().length > 0;
+  if (typeof node === "number") return true;
+  if (Array.isArray(node)) return node.some(hasText);
+  if (React.isValidElement(node)) return hasText((node.props as { children?: React.ReactNode }).children);
+  return false;
+}
+
+/**
+ * Icon-only buttons/links wrapped in a Tooltip get its text as their accessible
+ * name. Controls that already show text keep it as their name (an aria-label
+ * would replace the visible wording for screen-reader and voice-control users).
+ */
+function labelled(children: React.ReactNode, content: string) {
+  if (!React.isValidElement(children)) return children;
+  const props = children.props as Record<string, unknown> & { children?: React.ReactNode };
+  if (props["aria-label"] || typeof children.type !== "string") return children;
+  if (!["button", "a"].includes(children.type) || hasText(props.children)) return children;
+  return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, { "aria-label": content });
+}
+
 export function Tooltip({ children, content, side = "top", className }: TooltipProps) {
   const [isVisible, setIsVisible] = React.useState(false);
   const [position, setPosition] = React.useState({ top: 0, left: 0 });
@@ -46,7 +68,7 @@ export function Tooltip({ children, content, side = "top", className }: TooltipP
         onFocus={handleMouseEnter}
         onBlur={handleMouseLeave}
       >
-        {children}
+        {labelled(children, content)}
       </div>
       {isVisible && mounted && createPortal(
         <div

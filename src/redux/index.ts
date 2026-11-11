@@ -8,7 +8,13 @@ export const store = configureStore({
     auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(baseApi.middleware),
+    getDefaultMiddleware({
+      // File downloads (admit-card PDFs) are returned as Blobs by RTK Query.
+      serializableCheck: {
+        ignoredActionPaths: ['payload', 'meta.arg', 'meta.baseQueryMeta'],
+        ignoredPaths: [baseApi.reducerPath],
+      },
+    }).concat(baseApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

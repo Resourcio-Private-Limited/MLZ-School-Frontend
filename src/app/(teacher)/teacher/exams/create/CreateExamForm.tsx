@@ -10,7 +10,7 @@ type Subject = {
     classroom: { name: string; section?: string }; // section usually part of section model, but here assuming relation correctness
 };
 
-export default function CreateExamForm({ subjects }: { subjects: any[] }) {
+export default function CreateExamForm({ subjects }: { subjects: Array<{ id: string; name: string; classroom: { name: string } }> }) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");

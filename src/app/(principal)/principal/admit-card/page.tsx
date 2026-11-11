@@ -1,609 +1,777 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useId, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, FileText, Download, Printer, CheckCircle, Loader2, AlertTriangle } from "lucide-react";
-import toast from 'react-hot-toast';
-import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamScheduleQuery, useGetStudentAdmitCardPreviewQuery, useGetSubjectsByClassroomQuery, useCreateAdmitCardMutation, useSetExamScheduleMutation, useUpdateExamScheduleMutation, AdmitCardPreview as AdmitCardPreviewData } from "@/redux/api/principalApi";
-import { Tooltip } from "@/components/ui/tooltip";
+import toast from "react-hot-toast";
+import { AlertTriangle, CalendarDays, CheckCircle2, Download, Eye, FileText, Loader2, Pencil, Users } from "lucide-react";
+import {
+    useCreateAdmitCardMutation,
+    useGetAllClassroomsQuery,
+    useGetClassroomStudentsQuery,
+    useGetExamScheduleQuery,
+    useGetStudentAdmitCardPreviewQuery,
+    useGetSubjectsByClassroomQuery,
+    useSetExamScheduleMutation,
+    useUpdateExamScheduleMutation,
+    type ClassroomStudent,
+    type ClassroomSummary,
+} from "@/redux/api/principalApi";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { heroGradient } from "@/components/principal/brand";
+import {
+    EmptyState,
+    FilterChips,
+    PageHeader,
+    Pager,
+    Panel,
+    SearchBox,
+    Skeleton,
+    errorMessage,
+    inputClass,
+    linkClass,
+    paginate,
+    primaryBtn,
+    secondaryBtn,
+} from "@/components/principal/ui";
 
-const EXAM_TYPES = [
-    { value: "HALF_YEARLY", label: "Half Yearly Examination", svg: "/admit/Admit Card-Half Year.svg" },
-    { value: "FINAL", label: "Final Examination", svg: "/admit/Admit Card-Final Exam.svg" },
+type ExamType = "HALF_YEARLY" | "FINAL";
+type Eligibility = "all" | "eligible" | "ineligible";
+
+const EXAMS: { value: ExamType; label: string; long: string }[] = [
+    { value: "HALF_YEARLY", label: "Half-yearly", long: "Half-yearly examination" },
+    { value: "FINAL", label: "Final", long: "Final examination" },
 ];
 
-const toDateInputValue = (value: string | null | undefined) => value ? value.slice(0, 10) : '';
+const examLong = (t: ExamType | "") => EXAMS.find((e) => e.value === t)?.long ?? "";
+
+const toDateInputValue = (value: string | null | undefined) => (value ? value.slice(0, 10) : "");
+
+/** "Thu 12 Mar 2027" for a yyyy-mm-dd value, read as a local date. */
+function examDay(value: string) {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}
+
+// ─── Classes grouped the way the school talks about them ──────────────────
+const LEVELS = ["Pre-primary", "Primary", "Middle school", "High school", "Senior secondary", "Other"] as const;
+
+function gradeNumber(grade: string) {
+    const g = grade.trim().toLowerCase();
+    if (g === "nursery") return -2;
+    if (g === "kg" || g === "lkg") return -1;
+    if (g === "ukg") return 0;
+    const n = parseInt(g, 10);
+    return Number.isNaN(n) ? 99 : n;
+}
+
+function levelOf(grade: string): (typeof LEVELS)[number] {
+    const n = gradeNumber(grade);
+    if (n <= 0) return "Pre-primary";
+    if (n <= 5) return "Primary";
+    if (n <= 8) return "Middle school";
+    if (n <= 10) return "High school";
+    if (n <= 12) return "Senior secondary";
+    return "Other";
+}
+
+function groupClassrooms(classrooms: ClassroomSummary[]) {
+    const sorted = [...classrooms].sort((a, b) => gradeNumber(a.grade) - gradeNumber(b.grade) || a.section.localeCompare(b.section) || a.name.localeCompare(b.name));
+    return LEVELS.map((level) => ({ level, items: sorted.filter((c) => levelOf(c.grade) === level) })).filter((g) => g.items.length > 0);
+}
+
+function byRoll(a: ClassroomStudent, b: ClassroomStudent) {
+    const ra = a.classRoll ?? Number.POSITIVE_INFINITY;
+    const rb = b.classRoll ?? Number.POSITIVE_INFINITY;
+    return ra - rb || a.fullName.localeCompare(b.fullName);
+}
+
+function saveBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const pdfName = (student: ClassroomStudent, exam: ExamType) => `AdmitCard_${student.fullName.replace(/[^\w-]+/g, "_").slice(0, 40)}_${exam}.pdf`;
 
 export default function AdmitCardPage() {
-    const [selectedClassroomId, setSelectedClassroomId] = useState("");
-    const [selectedExamType, setSelectedExamType] = useState<"HALF_YEARLY" | "FINAL" | "">("");
-    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-    const [selectAll, setSelectAll] = useState(false);
-    const [generating, setGenerating] = useState(false);
-    const [examScheduleDates, setExamScheduleDates] = useState<Record<string, string>>({});
-    const [scheduleSaved, setScheduleSaved] = useState(false);
-    const [hasPersistedSchedule, setHasPersistedSchedule] = useState(false);
-    const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+    const [classroomId, setClassroomId] = useState("");
+    const [examType, setExamType] = useState<ExamType | "">("");
+    const scheduleKey = `${classroomId}:${examType}`;
 
-    const { data: classrooms = [], isLoading: loadingClassrooms } = useGetAllClassroomsQuery();
-    const { data: students = [], isLoading: loadingStudents } = useGetClassroomStudentsQuery(selectedClassroomId, { skip: !selectedClassroomId });
-    const { data: subjects = [], isLoading: loadingSubjects } = useGetSubjectsByClassroomQuery(selectedClassroomId, { skip: !selectedClassroomId });
-    const { data: examSchedule = [], isFetching: loadingExamSchedule } = useGetExamScheduleQuery(
-        { classroomId: selectedClassroomId, examType: selectedExamType },
-        { skip: !selectedClassroomId || !selectedExamType },
-    );
-    const [setExamSchedule, { isLoading: savingSchedule }] = useSetExamScheduleMutation();
+    // Dates being edited for the current class and exam. Null means "show what the server has".
+    const [draft, setDraft] = useState<{ key: string; dates: Record<string, string> } | null>(null);
+    // Dates just saved, shown until the refetch catches up.
+    const [justSaved, setJustSaved] = useState<{ key: string; dates: Record<string, string> } | null>(null);
+    const [selection, setSelection] = useState<{ classroomId: string; ids: string[] }>({ classroomId: "", ids: [] });
+    const [search, setSearch] = useState("");
+    const [eligibility, setEligibility] = useState<Eligibility>("all");
+    const [page, setPage] = useState(1);
+    const [previewStudent, setPreviewStudent] = useState<ClassroomStudent | null>(null);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+
+    const classroomsQ = useGetAllClassroomsQuery();
+    const classrooms = useMemo(() => classroomsQ.data ?? [], [classroomsQ.data]);
+    const studentsQ = useGetClassroomStudentsQuery(classroomId, { skip: !classroomId });
+    const subjectsQ = useGetSubjectsByClassroomQuery(classroomId, { skip: !classroomId });
+    const scheduleQ = useGetExamScheduleQuery({ classroomId, examType }, { skip: !classroomId || !examType });
+    const [setExamSchedule, { isLoading: creatingSchedule }] = useSetExamScheduleMutation();
     const [updateExamSchedule, { isLoading: updatingSchedule }] = useUpdateExamScheduleMutation();
-    const isSavingSchedule = savingSchedule || updatingSchedule;
     const [createAdmitCard] = useCreateAdmitCardMutation();
-    const selectedStudentId = selectedStudentIds[0] ?? '';
-    const { data: admitCardPreview, isFetching: loadingPreview } = useGetStudentAdmitCardPreviewQuery(
-        { studentId: selectedStudentId, examType: selectedExamType },
-        { skip: !selectedStudentId || !selectedExamType },
-    );
 
-    // Reset student selection when classroom changes
-    useEffect(() => {
-        setSelectedStudentIds([]);
-        setSelectAll(false);
-    }, [selectedClassroomId]);
+    const subjects = useMemo(() => (classroomId ? subjectsQ.data ?? [] : []), [classroomId, subjectsQ.data]);
+    const students = useMemo(() => (classroomId ? [...(studentsQ.data ?? [])].sort(byRoll) : []), [classroomId, studentsQ.data]);
+    const classroom = classrooms.find((c) => c.id === classroomId);
+    const groups = useMemo(() => groupClassrooms(classrooms), [classrooms]);
 
-    useEffect(() => {
-        setExamScheduleDates({});
-        setScheduleSaved(false);
-        setHasPersistedSchedule(false);
-        setIsEditingSchedule(false);
-    }, [selectedClassroomId, selectedExamType]);
+    // ─── Exam dates ──────────────────────────────────────────────
+    const serverDates = useMemo(() => {
+        const entries = examType && classroomId ? scheduleQ.data ?? [] : [];
+        return Object.fromEntries(subjects.map((s) => [s.id, toDateInputValue(entries.find((e) => e.subjectId === s.id)?.examDate)]));
+    }, [classroomId, examType, scheduleQ.data, subjects]);
+    const savedDates = justSaved?.key === scheduleKey && scheduleQ.isFetching ? justSaved.dates : serverDates;
+    const hasPersistedSchedule = subjects.length > 0 && subjects.every((s) => Boolean(savedDates[s.id]));
+    const editing = draft?.key === scheduleKey;
+    const dates = editing ? draft.dates : savedDates;
+    const datesSet = subjects.filter((s) => Boolean(dates[s.id])).length;
+    const scheduleComplete = subjects.length > 0 && datesSet === subjects.length;
+    const scheduleSaved = hasPersistedSchedule && !editing;
+    const showDateInputs = editing || !hasPersistedSchedule;
+    const savingSchedule = creatingSchedule || updatingSchedule;
+    const scheduleLoading = subjectsQ.isLoading || (scheduleQ.isFetching && !scheduleQ.data);
 
-    useEffect(() => {
-        if (loadingExamSchedule) return;
+    const setDate = (subjectId: string, value: string) => setDraft({ key: scheduleKey, dates: { ...dates, [subjectId]: value } });
 
-        if (subjects.length > 0 && examSchedule.length > 0) {
-            const initialDates: Record<string, string> = {};
-            subjects.forEach((subject) => {
-                const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
-                initialDates[subject.id] = toDateInputValue(existing?.examDate);
-            });
-            setExamScheduleDates(initialDates);
-            const allSaved = subjects.every((subject) => Boolean(initialDates[subject.id]));
-            setScheduleSaved(allSaved);
-            setHasPersistedSchedule(allSaved);
-            setIsEditingSchedule(false);
-        } else if (subjects.length > 0 && (!examSchedule || examSchedule.length === 0)) {
-            const emptyDates: Record<string, string> = {};
-            subjects.forEach((subject) => {
-                emptyDates[subject.id] = '';
-            });
-            setExamScheduleDates(emptyDates);
-            setScheduleSaved(false);
-            setHasPersistedSchedule(false);
-            setIsEditingSchedule(false);
-        }
-    }, [examSchedule, loadingExamSchedule, subjects]);
-
-    const handleSelectAll = () => {
-        const eligibleStudents = students.filter(s => s.examEligibility === true);
-        if (selectAll || selectedStudentIds.length === eligibleStudents.length) {
-            setSelectedStudentIds([]);
-            setSelectAll(false);
-        } else {
-            setSelectedStudentIds(eligibleStudents.map(s => s.id));
-            setSelectAll(true);
-        }
-    };
-
-    const handleStudentToggle = (studentId: string) => {
-        const student = students.find(s => s.id === studentId);
-        // Prevent selecting students who are not exam eligible
-        if (!selectedStudentIds.includes(studentId) && student && student.examEligibility !== true) {
-            toast.error(`${student.fullName} is not eligible for exam.`);
-            return;
-        }
-
-        if (selectedStudentIds.includes(studentId)) {
-            setSelectedStudentIds(selectedStudentIds.filter(id => id !== studentId));
-        } else {
-            setSelectedStudentIds([...selectedStudentIds, studentId]);
-        }
-    };
-
-    const scheduleComplete = subjects.length > 0 && subjects.every((subject) => Boolean(examScheduleDates[subject.id]));
-    const canGenerate = selectedClassroomId && selectedExamType && selectedStudentIds.length > 0 && scheduleSaved;
-
-    const handleSaveExamSchedule = async () => {
-        if (!selectedClassroomId || !selectedExamType || !scheduleComplete) return;
-
+    const saveSchedule = async () => {
+        if (!classroomId || !examType || !scheduleComplete) return;
+        const payload = { classroomId, examType, schedule: subjects.map((s) => ({ subjectId: s.id, examDate: dates[s.id] })) };
         try {
-            const payload = {
-                classroomId: selectedClassroomId,
-                examType: selectedExamType,
-                schedule: subjects.map((subject) => ({
-                    subjectId: subject.id,
-                    examDate: examScheduleDates[subject.id],
-                })),
-            };
             if (hasPersistedSchedule) await updateExamSchedule(payload).unwrap();
             else await setExamSchedule(payload).unwrap();
-            setScheduleSaved(true);
-            setHasPersistedSchedule(true);
-            setIsEditingSchedule(false);
-            toast.success('Exam dates saved. You can now generate admit cards.');
+            setJustSaved({ key: scheduleKey, dates: { ...dates } });
+            setDraft(null);
+            toast.success(hasPersistedSchedule ? "Exam dates updated." : "Exam dates saved.");
         } catch (err) {
-            console.error('Failed to save exam schedule:', err);
-            toast.error('Failed to save exam schedule. Please try again.');
+            toast.error(errorMessage(err, "Exam dates weren't saved. Check every date and try again."));
         }
     };
 
-    const handleGenerateAdmitCards = async () => {
-        if (!canGenerate) return;
+    // ─── Students ────────────────────────────────────────────────
+    const eligible = students.filter((s) => s.examEligibility === true);
+    const ineligibleCount = students.length - eligible.length;
+    const selectedIds = selection.classroomId === classroomId ? selection.ids : [];
+    const selectedSet = new Set(selectedIds);
+    const allEligibleSelected = eligible.length > 0 && eligible.every((s) => selectedSet.has(s.id));
 
-        // Check for ineligible students - only allow students with examEligibility === true
-        const ineligibleStudents = students.filter(s =>
-            selectedStudentIds.includes(s.id) && s.examEligibility !== true
-        );
+    const q = search.trim().toLowerCase();
+    const filtered = students.filter((s) => {
+        if (eligibility === "eligible" && s.examEligibility !== true) return false;
+        if (eligibility === "ineligible" && s.examEligibility === true) return false;
+        if (!q) return true;
+        return [s.fullName, s.admissionNo, s.rollNumber ?? "", s.classRoll != null ? String(s.classRoll) : ""].some((v) => v.toLowerCase().includes(q));
+    });
+    const { pageCount, current, pageRows } = paginate(filtered, page);
 
-        if (ineligibleStudents.length > 0) {
-            const names = ineligibleStudents.map(s => s.fullName).join(', ');
-            toast.error(`Cannot generate admit cards: ${names} ${ineligibleStudents.length === 1 ? 'is' : 'are'} not eligible for exam. Please deselect ${ineligibleStudents.length === 1 ? 'them' : 'them'} and try again.`);
-            return;
-        }
+    const canAct = Boolean(examType) && scheduleSaved;
+    const blockedReason = !examType ? "Choose an exam to preview or download admit cards." : !scheduleSaved ? "Save the exam dates above before you preview or download admit cards." : null;
 
-        setGenerating(true);
+    const toggleStudent = (id: string) =>
+        setSelection({ classroomId, ids: selectedSet.has(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id] });
+    const toggleAllEligible = () => setSelection({ classroomId, ids: allEligibleSelected ? [] : eligible.map((s) => s.id) });
+
+    const chooseClassroom = (id: string) => {
+        setClassroomId(id);
+        setDraft(null);
+        setSearch("");
+        setEligibility("all");
+        setPage(1);
+    };
+    const chooseExam = (t: ExamType) => {
+        setExamType(t);
+        setDraft(null);
+    };
+
+    const downloadOne = async (student: ClassroomStudent) => {
+        if (!examType || !canAct) return;
+        setDownloadingId(student.id);
         try {
-            let successCount = 0;
-            for (const studentId of selectedStudentIds) {
-                try {
-                    const blob = await createAdmitCard({
-                        studentId,
-                        examType: selectedExamType as 'HALF_YEARLY' | 'FINAL',
-                    }).unwrap();
-
-                    // Determine filename from selected student (if available)
-                    const student = students.find(s => s.id === studentId);
-                    const safeName = (student?.fullName ?? studentId)
-                        .replace(/[^\w\-]+/g, '_').slice(0, 40);
-                    const filename = `AdmitCard_${safeName}_${selectedExamType}.pdf`;
-
-                    // Trigger a browser download for this PDF
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                    successCount += 1;
-                } catch (innerErr) {
-                    console.error('Failed to generate admit card for student', studentId, innerErr);
-                }
-            }
-            if (successCount > 0) {
-                toast.success(`Generated & downloaded ${successCount} admit card(s).`);
-            } else {
-                toast.error('Failed to generate any admit cards.');
-            }
-            setSelectedStudentIds([]);
-            setSelectAll(false);
+            const blob = await createAdmitCard({ studentId: student.id, examType }).unwrap();
+            saveBlob(blob, pdfName(student, examType));
+            toast.success(`Admit card for ${student.fullName} downloaded.`);
         } catch (err) {
-            console.error("Failed to generate admit cards:", err);
-            toast.error("Failed to generate admit cards. Please try again.");
+            toast.error(errorMessage(err, `The admit card for ${student.fullName} wasn't downloaded. Try again in a moment.`));
         } finally {
-            setGenerating(false);
+            setDownloadingId(null);
         }
     };
 
-    const selectedClassroom = classrooms.find(c => c.id === selectedClassroomId);
-    const scheduleStatus = scheduleSaved ? 'Saved' : scheduleComplete ? 'Ready to save' : 'Incomplete';
+    const downloadSelected = async () => {
+        if (!examType || !canAct) return;
+        const chosen = students.filter((s) => selectedSet.has(s.id) && s.examEligibility === true);
+        if (chosen.length === 0) return;
+        setBulk({ done: 0, total: chosen.length });
+        const failed: ClassroomStudent[] = [];
+        for (const [i, student] of chosen.entries()) {
+            try {
+                const blob = await createAdmitCard({ studentId: student.id, examType }).unwrap();
+                saveBlob(blob, pdfName(student, examType));
+            } catch {
+                failed.push(student);
+            }
+            setBulk({ done: i + 1, total: chosen.length });
+        }
+        setBulk(null);
+        const ok = chosen.length - failed.length;
+        if (failed.length === 0) {
+            toast.success(`${ok} admit card${ok === 1 ? "" : "s"} downloaded.`);
+            setSelection({ classroomId, ids: [] });
+        } else {
+            // Keep only the failures selected so "Download" retries just those.
+            setSelection({ classroomId, ids: failed.map((s) => s.id) });
+            const names = failed.slice(0, 3).map((s) => s.fullName).join(", ");
+            const msg = `${failed.length} admit card${failed.length === 1 ? " wasn't" : "s weren't"} downloaded (${names}${failed.length > 3 ? " and others" : ""}). ${failed.length === 1 ? "It's" : "They're"} still selected, so try again.`;
+            if (ok > 0) toast.success(`${ok} admit card${ok === 1 ? "" : "s"} downloaded.`);
+            toast.error(msg, { duration: 7000 });
+        }
+    };
+
+    const busy = bulk !== null;
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center space-x-3 sm:space-x-4">
-                    
-                    <div className="h-6 w-px bg-gray-300"></div>
-                    <h1 className="text-3xl font-bold text-gray-800">Create Admit Card</h1>
-                </div>
-            </div>
+        <div className="max-w-7xl space-y-6">
+            <PageHeader title="Admit cards" subtitle="Set each subject's exam date, then preview and download admit cards for eligible students." />
 
-            {/* Main Card */}
-            <div className="bg-white rounded-xl shadow-md border-t-4 border-purple-600">
-                <div className="p-6 border-b border-gray-100 flex items-center space-x-3">
-                    <div className="bg-purple-50 p-2 rounded-lg text-purple-600">
-                        <FileText size={24} />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-800">Admit Card Generator</h2>
-                </div>
-
-                <div className="p-6 space-y-6">
-                    {/* Selection Form */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Classroom Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Select Class <span className="text-red-500">*</span>
-                            </label>
-                            {loadingClassrooms ? (
-                                <div className="flex items-center space-x-2 text-gray-500">
-                                    <Loader2 size={16} className="animate-spin" />
-                                    <span className="text-sm">Loading classrooms...</span>
-                                </div>
-                            ) : (
-                                <select
-                                    value={selectedClassroomId}
-                                    onChange={(e) => setSelectedClassroomId(e.target.value)}
-                                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition-all hover:border-purple-300 shadow-sm"
-                                >
-                                    <option value="">Choose class...</option>
-                                    {classrooms.map((cls) => (
-                                        <option key={cls.id} value={cls.id}>
-                                            {cls.name} ({cls.total} students)
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-                        </div>
-
-                        {/* Exam Type Selection */}
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Examination Type <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={selectedExamType}
-                                onChange={(e) => setSelectedExamType(e.target.value as "HALF_YEARLY" | "FINAL" | "")}
-                                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition-all hover:border-purple-300 shadow-sm"
-                            >
-                                <option value="">Choose exam type...</option>
-                                {EXAM_TYPES.map((exam) => (
-                                    <option key={exam.value} value={exam.value}>{exam.label}</option>
+            {/* Step 1: class and exam */}
+            <Panel title="Class and exam" subtitle="Admit cards are made for one class and one exam at a time.">
+                <div className="grid gap-5 px-4 pb-5 pt-4 sm:grid-cols-2 sm:px-6">
+                    <div>
+                        <label htmlFor="admit-class" className="mb-1.5 block text-sm font-medium text-gray-700">
+                            Class
+                        </label>
+                        {classroomsQ.isLoading ? (
+                            <Skeleton className="h-10 w-full" />
+                        ) : classroomsQ.isError ? (
+                            <p className="text-sm text-red-700">
+                                Classes didn&apos;t load.{" "}
+                                <button type="button" onClick={() => classroomsQ.refetch()} className={linkClass}>
+                                    Try again
+                                </button>
+                            </p>
+                        ) : (
+                            <select id="admit-class" value={classroomId} onChange={(e) => chooseClassroom(e.target.value)} className={`${inputClass} h-10 py-0`} disabled={busy}>
+                                <option value="">Choose a class</option>
+                                {groups.map((g) => (
+                                    <optgroup key={g.level} label={g.level}>
+                                        {g.items.map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.name} ({c.total} students)
+                                            </option>
+                                        ))}
+                                    </optgroup>
                                 ))}
                             </select>
+                        )}
+                    </div>
+                    <div>
+                        <p className="mb-1.5 block text-sm font-medium text-gray-700">
+                            Exam
+                        </p>
+                        <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50/60 px-1">
+                            <FilterChips label="Exam" value={examType as ExamType} options={EXAMS.map((e) => ({ value: e.value, label: e.label }))} onChange={chooseExam} layoutId="admit-exam-chip" />
                         </div>
                     </div>
+                </div>
+            </Panel>
 
-                    {/* Exam Schedule */}
-                    {selectedClassroomId && selectedExamType && (
-                        <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-800">Exam Schedule</h3>
-                                    <p className="text-sm text-gray-500">Set the date for each subject before generating admit cards.</p>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 sm:justify-end">
-                                    <div className="text-left sm:text-right">
-                                        <p className="text-sm font-medium text-slate-700">Schedule status</p>
-                                        <p className={`text-sm ${scheduleSaved ? 'text-emerald-600' : scheduleComplete ? 'text-amber-600' : 'text-slate-500'}`}>
-                                            {scheduleStatus}
-                                        </p>
-                                    </div>
-                                    {scheduleSaved && !isEditingSchedule && (
-                                        <button
-                                            onClick={() => setIsEditingSchedule(true)}
-                                            className="px-3 py-1.5 text-sm font-medium text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
-                                        >
-                                            Edit
-                                        </button>
-                                    )}
-                                </div>
+            {!classroomId ? (
+                <section className="rounded-xl border border-gray-200 bg-white">
+                    <EmptyState icon={<FileText size={36} />} title="Pick a class to see its students." hint="Then choose the exam, set each subject's date and download the admit cards." />
+                </section>
+            ) : (
+                <>
+                    {/* Headline summary */}
+                    <section aria-label="Summary" className={`rounded-xl px-5 py-6 sm:px-6 ${heroGradient}`}>
+                        <dl className="grid gap-6 lg:grid-cols-3">
+                            <div className="min-w-0">
+                                <dt className="text-sm text-slate-300">Class</dt>
+                                <dd className="mt-1 truncate text-2xl font-semibold">{classroom?.name ?? <Skeleton onDark className="h-7 w-40" />}</dd>
+                                <dd className="mt-1 truncate text-sm text-slate-400">{classroom?.classTeacher ? `Class teacher ${classroom.classTeacher.fullName}` : "No class teacher assigned"}</dd>
                             </div>
+                            <div className="min-w-0">
+                                <dt className="text-sm text-slate-300">Exam dates</dt>
+                                {!examType ? (
+                                    <>
+                                        <dd className="mt-1 text-2xl font-semibold">No exam chosen</dd>
+                                        <dd className="mt-1 text-sm text-slate-400">Choose Half-yearly or Final above.</dd>
+                                    </>
+                                ) : scheduleLoading ? (
+                                    <dd className="mt-2">
+                                        <Skeleton onDark className="h-7 w-32" />
+                                    </dd>
+                                ) : (
+                                    <>
+                                        <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                                            {subjects.length === 0 ? "No subjects" : `${datesSet} of ${subjects.length} set`}
+                                        </dd>
+                                        <dd className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+                                            <span
+                                                className={`block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500 ${scheduleSaved ? "bg-emerald-300" : "bg-purple-300"}`}
+                                                style={{ width: `${subjects.length ? (datesSet / subjects.length) * 100 : 0}%` }}
+                                            />
+                                        </dd>
+                                        <dd className={`mt-1.5 text-sm ${scheduleSaved ? "text-emerald-300" : "text-slate-400"}`}>
+                                            {examLong(examType)}, {scheduleSaved ? "dates saved" : "dates not saved yet"}
+                                        </dd>
+                                    </>
+                                )}
+                            </div>
+                            <div className="min-w-0">
+                                <dt className="text-sm text-slate-300">Eligible students</dt>
+                                {studentsQ.isLoading ? (
+                                    <dd className="mt-2">
+                                        <Skeleton onDark className="h-7 w-24" />
+                                    </dd>
+                                ) : (
+                                    <>
+                                        <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                                            {eligible.length.toLocaleString("en-IN")}
+                                            <span className="text-base font-normal text-slate-400"> of {students.length.toLocaleString("en-IN")}</span>
+                                        </dd>
+                                        <dd className={`mt-1 text-sm ${ineligibleCount > 0 ? "text-rose-300" : "text-slate-400"}`}>
+                                            {ineligibleCount > 0 ? `${ineligibleCount} not eligible for exams` : "Everyone is eligible"}
+                                        </dd>
+                                    </>
+                                )}
+                            </div>
+                        </dl>
+                    </section>
 
-                            {loadingSubjects ? (
-                                <div className="flex items-center space-x-2 text-gray-500">
-                                    <Loader2 size={16} className="animate-spin" />
-                                    <span className="text-sm">Loading subjects...</span>
+                    {/* Step 2: exam dates */}
+                    {examType && (
+                        <Panel
+                            title="Exam dates"
+                            subtitle={scheduleSaved ? "These dates print on every admit card." : "Every subject needs a date before admit cards can be made."}
+                            action={
+                                scheduleSaved && subjects.length > 0 ? (
+                                    <button type="button" onClick={() => setDraft({ key: scheduleKey, dates: { ...savedDates } })} className={secondaryBtn} disabled={busy}>
+                                        <Pencil size={15} aria-hidden="true" />
+                                        Edit dates
+                                    </button>
+                                ) : undefined
+                            }
+                        >
+                            {scheduleLoading ? (
+                                <div className="space-y-3 px-4 py-5 sm:px-6">
+                                    {[0, 1, 2].map((i) => (
+                                        <Skeleton key={i} className="h-10 w-full" />
+                                    ))}
                                 </div>
+                            ) : subjectsQ.isError || scheduleQ.isError ? (
+                                <EmptyState
+                                    icon={<CalendarDays size={32} />}
+                                    title="Exam dates didn't load."
+                                    hint="It might be a temporary problem — try again in a moment."
+                                    action={
+                                        <button type="button" onClick={() => (subjectsQ.isError ? subjectsQ.refetch() : scheduleQ.refetch())} className={secondaryBtn}>
+                                            Try again
+                                        </button>
+                                    }
+                                />
                             ) : subjects.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    No subjects found for this classroom.
-                                </div>
+                                <EmptyState
+                                    icon={<CalendarDays size={32} />}
+                                    title="This class has no subjects yet."
+                                    hint="Add subjects from the class's settings on the Classrooms page, then come back to set exam dates."
+                                    action={
+                                        <Link href="/principal" className={linkClass}>
+                                            Go to Classrooms
+                                        </Link>
+                                    }
+                                />
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {subjects.map((subject) => (
-                                            <div key={subject.id} className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg">
-                                                <p className="text-sm font-medium text-gray-800">{subject.name}</p>
-                                                <input
-                                                    type="date"
-                                                    value={examScheduleDates[subject.id] ?? ''}
-                                                    onChange={(e) => {
-                                                        setScheduleSaved(false);
-                                                        setExamScheduleDates((prev) => ({ ...prev, [subject.id]: e.target.value }));
-                                                    }}
-                                                    disabled={scheduleSaved && !isEditingSchedule}
-                                                    className={`w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
-                                                        scheduleSaved && !isEditingSchedule ? 'bg-gray-100 cursor-not-allowed' : ''
-                                                    }`}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                                        {isEditingSchedule || !scheduleSaved ? (
+                                    <ul className="mt-4 divide-y divide-gray-100 border-t border-gray-100">
+                                        {subjects.map((s) => {
+                                            const value = dates[s.id] ?? "";
+                                            return (
+                                                <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+                                                    <label htmlFor={`date-${s.id}`} className="min-w-0 text-sm font-medium text-gray-900">
+                                                        {s.name}
+                                                        {s.teachers[0] && <span className="block text-xs font-normal text-gray-500">{s.teachers.map((t) => t.fullName).join(", ")}</span>}
+                                                    </label>
+                                                    {showDateInputs ? (
+                                                        <input
+                                                            id={`date-${s.id}`}
+                                                            type="date"
+                                                            value={value}
+                                                            onChange={(e) => setDate(s.id, e.target.value)}
+                                                            className={`${inputClass} h-10 w-full py-0 tabular-nums sm:w-48 ${value ? "" : "border-amber-300"}`}
+                                                        />
+                                                    ) : (
+                                                        <span id={`date-${s.id}`} className="text-sm tabular-nums text-gray-700">
+                                                            {value ? examDay(value) : "No date"}
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50/60 px-4 py-4 sm:px-6">
+                                        {showDateInputs ? (
                                             <>
-                                                <button
-                                                    onClick={handleSaveExamSchedule}
-                                                    disabled={!scheduleComplete || isSavingSchedule}
-                                                    className={`inline-flex items-center space-x-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
-                                                        scheduleComplete && !isSavingSchedule
-                                                            ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
-                                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    {isSavingSchedule ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                                                    <span>{isSavingSchedule ? 'Saving Schedule...' : hasPersistedSchedule ? 'Update Exam Dates' : 'Save Exam Dates'}</span>
-                                                </button>
-                                                {scheduleSaved && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setIsEditingSchedule(false);
-                                                            // Restore original saved dates
-                                                            const initialDates: Record<string, string> = {};
-                                                            subjects.forEach((subject) => {
-                                                                const existing = examSchedule.find((entry) => entry.subjectId === subject.id);
-                                                                initialDates[subject.id] = toDateInputValue(existing?.examDate);
-                                                            });
-                                                            setExamScheduleDates(initialDates);
-                                                            setScheduleSaved(true);
-                                                        }}
-                                                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                                    >
-                                                        Cancel
+                                                <p className="text-sm text-gray-500" aria-live="polite">
+                                                    {scheduleComplete ? "All subjects have a date." : `${subjects.length - datesSet} subject${subjects.length - datesSet === 1 ? "" : "s"} still need${subjects.length - datesSet === 1 ? "s" : ""} a date.`}
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {editing && hasPersistedSchedule && (
+                                                        <button type="button" onClick={() => setDraft(null)} className={secondaryBtn} disabled={savingSchedule}>
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                    <button type="button" onClick={saveSchedule} disabled={!scheduleComplete || savingSchedule} className={primaryBtn}>
+                                                        {savingSchedule ? <Loader2 size={16} aria-hidden="true" className="motion-safe:animate-spin" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+                                                        {savingSchedule ? "Saving…" : hasPersistedSchedule ? "Update exam dates" : "Save exam dates"}
                                                     </button>
-                                                )}
+                                                </div>
                                             </>
                                         ) : (
-                                            <div className="flex items-center space-x-2 text-emerald-600">
-                                                <CheckCircle size={16} />
-                                                <span className="text-sm">Exam schedule saved</span>
-                                            </div>
+                                            <p className="flex items-center gap-2 text-sm text-emerald-700">
+                                                <CheckCircle2 size={16} aria-hidden="true" />
+                                                Exam dates saved. Use Edit dates to change them.
+                                            </p>
                                         )}
-                                        <p className="text-sm text-gray-500">
-                                            {scheduleSaved && !isEditingSchedule
-                                                ? 'Click Edit to modify exam dates.'
-                                                : 'All subjects must have an exam date before you can generate admit cards.'}
-                                        </p>
                                     </div>
                                 </>
                             )}
-                        </div>
+                        </Panel>
                     )}
 
-                    {/* Student Selection */}
-                    {selectedClassroomId && (
-                        <div className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-800">
-                                    Select Students
-                                    {loadingStudents && <Loader2 size={16} className="inline ml-2 animate-spin" />}
-                                </h3>
-                                <button
-                                    onClick={handleSelectAll}
-                                    disabled={students.length === 0}
-                                    className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors disabled:opacity-50"
-                                >
-                                    {selectAll || selectedStudentIds.length === students.filter(s => s.examEligibility === true).length ? "Deselect All" : "Select All (Eligible Only)"}
+                    {/* Step 3: students */}
+                    <Panel
+                        title="Students"
+                        subtitle={classroom ? `${classroom.name}, in roll order` : undefined}
+                        action={
+                            eligible.length > 0 ? (
+                                <button type="button" onClick={toggleAllEligible} className={secondaryBtn} disabled={busy}>
+                                    {allEligibleSelected ? "Clear selection" : `Select all eligible (${eligible.length})`}
+                                </button>
+                            ) : undefined
+                        }
+                    >
+                        <div className="flex flex-col gap-3 px-4 pb-4 pt-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                            <FilterChips<Eligibility>
+                                label="Filter by exam eligibility"
+                                value={eligibility}
+                                onChange={(v) => {
+                                    setEligibility(v);
+                                    setPage(1);
+                                }}
+                                layoutId="admit-eligibility-chip"
+                                options={[
+                                    { value: "all", label: "All", count: students.length },
+                                    { value: "eligible", label: "Eligible", count: eligible.length },
+                                    { value: "ineligible", label: "Not eligible", count: ineligibleCount },
+                                ]}
+                            />
+                            <SearchBox
+                                id="admit-search"
+                                label="Search students"
+                                value={search}
+                                onChange={(v) => {
+                                    setSearch(v);
+                                    setPage(1);
+                                }}
+                                placeholder="Search by name, admission or roll number"
+                                className="w-full lg:w-80"
+                            />
+                        </div>
+
+                        {blockedReason && students.length > 0 && (
+                            <p className="mx-4 mb-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100 sm:mx-6">
+                                <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                                {blockedReason}
+                            </p>
+                        )}
+
+                        {selectedIds.length > 0 && (
+                            <div className="mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-purple-50 px-3 py-2.5 ring-1 ring-purple-100 sm:mx-6">
+                                <p className="text-sm font-medium text-purple-900 tabular-nums" aria-live="polite">
+                                    {bulk ? `Downloading ${Math.min(bulk.done + 1, bulk.total)} of ${bulk.total}…` : `${selectedIds.length} student${selectedIds.length === 1 ? "" : "s"} selected`}
+                                </p>
+                                <button type="button" onClick={downloadSelected} disabled={!canAct || busy} className={primaryBtn}>
+                                    {busy ? <Loader2 size={16} aria-hidden="true" className="motion-safe:animate-spin" /> : <Download size={16} aria-hidden="true" />}
+                                    Download {selectedIds.length} admit card{selectedIds.length === 1 ? "" : "s"}
                                 </button>
                             </div>
+                        )}
 
-                            {students.length === 0 && !loadingStudents ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    No students found in this class.
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
-                                    {students.map((student) => (
-                                        <label
-                                            key={student.id}
-                                            className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                                                selectedStudentIds.includes(student.id)
-                                                    ? 'border-purple-500 bg-purple-50'
-                                                    : student.examEligibility !== true
-                                                        ? 'border-red-200 bg-red-50 opacity-70'
-                                                        : 'border-gray-200 hover:bg-purple-50 hover:border-purple-300'
-                                            }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedStudentIds.includes(student.id)}
-                                                onChange={() => handleStudentToggle(student.id)}
-                                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-medium text-gray-800 truncate">{student.fullName}</p>
-                                                    {student.examEligibility !== true && (
-                                                        <span title="Not eligible for exam" className="shrink-0">
-                                                            <AlertTriangle size={14} className="text-red-500" />
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-gray-500">Adm: {student.admissionNo}</p>
-                                                {student.examEligibility !== true && (
-                                                    <p className="text-xs text-red-500 mt-1">Not eligible</p>
-                                                )}
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-
-                            {selectedStudentIds.length > 0 && (
-                                <div className="mt-4 flex items-center space-x-2 text-sm text-purple-600 bg-purple-50 p-3 rounded-lg">
-                                    <CheckCircle size={16} />
-                                    <span className="font-medium">{selectedStudentIds.length} eligible student(s) selected</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Admit Card Preview (true HTML — matches the Puppeteer PDF) */}
-                    {canGenerate && selectedExamType && (
-                        <div className="border border-purple-200 bg-purple-50 rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Admit Card Preview</h3>
-                            <AdmitCardPreview
-                                preview={admitCardPreview ?? null}
-                                loading={loadingPreview}
-                                examLabel={EXAM_TYPES.find(e => e.value === selectedExamType)?.label ?? ''}
+                        {studentsQ.isLoading ? (
+                            <div className="space-y-3 border-t border-gray-100 px-4 py-5 sm:px-6">
+                                {[0, 1, 2, 3].map((i) => (
+                                    <Skeleton key={i} className="h-12 w-full" />
+                                ))}
+                            </div>
+                        ) : studentsQ.isError ? (
+                            <EmptyState
+                                icon={<Users size={32} />}
+                                title="Students didn't load."
+                                hint="It might be a temporary problem — try again in a moment."
+                                action={
+                                    <button type="button" onClick={() => studentsQ.refetch()} className={secondaryBtn}>
+                                        Try again
+                                    </button>
+                                }
                             />
-                            <p className="text-xs text-gray-500 text-center mt-3">
-                                {selectedClassroom?.name} — {EXAM_TYPES.find(e => e.value === selectedExamType)?.label}
-                            </p>
-                        </div>
-                    )}
+                        ) : students.length === 0 ? (
+                            <EmptyState icon={<Users size={32} />} title="No students in this class yet." hint="Admit students from the class's page on Classrooms." />
+                        ) : filtered.length === 0 ? (
+                            <EmptyState
+                                icon={<Users size={32} />}
+                                title="No students match."
+                                hint="Try a different name or number, or show all students."
+                                action={
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearch("");
+                                            setEligibility("all");
+                                        }}
+                                        className={secondaryBtn}
+                                    >
+                                        Show all students
+                                    </button>
+                                }
+                            />
+                        ) : (
+                            <>
+                                {/* Cards below xl */}
+                                <ul className="divide-y divide-gray-100 border-t border-gray-100 xl:hidden">
+                                    {pageRows.map((s) => (
+                                        <li key={s.id} className="flex items-start gap-3 px-4 py-4 sm:px-6">
+                                            <SelectBox student={s} checked={selectedSet.has(s.id)} onToggle={toggleStudent} disabled={busy} />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <p className="truncate text-sm font-medium text-gray-900">{s.fullName}</p>
+                                                    <EligibilityBadge eligible={s.examEligibility === true} />
+                                                </div>
+                                                <p className="mt-0.5 text-xs tabular-nums text-gray-500">
+                                                    Roll {s.classRoll ?? s.rollNumber ?? "not set"}, admission no. {s.admissionNo}
+                                                </p>
+                                                <RowActions
+                                                    student={s}
+                                                    canAct={canAct && !busy}
+                                                    downloading={downloadingId === s.id}
+                                                    onPreview={() => setPreviewStudent(s)}
+                                                    onDownload={() => downloadOne(s)}
+                                                    className="mt-3"
+                                                />
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
-                        <button
-                            disabled={!canGenerate || generating}
-                            onClick={handleGenerateAdmitCards}
-                            className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg font-medium transition-all ${
-                                canGenerate && !generating
-                                    ? "bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg"
-                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            }`}
-                        >
-                            {generating ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
-                            <span>{generating ? "Generating..." : "Generate Admit Cards"}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                {/* Table from xl */}
+                                <div className="hidden border-t border-gray-100 xl:block">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-50 text-gray-500">
+                                            <tr>
+                                                <th scope="col" className="w-12 py-3 pl-6 pr-2">
+                                                    <span className="sr-only">Select</span>
+                                                </th>
+                                                <th scope="col" className="w-20 px-3 py-3 font-medium">Roll</th>
+                                                <th scope="col" className="px-3 py-3 font-medium">Student</th>
+                                                <th scope="col" className="px-3 py-3 font-medium">Admission no.</th>
+                                                <th scope="col" className="px-3 py-3 font-medium">Exam eligibility</th>
+                                                <th scope="col" className="py-3 pl-3 pr-6 text-right font-medium">
+                                                    <span className="sr-only">Actions</span>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {pageRows.map((s) => (
+                                                <tr key={s.id} className={selectedSet.has(s.id) ? "bg-purple-50/40" : "hover:bg-gray-50/60"}>
+                                                    <td className="py-3 pl-6 pr-2">
+                                                        <SelectBox student={s} checked={selectedSet.has(s.id)} onToggle={toggleStudent} disabled={busy} />
+                                                    </td>
+                                                    <td className="px-3 py-3 tabular-nums text-gray-700">{s.classRoll ?? s.rollNumber ?? "–"}</td>
+                                                    <td className="px-3 py-3 font-medium text-gray-900">{s.fullName}</td>
+                                                    <td className="px-3 py-3 tabular-nums text-gray-600">{s.admissionNo}</td>
+                                                    <td className="px-3 py-3">
+                                                        <EligibilityBadge eligible={s.examEligibility === true} />
+                                                    </td>
+                                                    <td className="py-3 pl-3 pr-6">
+                                                        <RowActions
+                                                            student={s}
+                                                            canAct={canAct && !busy}
+                                                            downloading={downloadingId === s.id}
+                                                            onPreview={() => setPreviewStudent(s)}
+                                                            onDownload={() => downloadOne(s)}
+                                                            className="justify-end"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <Pager total={filtered.length} page={current} pageCount={pageCount} onPage={setPage} />
+                            </>
+                        )}
+
+                        {ineligibleCount > 0 && classroomId && (
+                            <p className="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 sm:px-6">
+                                Students who aren&apos;t eligible can&apos;t get an admit card. You can change a student&apos;s eligibility from their details on the{" "}
+                                <Link href={`/principal/classroom/${classroomId}`} className={linkClass}>
+                                    class page
+                                </Link>
+                                .
+                            </p>
+                        )}
+                    </Panel>
+                </>
+            )}
+
+            <PreviewDialog
+                student={previewStudent}
+                examType={examType}
+                classroomName={classroom?.name ?? ""}
+                onClose={() => setPreviewStudent(null)}
+                downloading={previewStudent !== null && downloadingId === previewStudent.id}
+                onDownload={() => previewStudent && downloadOne(previewStudent)}
+            />
         </div>
     );
 }
 
-// ─── HTML Admit Card Preview ────────────────────────────────────────────
-// Mirrors the backend Puppeteer template (admit-card-template.ts) so the
-// user sees exactly what will be downloaded. Always renders 10 table rows
-// (empty cells if fewer subjects are scheduled).
-function AdmitCardPreview({
-    preview: previewInput,
-    loading,
-    examLabel,
+// ─── Pieces ──────────────────────────────────────────────────────────
+
+function SelectBox({ student, checked, onToggle, disabled }: { student: ClassroomStudent; checked: boolean; onToggle: (id: string) => void; disabled: boolean }) {
+    const ineligible = student.examEligibility !== true;
+    return (
+        <input
+            type="checkbox"
+            checked={checked}
+            disabled={ineligible || disabled}
+            onChange={() => onToggle(student.id)}
+            aria-label={ineligible ? `${student.fullName} isn't eligible for exams` : `Select ${student.fullName}`}
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 text-purple-600 accent-purple-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+        />
+    );
+}
+
+function EligibilityBadge({ eligible }: { eligible: boolean }) {
+    return eligible ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
+            <CheckCircle2 size={12} aria-hidden="true" />
+            Eligible
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-800 ring-1 ring-red-100">
+            <AlertTriangle size={12} aria-hidden="true" />
+            Not eligible
+        </span>
+    );
+}
+
+function RowActions({
+    student,
+    canAct,
+    downloading,
+    onPreview,
+    onDownload,
+    className = "",
 }: {
-    preview: AdmitCardPreviewData | null;
-    loading: boolean;
-    examLabel: string;
+    student: ClassroomStudent;
+    canAct: boolean;
+    downloading: boolean;
+    onPreview: () => void;
+    onDownload: () => void;
+    className?: string;
 }) {
-    // The principal portal intentionally renders only the populated reference SVG.
-    // The old hand-built HTML card is retained below temporarily for source history,
-    // but is never rendered.
-    if (loading) return <div className="py-16 text-center text-slate-500">Generating SVG preview…</div>;
-    if (!previewInput?.svg) return <div className="py-16 text-center text-slate-500">Select an eligible student to generate the SVG preview.</div>;
-    return <div className="mx-auto max-w-2xl overflow-auto rounded-lg bg-white p-3 shadow-lg [&>svg]:h-auto [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: previewInput.svg }} />;
+    const disabled = !canAct || student.examEligibility !== true;
+    return (
+        <div className={`flex flex-wrap gap-2 ${className}`}>
+            <button type="button" onClick={onPreview} disabled={disabled} aria-label={`Preview admit card for ${student.fullName}`} className={secondaryBtn}>
+                <Eye size={15} aria-hidden="true" />
+                Preview
+            </button>
+            <button type="button" onClick={onDownload} disabled={disabled || downloading} aria-label={`Download admit card for ${student.fullName}`} className={secondaryBtn}>
+                {downloading ? <Loader2 size={15} aria-hidden="true" className="motion-safe:animate-spin" /> : <Download size={15} aria-hidden="true" />}
+                PDF
+            </button>
+        </div>
+    );
+}
 
-    /* Legacy HTML preview intentionally unreachable. */
-    const preview = previewInput!;
-    const legacyPreview = preview as AdmitCardPreviewData;
-    const ROWS = 10;
-    const schedule = legacyPreview.examSchedule?.length ? legacyPreview.examSchedule : [];
-    const sessionYear = legacyPreview.examDate
-        ? (() => {
-              const d = new Date(legacyPreview.examDate!);
-              const start = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
-              const end = String((start + 1) % 100).padStart(2, '0');
-              return `${start}-${end}`;
-          })()
-        : `${new Date().getFullYear()}-${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`;
-
-    const fmt = (iso: string | null | undefined) => {
-        if (!iso) return 'TBD';
-        try { return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
-        catch { return 'TBD'; }
-    };
+function PreviewDialog({
+    student,
+    examType,
+    classroomName,
+    onClose,
+    downloading,
+    onDownload,
+}: {
+    student: ClassroomStudent | null;
+    examType: ExamType | "";
+    classroomName: string;
+    onClose: () => void;
+    downloading: boolean;
+    onDownload: () => void;
+}) {
+    const titleId = useId();
+    const previewQ = useGetStudentAdmitCardPreviewQuery({ studentId: student?.id ?? "", examType }, { skip: !student || !examType });
+    const svg = previewQ.data?.svg;
 
     return (
-        <div className="bg-white border-2 border-blue-900 rounded-lg overflow-hidden max-w-2xl mx-auto shadow-lg">
-            <style jsx>{`
-                .ac-header { display: flex; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
-                .ac-header img { width: 56px; height: 56px; object-fit: contain; }
-                .ac-school { flex: 1; text-align: center; font-weight: 700; font-size: 14px; line-height: 1.25; color: #0f172a; }
-                .ac-school small { display: block; font-size: 10px; font-weight: 500; color: #475569; margin-top: 2px; }
-                .ac-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 2px; margin: 12px 0 4px; color: #1e3a8a; }
-                .ac-exam { text-align: center; font-size: 12px; margin-bottom: 14px; color: #334155; }
-                .ac-exam strong { color: #1e3a8a; }
-                .ac-row { display: flex; gap: 14px; margin: 12px 0 6px; }
-                .ac-text { flex: 1; }
-                .ac-label { font-weight: 700; font-size: 11px; color: #475569; margin-top: 4px; }
-                .ac-value { font-size: 13px; border-bottom: 1px dotted #94a3b8; padding: 0 0 2px 0; color: #0f172a; }
-                .ac-photo { width: 90px; height: 110px; border: 1.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; }
-                .ac-photo img { width: 100%; height: 100%; object-fit: cover; }
-                .ac-photo-ph { font-size: 10px; color: #94a3b8; font-weight: 600; }
-                .ac-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-                .ac-table th, .ac-table td { border: 1px solid #1e3a8a; padding: 6px 8px; font-size: 11px; text-align: left; }
-                .ac-table th { background: #f1f5f9; text-align: center; color: #1e3a8a; }
-                .ac-table td:nth-child(1) { width: 28%; }
-                .ac-table td:nth-child(2) { width: 56%; }
-                .ac-table td:nth-child(3) { width: 16%; }
-                .ac-sig { text-align: center; margin-top: 24px; font-size: 11px; }
-                .ac-sig .line { display: inline-block; border-top: 1px solid #1e293b; padding-top: 3px; min-width: 180px; font-weight: 600; }
-            `}</style>
-
-            <div className="p-5">
-                <div className="ac-header">
-                    <Image src="/MLZS_contents/Horizontal MLZS Logo.png" alt="MLZS" width={56} height={56} />
-                    <div className="ac-school">
-                        Mount Litera Zee School
-                        <small>North Kolkata, Barrackpore</small>
-                    </div>
-                </div>
-
-                <div className="ac-title">ADMIT CARD</div>
-                <div className="ac-exam">
-                    <strong>{examLabel || 'Examination'}</strong><br />
-                    Session: <strong>{sessionYear}</strong>
-                </div>
-
-                <div className="ac-row">
-                    <div className="ac-text">
-                        <div className="ac-label">Name:</div>
-                        <div className="ac-value">{preview?.studentName ?? '—'}</div>
-                        <div className="ac-label">Class:</div>
-                        <div className="ac-value">{preview ? `${preview.classroom.grade} ${preview.classroom.section}` : '—'}</div>
-                        <div className="ac-label">Section:</div>
-                        <div className="ac-value">{preview?.classroom.section ?? '—'}</div>
-                        <div className="ac-label">Roll No.:</div>
-                        <div className="ac-value">{preview?.rollNumber ?? '—'}</div>
-                    </div>
-                    <div className="ac-photo">
-                        {preview?.profileImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={preview.profileImage || undefined} alt="Photo" />
+        <Dialog open={student !== null} onClose={onClose} labelledBy={titleId} className="sm:max-w-3xl">
+            {student && (
+                <>
+                    <DialogHeader id={titleId} title={`Admit card for ${student.fullName}`} subtitle={`${examLong(examType)}, ${classroomName}`} onClose={onClose} accent="purple" />
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6">
+                        {previewQ.isFetching ? (
+                            <div className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-gray-500">
+                                <Loader2 size={24} aria-hidden="true" className="text-purple-600 motion-safe:animate-spin" />
+                                Preparing the preview…
+                            </div>
+                        ) : previewQ.isError ? (
+                            <EmptyState
+                                icon={<FileText size={32} />}
+                                title="The preview didn't load."
+                                hint={errorMessage(previewQ.error, "Check that the exam dates are saved, then try again.")}
+                                action={
+                                    <button type="button" onClick={() => previewQ.refetch()} className={secondaryBtn}>
+                                        Try again
+                                    </button>
+                                }
+                            />
+                        ) : svg ? (
+                            <div
+                                role="img"
+                                aria-label={`Admit card preview for ${student.fullName}`}
+                                className="mx-auto max-w-2xl overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 [&>svg]:h-auto [&>svg]:w-full"
+                                dangerouslySetInnerHTML={{ __html: svg }}
+                            />
                         ) : (
-                            <span className="ac-photo-ph">PHOTO</span>
+                            <EmptyState icon={<FileText size={32} />} title="No preview is available for this student." hint="You can still download the PDF." />
                         )}
                     </div>
-                </div>
-
-                <table className="ac-table">
-                    <thead>
-                        <tr><th>DATE</th><th>SUBJECT</th><th>SIGN</th></tr>
-                    </thead>
-                    <tbody>
-                        {loading ? (
-                            <tr><td colSpan={3} className="text-center text-slate-500">Loading schedule…</td></tr>
-                        ) : (
-                            Array.from({ length: ROWS }).map((_, i) => {
-                                const entry = schedule[i];
-                                return (
-                                    <tr key={i}>
-                                        <td>{entry ? fmt(entry.examDate) : ' '}</td>
-                                        <td>{entry?.subjectName ?? ' '}</td>
-                                        <td>{' '}</td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-
-                <div className="ac-sig">
-                    <div className="line">Signature of Principal</div>
-                </div>
-            </div>
-        </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+                        <button type="button" onClick={onClose} className={`${secondaryBtn} h-10`}>
+                            Close
+                        </button>
+                        <button type="button" onClick={onDownload} disabled={downloading} className={primaryBtn}>
+                            {downloading ? <Loader2 size={16} aria-hidden="true" className="motion-safe:animate-spin" /> : <Download size={16} aria-hidden="true" />}
+                            Download PDF
+                        </button>
+                    </div>
+                </>
+            )}
+        </Dialog>
     );
 }

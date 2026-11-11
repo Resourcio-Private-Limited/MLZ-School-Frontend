@@ -14,7 +14,7 @@ type StudentRow = {
     hasResult: boolean;
 };
 
-export default function MarksEntryClient({ exam, students, locked }: { exam: any; students: StudentRow[]; locked: boolean }) {
+export default function MarksEntryClient({ exam, students, locked }: { exam: { id: string; totalMarks: number; isPublished: boolean; name?: string }; students: StudentRow[]; locked: boolean }) {
     const router = useRouter();
     const [marks, setMarks] = useState<Record<string, number>>(
         students.reduce((acc, s) => ({ ...acc, [s.id]: s.marksObtained }), {})

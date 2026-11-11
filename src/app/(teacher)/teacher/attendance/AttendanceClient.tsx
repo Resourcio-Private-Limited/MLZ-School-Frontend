@@ -5,6 +5,7 @@ import { mockAction } from "@/lib/mocks";
 import { Save, Loader2, CheckCircle } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { todayLocal } from "@/lib/dates";
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
 type Student = {
@@ -21,7 +22,7 @@ export default function AttendanceClient({
     students: Student[];
     teacherId: string;
 }) {
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocal());
     const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -139,7 +140,7 @@ export default function AttendanceClient({
     );
 }
 
-function StatusButton({ current, target, onClick, color }: any) {
+function StatusButton({ current, target, onClick, color }: { current: string; target: string; onClick: () => void; color: string }) {
     const isSelected = current === target;
     return (
         <button
