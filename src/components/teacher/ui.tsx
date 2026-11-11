@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ChevronRight, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 // Shared building blocks for the Teacher portal pages. Emerald is the portal accent.
@@ -35,7 +35,14 @@ export function PageHeader({ title, subtitle, crumb, actions }: { title: string;
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-gray-200 pb-6">
             <div className="min-w-0">
                 {crumb && (
-                    <nav aria-label="Breadcrumb" className="mb-1.5">
+                    <nav aria-label="Breadcrumb" className="mb-1.5 flex items-center gap-2">
+                        <Link
+                            href={crumb.href}
+                            aria-label={`Back to ${crumb.label}`}
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-emerald-700 motion-safe:transition-colors ${focusRing}`}
+                        >
+                            <ArrowLeft size={15} aria-hidden="true" />
+                        </Link>
                         <ol className="flex items-center gap-1 text-sm text-gray-500">
                             <li>
                                 <Link href={crumb.href} className={`rounded-sm hover:text-emerald-700 motion-safe:transition-colors ${focusRing}`}>
