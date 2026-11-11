@@ -1,80 +1,68 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import {
-    Briefcase,
-    IdCard,
-    Calendar,
-    User,
-    MapPin,
-    Phone,
-    Mail,
-    Lock,
-    Save,
-    ArrowLeft,
-    Camera,
-    Loader2,
-} from "lucide-react";
-import { useEffect, useState, useRef } from "react";
-import { useGetSuperAdminProfileQuery, useUpdateSuperAdminProfileMutation, useUploadProfileImageMutation } from "@/redux/api/superAdminApi";
+import { Briefcase, Camera, IdCard, Loader2, Mail, Pencil, User } from "lucide-react";
+import { useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { useGetSuperAdminProfileQuery, useUpdateSuperAdminProfileMutation, useUploadProfileImageMutation, type SuperAdminProfile } from "@/redux/api/superAdminApi";
+import { heroGradient } from "@/components/super-admin/brand";
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500";
+
+type ProfileForm = {
+    fullName: string;
+    dob: string;
+    gender: string;
+    residentialAddress: string;
+    primaryContact: string;
+    secondaryContact: string;
+    email: string;
+    designation: string;
+    department: string;
+};
+
+const toForm = (p: SuperAdminProfile): ProfileForm => ({
+    fullName: p.fullName ?? "",
+    dob: p.dob ? String(p.dob).split("T")[0] : "",
+    gender: p.gender ?? "",
+    residentialAddress: p.residentialAddress ?? "",
+    primaryContact: p.primaryContact ?? "",
+    secondaryContact: p.secondaryContact ?? "",
+    email: p.userEmail ?? "",
+    designation: p.designation ?? "",
+    department: p.department ?? "",
+});
 
 function formatDate(dateStr: string | null | undefined) {
-    if (!dateStr) return "—";
-    try {
-        return new Date(dateStr).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    } catch {
-        return "—";
-    }
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
+const sentence = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : null);
 
 export default function SuperAdminProfilePage() {
-    const { data: profile, isLoading, refetch } = useGetSuperAdminProfileQuery();
+    const { data: profile, isLoading, isError, refetch } = useGetSuperAdminProfileQuery();
     const [updateProfile, { isLoading: isUpdating }] = useUpdateSuperAdminProfileMutation();
     const [uploadProfileImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState<ProfileForm | null>(null);
 
-    const [form, setForm] = useState({
-        fullName: "",
-        dob: "",
-        gender: "",
-        residentialAddress: "",
-        primaryContact: "",
-        secondaryContact: "",
-        email: "",
-        designation: "",
-        department: "",
-    });
+    const startEditing = () => {
+        if (profile) setForm(toForm(profile));
+        setEditing(true);
+    };
 
-    const [saved, setSaved] = useState(false);
-
-    useEffect(() => {
-        if (profile) {
-            setForm({
-                fullName: profile.fullName ?? "",
-                dob: profile.dob ? String(profile.dob).split("T")[0] : "",
-                gender: profile.gender ?? "",
-                residentialAddress: profile.residentialAddress ?? "",
-                primaryContact: profile.primaryContact ?? "",
-                secondaryContact: profile.secondaryContact ?? "",
-                email: profile.userEmail ?? "",
-                designation: profile.designation ?? "",
-                department: profile.department ?? "",
-            });
-        }
-    }, [profile]);
-
-    const handleSave = async () => {
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form) return;
         try {
             await updateProfile(form).unwrap();
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
+            toast.success("Profile saved.");
+            setEditing(false);
+            refetch();
         } catch {
-            // handle error
+            toast.error("Profile not saved. Check your connection and try again.");
         }
     };
 
@@ -111,278 +99,178 @@ export default function SuperAdminProfilePage() {
                 ctx?.drawImage(img, 0, 0, width, height);
 
                 const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
-                const result = await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
-                console.log('Upload result:', result);
+                await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                toast.success("Photo updated.");
                 refetch();
-            } catch (err: any) {
-                console.error('Failed to upload image:', err?.data || err?.message || err);
-                alert(err?.data?.message || err?.message || 'Failed to upload image');
+            } catch (err: unknown) {
+                const message = (err as { data?: { message?: string }; message?: string })?.data?.message ?? (err as { message?: string })?.message;
+                toast.error(message || "Photo not uploaded. Try a smaller image.");
             }
         };
         reader.readAsDataURL(file);
+        e.target.value = "";
     };
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="max-w-7xl space-y-6" aria-busy="true">
+                <div className={`h-40 rounded-xl ${heroGradient} motion-safe:animate-pulse`} />
+                <div className="h-64 rounded-xl border border-gray-200 bg-white" />
             </div>
         );
     }
 
-    if (!profile) {
+    if (!profile || isError) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <p className="text-slate-500">Failed to load profile. Please refresh.</p>
+            <div className="max-w-7xl rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
+                <p className="font-medium text-gray-900">Your profile couldn&apos;t be loaded</p>
+                <p className="mt-1 text-sm text-gray-500">Check your connection, then try again.</p>
+                <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className={`mt-4 inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 ${focusRing}`}
+                >
+                    Try again
+                </button>
             </div>
         );
     }
 
+    const personal: { label: string; value: string | null; wide?: boolean }[] = [
+        { label: "Full name", value: profile.fullName },
+        { label: "Date of birth", value: formatDate(profile.dob) },
+        { label: "Gender", value: sentence(profile.gender) },
+        { label: "Email", value: profile.userEmail ?? profile.email },
+        { label: "Primary contact", value: profile.primaryContact },
+        { label: "Secondary contact", value: profile.secondaryContact },
+        { label: "Designation", value: profile.designation },
+        { label: "Department", value: profile.department },
+        { label: "Residential address", value: profile.residentialAddress, wide: true },
+    ];
+
     return (
-        <div className="min-h-screen bg-gray-50 pb-12">
-            {/* Hero Section */}
-            <div className="bg-slate-900 pt-12 pb-32 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center space-x-4 mb-6">
-                        <Link href="/super-admin" className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </Link>
-                    </div>
-                    <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-                        <div className="relative group">
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
-                                {profile.profileImage ? (
-                                    <Image
-                                        src={profile.profileImage}
-                                        alt="Super Admin Photo"
-                                        width={160}
-                                        height={160}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <User size={48} className="text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-50"
-                                title="Upload Photo"
-                            >
-                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
-                        </div>
-                        <div className="text-center md:text-left text-white">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{profile.fullName}</h1>
-                            <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
-                                <span className="flex items-center gap-1">
-                                    <Briefcase size={18} className="text-blue-400" />
-                                    {profile.designation ?? "Super Admin"}
+        <div className="max-w-7xl space-y-6">
+            <section className={`overflow-hidden rounded-xl px-4 py-6 shadow-sm sm:px-8 sm:py-8 ${heroGradient}`}>
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="relative shrink-0">
+                        <div className="h-20 w-20 overflow-hidden rounded-full bg-white/10 ring-4 ring-white/10 sm:h-28 sm:w-28">
+                            {profile.profileImage ? (
+                                <Image src={profile.profileImage} alt="" width={112} height={112} unoptimized className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-rose-200 sm:text-4xl">
+                                    {profile.fullName?.[0]?.toUpperCase() ?? <User size={36} aria-hidden="true" />}
                                 </span>
-                                {profile.department && (
-                                    <span className="flex items-center gap-1">
-                                        <IdCard size={18} className="text-blue-400" />
-                                        {profile.department}
-                                    </span>
-                                )}
-                            </div>
+                            )}
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            aria-label="Change photo"
+                            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-900 bg-rose-600 text-white shadow-lg hover:bg-rose-500 disabled:opacity-60 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                            {isUploading ? <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{profile.fullName}</h1>
+                        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
+                            <span className="inline-flex items-center gap-1.5">
+                                <Briefcase size={15} aria-hidden="true" className="text-rose-300" />
+                                {profile.designation ?? "Super Admin"}
+                            </span>
+                            {profile.department && (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <IdCard size={15} aria-hidden="true" className="text-rose-300" />
+                                    {profile.department}
+                                </span>
+                            )}
+                            <span className="inline-flex min-w-0 items-center gap-1.5">
+                                <Mail size={15} aria-hidden="true" className="shrink-0 text-rose-300" />
+                                <span className="truncate">{profile.userEmail}</span>
+                            </span>
+                        </p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            {/* Floating Cards */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 space-y-8">
-                {/* Personal Details Card */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <User size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                <p className="text-sm text-gray-500">Your personal information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <InfoField label="Full Name" value={profile.fullName} icon={<User size={16} />} />
-                            <InfoField label="Date of Birth" value={formatDate(profile.dob)} icon={<Calendar size={16} />} />
-                            <InfoField label="Gender" value={profile.gender ?? "—"} icon={<User size={16} />} />
-                            <InfoField label="Email ID" value={profile.email ?? "—"} icon={<Mail size={16} />} />
-                            <InfoField label="Contact No." value={profile.primaryContact ?? "—"} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={profile.residentialAddress ?? "—"} icon={<MapPin size={16} />} className="md:col-span-3" />
-                        </div>
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-900">{editing ? "Edit details" : "Details"}</h2>
+                        <p className="text-sm text-gray-500">{editing ? "Changes apply to your account across the portal." : "Shown on notices and messages you send."}</p>
                     </div>
+                    {!editing && (
+                        <button
+                            type="button"
+                            onClick={startEditing}
+                            className={`inline-flex h-9 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 active:scale-[0.97] motion-safe:transition ${focusRing}`}
+                        >
+                            <Pencil size={15} aria-hidden="true" />
+                            Edit details
+                        </button>
+                    )}
                 </div>
 
-                {/* Official Details */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <Briefcase size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Official Details</h2>
-                                <p className="text-sm text-gray-500">Your official records and information</p>
+                {editing && form ? (
+                    <form onSubmit={handleSave}>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-5 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+                            <FormField label="Full name" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} autoFocus />
+                            <FormField label="Date of birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
+                            <FormField label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} />
+                            <FormField label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+                            <FormField label="Primary contact" type="tel" value={form.primaryContact} onChange={(v) => setForm({ ...form, primaryContact: v })} />
+                            <FormField label="Secondary contact" type="tel" value={form.secondaryContact} onChange={(v) => setForm({ ...form, secondaryContact: v })} />
+                            <FormField label="Designation" value={form.designation} onChange={(v) => setForm({ ...form, designation: v })} />
+                            <FormField label="Department" value={form.department} onChange={(v) => setForm({ ...form, department: v })} />
+                            <div className="sm:col-span-2 lg:col-span-3">
+                                <FormField label="Residential address" value={form.residentialAddress} onChange={(v) => setForm({ ...form, residentialAddress: v })} />
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <InfoField label="Designation" value={profile.designation ?? "—"} icon={<Briefcase size={16} />} />
-                            <InfoField label="Department" value={profile.department ?? "—"} icon={<IdCard size={16} />} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Edit Profile Card */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-emerald-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
-                                    <Save size={24} />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-gray-800">Update Profile</h2>
-                                    <p className="text-sm text-gray-500">Edit and save your information</p>
-                                </div>
-                            </div>
+                        <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
                             <button
-                                onClick={handleSave}
-                                disabled={isUpdating}
-                                className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-md font-medium"
+                                type="button"
+                                onClick={() => setEditing(false)}
+                                className={`h-10 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 ${focusRing}`}
                             >
-                                <Save size={18} />
-                                {isUpdating ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isUpdating}
+                                className={`h-10 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white hover:bg-rose-700 active:scale-[0.97] disabled:opacity-60 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`}
+                            >
+                                {isUpdating ? "Saving…" : "Save changes"}
                             </button>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <FormField
-                                label="Full Name"
-                                value={form.fullName}
-                                onChange={(v) => setForm({ ...form, fullName: v })}
-                                icon={<User size={14} />}
-                            />
-                            <FormField
-                                label="Date of Birth"
-                                type="date"
-                                value={form.dob}
-                                onChange={(v) => setForm({ ...form, dob: v })}
-                                icon={<Calendar size={14} />}
-                            />
-                            <FormField
-                                label="Gender"
-                                value={form.gender}
-                                onChange={(v) => setForm({ ...form, gender: v })}
-                                icon={<User size={14} />}
-                            />
-                            <FormField
-                                label="Email"
-                                type="email"
-                                value={form.email}
-                                onChange={(v) => setForm({ ...form, email: v })}
-                                icon={<Mail size={14} />}
-                            />
-                            <FormField
-                                label="Primary Contact"
-                                value={form.primaryContact}
-                                onChange={(v) => setForm({ ...form, primaryContact: v })}
-                                icon={<Phone size={14} />}
-                            />
-                            <FormField
-                                label="Secondary Contact"
-                                value={form.secondaryContact}
-                                onChange={(v) => setForm({ ...form, secondaryContact: v })}
-                                icon={<Phone size={14} />}
-                            />
-                            <FormField
-                                label="Designation"
-                                value={form.designation}
-                                onChange={(v) => setForm({ ...form, designation: v })}
-                                icon={<Briefcase size={14} />}
-                            />
-                            <FormField
-                                label="Department"
-                                value={form.department}
-                                onChange={(v) => setForm({ ...form, department: v })}
-                                icon={<IdCard size={14} />}
-                            />
-                            <div className="md:col-span-3">
-                                <FormField
-                                    label="Residential Address"
-                                    value={form.residentialAddress}
-                                    onChange={(v) => setForm({ ...form, residentialAddress: v })}
-                                    icon={<MapPin size={14} />}
-                                />
+                    </form>
+                ) : (
+                    <dl className="grid grid-cols-1 gap-x-6 gap-y-5 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+                        {personal.map((f) => (
+                            <div key={f.label} className={f.wide ? "sm:col-span-2 lg:col-span-3" : ""}>
+                                <dt className="text-sm text-gray-500">{f.label}</dt>
+                                <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Security Settings */}
-                {/* <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-purple-500 mb-12">
-                    <div className="p-6 md:p-8 flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-                                <Lock size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Security Settings</h2>
-                                <p className="text-sm text-gray-500">Update your password to keep your account secure</p>
-                            </div>
-                        </div>
-                        <Link href="/super-admin/profile/reset-password">
-                            <button className="flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-lg hover:bg-slate-900 transition-all shadow-lg hover:shadow-slate-500/30">
-                                <Lock size={18} />
-                                <span>Reset Password</span>
-                            </button>
-                        </Link>
-                    </div>
-                </div> */}
-            </div>
+                        ))}
+                    </dl>
+                )}
+            </section>
         </div>
     );
 }
 
-function InfoField({ label, value, icon, className = "" }: { label: string; value: string; icon?: React.ReactNode; className?: string }) {
+function FormField({ label, value, onChange, type = "text", autoFocus = false }: { label: string; value: string; onChange: (v: string) => void; type?: string; autoFocus?: boolean }) {
     return (
-        <div className={`group ${className}`}>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
-            <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
-                {value || "—"}
-            </p>
-        </div>
-    );
-}
-
-function FormField({ label, value, onChange, icon, type = "text" }: { label: string; value: string; onChange: (v: string) => void; icon?: React.ReactNode; type?: string }) {
-    return (
-        <div>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
+        <label className="block text-sm font-medium text-gray-700">
+            {label}
             <input
                 type={type}
                 value={value}
+                autoFocus={autoFocus}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all hover:border-gray-300"
+                className="mt-1.5 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-normal text-gray-900 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
             />
-        </div>
+        </label>
     );
 }
