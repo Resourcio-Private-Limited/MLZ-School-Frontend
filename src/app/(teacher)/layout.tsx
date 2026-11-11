@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { RetiredRouteNotice } from "@/components/RetiredRouteNotice";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Bell, ClipboardList, LogOut, ChevronLeft, ChevronRight, Loader2, Menu, MessageSquare, School, X, type LucideIcon } from "lucide-react";
@@ -148,7 +149,10 @@ function TeacherLayoutContent({
                     </Link>
                 </header>
 
-                <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">{children}</main>
+                <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
+                    <RetiredRouteNotice />
+                    {children}
+                </main>
             </div>
 
             <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
