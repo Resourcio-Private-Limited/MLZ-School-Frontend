@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, GraduationCap, Users, UserCheck, BookOpen, Shield, ArrowRight } from "lucide-react";
@@ -26,8 +27,10 @@ const ROLE_INFO = [
 ];
 
 export default function UnifiedLoginPage() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    // Uncontrolled inputs: anything typed before React hydrates (slow devices,
+    // heavy hero image) stays in the field instead of being wiped by state.
+    const emailRef = useRef<HTMLInputElement>(null);
+    const passwordRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -39,6 +42,8 @@ export default function UnifiedLoginPage() {
         e.preventDefault();
         setError("");
         setLoading(true);
+        const email = emailRef.current?.value.trim() ?? "";
+        const password = passwordRef.current?.value ?? "";
 
         try {
             const res = await login({ email, password }).unwrap();
@@ -173,8 +178,8 @@ export default function UnifiedLoginPage() {
                             </label>
                             <input
                                 type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                ref={emailRef}
+                                defaultValue=""
                                 className="w-full border rounded p-2 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500"
                                 placeholder="name@school.com"
                                 required
@@ -195,8 +200,8 @@ export default function UnifiedLoginPage() {
                             <div className="relative">
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    ref={passwordRef}
+                                    defaultValue=""
                                     className="w-full border rounded p-2 pr-10 text-gray-900 placeholder-gray-500 focus:ring focus:ring-blue-500"
                                     placeholder="••••••••"
                                     required
