@@ -129,7 +129,7 @@ export default function Home() {
               alt="Mount Litera Zee School, North Kolkata, Barrackpore"
               width={160}
               height={48}
-              className="h-9 w-auto opacity-90 grayscale invert dark:invert-0"
+              className="h-9 w-auto opacity-90 grayscale invert"
             />
             {/* RET Branding */}
             <div className="flex items-center gap-3">
