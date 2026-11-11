@@ -7,6 +7,7 @@ import { useAddStudentMutation, type ClassroomSummary } from "@/redux/api/princi
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { errorMessage, focusRing, inputClass, primaryBtn, secondaryBtn } from "@/components/principal/ui";
 import { todayLocal } from "@/lib/dates";
+import { aadhaarIssue, emailIssue, passwordIssue, phoneIssue } from "@/lib/validation";
 
 /** Admission form for one class, in a dialog (a bottom sheet on phones). */
 export default function ClassroomAdmissionForm({
@@ -40,6 +41,18 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
         return `MLZS/${currentYear}/${classroomId.substring(0, 4).toUpperCase()}/${suffix}`;
     });
 
+    // Native validation blocks the submit, but its bubble anchors to visually
+    // hidden inputs (the gender pills), so without this the form looks frozen.
+    const handleInvalid = (e: FormEvent) => {
+        const el = e.target as HTMLInputElement;
+        const labels: Record<string, string> = {
+            email: "Email", password: "Password", fullName: "Full name", dob: "Date of birth",
+            gender: "Gender", primaryContact: "Primary contact", residentialAddress: "Home address",
+        };
+        const label = labels[el.name] ?? el.name;
+        toast.error(`${label}: ${el.validationMessage || "fill this field."}`, { id: "admission-invalid" });
+    };
+
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -49,6 +62,21 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
         const password = formData.get("password") as string;
         if (!password) {
             toast.error("Set a login password for the student.");
+            return;
+        }
+
+        const issues: Array<[string, string | null]> = [
+            ["Password", passwordIssue(password)],
+            ["Email", get("email") ? emailIssue(get("email")) : null],
+            ["Primary contact", phoneIssue(get("primaryContact")) ?? (get("primaryContact") ? null : "Enter a contact number.")],
+            ["Emergency contact", phoneIssue(get("secondaryContact"))],
+            ["Father's phone", phoneIssue(get("fatherContact"))],
+            ["Mother's phone", phoneIssue(get("motherContact"))],
+            ["Aadhaar number", aadhaarIssue(get("aadharNo"))],
+        ];
+        const firstIssue = issues.find(([, issue]) => issue);
+        if (firstIssue) {
+            toast.error(`${firstIssue[0]}: ${firstIssue[1]}`);
             return;
         }
 
@@ -90,7 +118,7 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
     return (
         <>
             <DialogHeader id="admission-title" title="Admit student" subtitle={`${classroom.name}, grade ${classroom.grade}`} onClose={onClose} accent="purple" />
-            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <form onSubmit={handleSubmit} onInvalidCapture={handleInvalid} className="flex min-h-0 flex-1 flex-col">
                 <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-6 py-5">
                     <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 ring-1 ring-gray-200">
                         Admission number <span className="font-medium tabular-nums text-gray-900">{admissionNumber}</span> will be given to this student.

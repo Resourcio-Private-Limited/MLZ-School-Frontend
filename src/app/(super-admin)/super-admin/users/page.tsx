@@ -14,6 +14,7 @@ import {
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { apiErrorMessage } from "@/lib/apiError";
+import { aadhaarIssue, emailIssue, passwordIssue, phoneIssue } from "@/lib/validation";
 
 type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
 
@@ -178,6 +179,22 @@ export default function UserManagementPage() {
     );
 
     const handleAddUser = async () => {
+        // Field checks first — the dialog submits via a button click, so native
+        // form validation never runs and the server accepts anything (§1.3 of the QA audit).
+        const issues: Array<[field: string, issue: string | null]> = [
+            ["Full Name", newUser.fullName.trim() ? null : "Enter the person's full name."],
+            ["Email", emailIssue(newUser.email)],
+            ["Password", passwordIssue(newUser.password)],
+            ["Primary Contact", phoneIssue(newUser.primaryContact)],
+            ["Secondary / Emergency Contact", phoneIssue(newUser.secondaryContact)],
+            ["Aadhar No.", aadhaarIssue(newUser.aadharNo)],
+        ];
+        const firstIssue = issues.find(([, issue]) => issue);
+        if (firstIssue) {
+            toast.error(`${firstIssue[0]}: ${firstIssue[1]}`);
+            return;
+        }
+
         // Validate age for all non-student roles (must be at least 20 years old)
         if (!newUser.dob) {
             toast.error("Date of Birth is required for all users. Please enter the DOB.");
@@ -283,7 +300,18 @@ export default function UserManagementPage() {
 
     const handleUpdateUser = async () => {
         if (!selectedUser) return;
-        try {
+        const editIssues: Array<[string, string | null]> = [
+            ["Full Name", editForm.fullName.trim() ? null : "Enter the person's full name."],
+            ["Email", emailIssue(editForm.email)],
+            ["Primary Contact", phoneIssue(editForm.primaryContact)],
+            ["Secondary / Emergency Contact", phoneIssue(editForm.secondaryContact)],
+            ["Aadhar No.", aadhaarIssue(editForm.aadharNo)],
+        ];
+        const editIssue = editIssues.find(([, issue]) => issue);
+        if (editIssue) {
+            toast.error(`${editIssue[0]}: ${editIssue[1]}`);
+            return;
+        }
             const updateData: any = {
                 fullName: editForm.fullName,
                 email: editForm.email,
@@ -323,6 +351,11 @@ export default function UserManagementPage() {
     const handleChangePassword = async () => {
         if (!selectedUser) return;
         if (!passwordForm.currentPassword || !passwordForm.newPassword) return;
+        const pwIssue = passwordIssue(passwordForm.newPassword);
+        if (pwIssue) {
+            toast.error(`New password: ${pwIssue}`);
+            return;
+        }
         try {
             await changePassword({
                 userId: selectedUser.userId,
