@@ -51,7 +51,7 @@ function ModeBadge({ mode }: { mode: string }) {
 }
 
 function ReceiptLink({ p }: { p: Payment }) {
-    if (!p.receiptUrl) return <span className="text-sm text-gray-400">No receipt</span>;
+    if (!p.receiptUrl) return <span className="text-sm text-gray-500">No receipt</span>;
     return (
         <a href={p.receiptUrl} target="_blank" rel="noreferrer" className={`${linkClass} inline-flex items-center gap-1`}>
             Receipt
@@ -251,7 +251,7 @@ export default function LatestPaymentsPage() {
                                                     <p className="text-gray-700">{p.student.classroomName}</p>
                                                     {p.monthsPaid && <p className="text-gray-500">{p.monthsPaid}</p>}
                                                 </td>
-                                                <td className="px-3 py-3 text-right tabular-nums text-gray-700">{p.annualContribution > 0 ? inr(p.annualContribution) : <span className="text-gray-400">None</span>}</td>
+                                                <td className="px-3 py-3 text-right tabular-nums text-gray-700">{p.annualContribution > 0 ? inr(p.annualContribution) : <span className="text-gray-500">None</span>}</td>
                                                 <td className="px-3 py-3 text-right font-semibold tabular-nums text-gray-900">{inr(p.amountPaid)}</td>
                                                 <td className="px-3 py-3">
                                                     <ModeBadge mode={modeKey(p)} />

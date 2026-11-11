@@ -8,6 +8,8 @@ import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { heroGradient as roseGradient } from "@/components/super-admin/brand";
 import { heroGradient as yellowGradient } from "@/components/accounts/brand";
 import type { PaymentMode } from "@/redux/api/accountsApi";
+import { apiErrorMessage } from "@/lib/apiError";
+import { todayLocal } from "@/lib/dates";
 
 /** One income or expense entry, in the shape this page works with. */
 export type LedgerRecord = {
@@ -109,10 +111,8 @@ const THEMES = {
 type Theme = (typeof THEMES)[LedgerAccent];
 
 export const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
-const todayIso = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
+const todayIso = todayLocal;
 
 // Indian schools run April to March, so "this year" means the academic year.
 function academicYear(d = new Date()) {
@@ -350,8 +350,8 @@ export default function LedgerPage({
                 setEditing(null);
                 toast.success(`“${draft.title}” updated.`);
                 refetch();
-            } catch {
-                toast.error("Changes not saved. Check your connection and try again.");
+            } catch (err) {
+                toast.error(apiErrorMessage(err, "Changes not saved. Check your connection and try again."));
             }
             return;
         }
@@ -360,8 +360,8 @@ export default function LedgerPage({
             setOpen(false);
             toast.success(`${inr(amount)} recorded.`);
             refetch();
-        } catch {
-            toast.error(`${noun === "income" ? "Income" : "Expense"} not recorded. Check your connection and try again.`);
+        } catch (err) {
+            toast.error(apiErrorMessage(err, `${noun === "income" ? "Income" : "Expense"} not recorded. Check your connection and try again.`));
         }
     };
 
@@ -373,15 +373,15 @@ export default function LedgerPage({
             toast.success(`“${deleting.title}” deleted.`);
             setDeleting(null);
             refetch();
-        } catch {
-            toast.error("Entry not deleted. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Entry not deleted. Check your connection and try again."));
         } finally {
             setRemoving(false);
         }
     };
 
     const shortDate = (value: string) => new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-    const iconBtn = `inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 motion-safe:transition-colors ${focusRing}`;
+    const iconBtn = `inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 motion-safe:transition-colors ${focusRing}`;
     const rowActions = (r: LedgerRecord) => (
         <span className="flex items-center gap-0.5">
             {onUpdate && (
@@ -555,7 +555,7 @@ export default function LedgerPage({
                         </div>
                         <div className="flex gap-2 pb-3 lg:w-80 lg:shrink-0 lg:pb-0">
                             <div className="relative min-w-0 flex-1">
-                                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                                 <label htmlFor={`${noun}-search`} className="sr-only">Search {noun}</label>
                                 <input
                                     id={`${noun}-search`}
@@ -645,7 +645,7 @@ export default function LedgerPage({
                                                         {r.chequeNumber && ` no. ${r.chequeNumber}`}
                                                     </span>
                                                 </p>
-                                                <p className="mt-0.5 text-xs text-gray-400">Added by {r.addedBy}</p>
+                                                <p className="mt-0.5 text-xs text-gray-500">Added by {r.addedBy}</p>
                                             </div>
                                             {editable ? (
                                                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -739,12 +739,12 @@ export default function LedgerPage({
                                             <td className="whitespace-nowrap px-6 py-3.5 text-gray-600">
                                                 {categoryLabel[r.category] ?? r.category}
                                                 {r.categoryName && r.categoryName !== r.title && r.categoryName !== categoryLabel[r.category] && (
-                                                    <span className="block text-xs text-gray-400">{r.categoryName}</span>
+                                                    <span className="block text-xs text-gray-500">{r.categoryName}</span>
                                                 )}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-3.5 text-gray-600">
                                                 {PAYMENT_LABEL[r.paymentMode] ?? r.paymentMode}
-                                                {r.chequeNumber && <span className="block text-xs tabular-nums text-gray-400">No. {r.chequeNumber}</span>}
+                                                {r.chequeNumber && <span className="block text-xs tabular-nums text-gray-500">No. {r.chequeNumber}</span>}
                                             </td>
                                             <td className="whitespace-nowrap px-6 py-3.5 text-gray-600">{r.addedBy}</td>
                                             <td className="whitespace-nowrap px-6 py-3.5 text-right font-semibold tabular-nums text-gray-900">{inr(r.amount)}</td>
@@ -784,7 +784,7 @@ export default function LedgerPage({
                                 </button>
                                 {getPageItems(currentPage, pageCount).map((n, i) =>
                                     n === "gap" ? (
-                                        <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-400">
+                                        <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-500">
                                             &hellip;
                                         </span>
                                     ) : (
@@ -826,7 +826,7 @@ export default function LedgerPage({
                             </label>
                             {config.partyLabel && (
                                 <label className="block text-sm font-medium text-gray-700">
-                                    {config.partyLabel} <span className="font-normal text-gray-400">(optional)</span>
+                                    {config.partyLabel} <span className="font-normal text-gray-500">(optional)</span>
                                     <input value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })} placeholder={config.partyPlaceholder} className={fieldClass} />
                                 </label>
                             )}
@@ -834,7 +834,7 @@ export default function LedgerPage({
                                 <label className="block text-sm font-medium text-gray-700">
                                     Amount
                                     <span className="relative mt-1.5 block">
-                                        <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                                        <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
                                         <input
                                             inputMode="decimal"
                                             value={form.amount}

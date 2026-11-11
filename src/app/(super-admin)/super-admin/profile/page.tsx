@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Briefcase, Camera, IdCard, Loader2, Mail, Pencil, User } from "lucide-react";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useGetSuperAdminProfileQuery, useUpdateSuperAdminProfileMutation, useUploadProfileImageMutation, type SuperAdminProfile } from "@/redux/api/superAdminApi";
 import { heroGradient } from "@/components/super-admin/brand";
 
@@ -61,8 +62,8 @@ export default function SuperAdminProfilePage() {
             toast.success("Profile saved.");
             setEditing(false);
             refetch();
-        } catch {
-            toast.error("Profile not saved. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Profile not saved. Check your connection and try again."));
         }
     };
 
@@ -177,12 +178,12 @@ export default function SuperAdminProfilePage() {
                         <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{profile.fullName}</h1>
                         <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
                             <span className="inline-flex items-center gap-1.5">
-                                <Briefcase size={15} aria-hidden="true" className="text-rose-300" />
+                                <Briefcase size={15} aria-hidden="true" className="shrink-0 text-rose-300" />
                                 {profile.designation ?? "Super Admin"}
                             </span>
                             {profile.department && (
                                 <span className="inline-flex items-center gap-1.5">
-                                    <IdCard size={15} aria-hidden="true" className="text-rose-300" />
+                                    <IdCard size={15} aria-hidden="true" className="shrink-0 text-rose-300" />
                                     {profile.department}
                                 </span>
                             )}
@@ -250,7 +251,7 @@ export default function SuperAdminProfilePage() {
                         {personal.map((f) => (
                             <div key={f.label} className={f.wide ? "sm:col-span-2 lg:col-span-3" : ""}>
                                 <dt className="text-sm text-gray-500">{f.label}</dt>
-                                <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
+                                <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-500"}`}>{f.value || "Not added"}</dd>
                             </div>
                         ))}
                     </dl>

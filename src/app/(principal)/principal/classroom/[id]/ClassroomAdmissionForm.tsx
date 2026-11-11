@@ -6,6 +6,7 @@ import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useAddStudentMutation, type ClassroomSummary } from "@/redux/api/principalApi";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { errorMessage, focusRing, inputClass, primaryBtn, secondaryBtn } from "@/components/principal/ui";
+import { todayLocal } from "@/lib/dates";
 
 /** Admission form for one class, in a dialog (a bottom sheet on phones). */
 export default function ClassroomAdmissionForm({
@@ -129,7 +130,7 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
 
                     <FormSection title="Student">
                         <TextField name="fullName" label="Full name" required placeholder="As on the birth certificate" wide />
-                        <TextField name="dob" label="Date of birth" type="date" required />
+                        <TextField name="dob" label="Date of birth" type="date" max={todayLocal()} required />
                         <ChoiceChips
                             name="gender"
                             label="Gender"

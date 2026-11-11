@@ -160,6 +160,73 @@ const thread = (other) =>
         { id: "m3", createdAt: iso(day(0, 9)), content: "Thank you ma'am, I will submit it tomorrow.", senderId: other, receiverId: me },
     ].map((m) => ({ ...m, sender: { id: m.senderId, email: "", role: "" }, receiver: { id: m.receiverId, email: "", role: "" } }));
 
+
+// Component-wise marks (GET /teacher/class/:id/assessments?examType=). Labels and limits follow
+// the backend's assessment.constants.ts. Half yearly entry is open, final is locked.
+const PRIMARY_GRADES = [
+    { code: "BG", label: "Beginners" },
+    { code: "PG", label: "Progressing" },
+    { code: "PF", label: "Proficient" },
+    { code: "NA", label: "Not Assessing At This Time" },
+];
+const GRADE_FIELDS = {
+    HALF_YEARLY: [{ key: "term1Grade", label: "Term 1 Grade" }, { key: "term2Grade", label: "Term 2 Grade" }],
+    FINAL: [{ key: "term3Grade", label: "Term 3 Grade" }],
+};
+const COMPONENT_LABELS = {
+    HALF_YEARLY: ["Periodic Test-1", "MA-1 / PF-1", "SEA-1", "Half Yearly Exam"],
+    FINAL: ["Periodic Test-2", "MA-2 / PF-2", "SEA-2", "Yearly Exam"],
+};
+const COMPONENT_KEYS = ["periodicTest", "multipleAssessment", "subjectEnrichment", "examMarks"];
+const COMPONENT_MAX = [10, 5, 5, 80];
+const assessments = (classroomId, examType) => {
+    const cls = classes.find((c) => c.id === classroomId) ?? classes[0];
+    const primary = Number(cls.grade) <= 5;
+    const final = examType === "FINAL";
+    const subs = subjects.map((name, i) => ({ id: `sub${i}`, name, editable: cls.isClassTeacher || cls.subjects.includes(name) }));
+    const fields = GRADE_FIELDS[examType];
+    return {
+        classroomId: cls.id,
+        classroomName: cls.name,
+        classType: primary ? "PRIMARY" : "SECONDARY",
+        examType,
+        session: "2026-27",
+        entryEnabled: !final,
+        isClassTeacher: cls.isClassTeacher,
+        showRemarks: cls.isClassTeacher && final,
+        gradeOptions: PRIMARY_GRADES,
+        gradeFields: primary ? fields : [],
+        components: primary ? [] : COMPONENT_KEYS.map((key, i) => ({ key, label: COMPONENT_LABELS[examType][i], maxMarks: COMPONENT_MAX[i] })),
+        subjectMaxMarks: primary ? null : 100,
+        subjects: subs,
+        students: (students[cls.id] ?? []).map((st, si) => {
+            // Some students done, some part-way, some not started.
+            const doneSubjects = final ? 0 : si % 5 === 4 ? 0 : si % 3 === 2 ? 2 : subs.length;
+            return {
+                studentId: st.id,
+                fullName: st.fullName,
+                rollNumber: st.rollNumber,
+                classRoll: si + 1,
+                ...(cls.isClassTeacher && final ? { remarks: si % 4 === 0 ? "Attentive in class; needs to revise maths regularly." : null } : {}),
+                assessments: subs.slice(0, doneSubjects).map((sub, j) => {
+                    const v = COMPONENT_KEYS.map((k, ci) => Math.max(0, COMPONENT_MAX[ci] - ((si + j * 3 + ci) % (ci === 3 ? 30 : 4))));
+                    return {
+                        subjectId: sub.id,
+                        term1Grade: primary ? PRIMARY_GRADES[(si + j) % 3].code : null,
+                        term2Grade: primary ? PRIMARY_GRADES[(si + j + 1) % 3].code : null,
+                        term3Grade: null,
+                        periodicTest: primary ? null : v[0],
+                        multipleAssessment: primary ? null : v[1],
+                        subjectEnrichment: primary ? null : v[2],
+                        examMarks: primary ? null : v[3],
+                        total: primary ? null : v.reduce((a, b) => a + b, 0),
+                    };
+                }),
+            };
+        }),
+    };
+};
+
 function respond(url) {
     const u = new URL(url);
     const p = u.pathname;
@@ -169,6 +236,7 @@ function respond(url) {
     if (p === "/teacher/message-recipients") return recipients;
     if ((m = p.match(/^\/teacher\/class\/([^/]+)\/details$/))) return details(m[1]);
     if ((m = p.match(/^\/teacher\/class\/([^/]+)\/students$/))) return students[m[1]] ?? [];
+    if ((m = p.match(/^\/teacher\/class\/([^/]+)\/assessments$/))) return assessments(m[1], u.searchParams.get("examType") || "HALF_YEARLY");
     if ((m = p.match(/^\/teacher\/class\/([^/]+)\/exams$/))) return classExams(m[1]);
     if ((m = p.match(/^\/teacher\/class\/([^/]+)\/exam\/([^/]+)\/marks$/))) return classMarks(m[1], m[2]);
     if ((m = p.match(/^\/operations\/attendance\/([^/]+)\/history$/))) return history(m[1], Number(u.searchParams.get("year")), Number(u.searchParams.get("month")));

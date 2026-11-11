@@ -32,11 +32,13 @@ import {
     readAuthUser,
     secondaryBtn,
 } from "@/components/teacher/ui";
+import { todayLocal } from "@/lib/dates";
 
 type Filter = "ALL" | "PRESENT" | "ABSENT";
 
 // The backend groups attendance by the UTC calendar day, so "today" uses the same key.
-const todayKey = () => new Date().toISOString().slice(0, 10);
+// Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
+const todayKey = () => todayLocal();
 const byRoll = (a: { rollNumber: string | null; fullName: string }, b: { rollNumber: string | null; fullName: string }) =>
     (a.rollNumber ?? "~").localeCompare(b.rollNumber ?? "~", "en-IN", { numeric: true }) || a.fullName.localeCompare(b.fullName);
 

@@ -11,6 +11,7 @@ import {
 } from "@/redux/api/superAdminApi";
 import { useGetProfitAndLossQuery } from "@/redux/api/accountsApi";
 import { heroGradient } from "@/components/super-admin/brand";
+import { todayLocal } from "@/lib/dates";
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
@@ -153,7 +154,7 @@ export default function SuperAdminDashboard() {
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-right">
-                            <time dateTime={now.toISOString().slice(0, 10)} className="block text-sm text-gray-700">
+                            <time dateTime={todayLocal()} className="block text-sm text-gray-700">
                                 {now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                             </time>
                             <p aria-live="polite" className="text-xs text-gray-500 tabular-nums">

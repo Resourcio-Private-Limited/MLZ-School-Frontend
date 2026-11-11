@@ -112,7 +112,7 @@ function PersonRow({ contact, conv, onOpen }: { contact: Contact; conv?: Convers
                             </time>
                         )}
                     </span>
-                    <span className={`mt-0.5 block truncate text-sm ${conv ? "text-gray-600" : "text-gray-400"}`}>
+                    <span className={`mt-0.5 block truncate text-sm ${conv ? "text-gray-600" : "text-gray-500"}`}>
                         {conv ? `${conv.direction === "sent" ? "You: " : ""}${conv.lastMessage}` : "No messages yet"}
                     </span>
                 </span>
@@ -502,7 +502,7 @@ function MessagesContent() {
                                                 <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                                                     <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${mine ? "rounded-br-md bg-yellow-100 text-yellow-950 ring-1 ring-yellow-200" : "rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200"}`}>
                                                         <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
-                                                        <time dateTime={m.createdAt} className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-yellow-800/70" : "text-gray-400"}`}>
+                                                        <time dateTime={m.createdAt} className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-yellow-800/70" : "text-gray-500"}`}>
                                                             {clock(m.createdAt)}
                                                         </time>
                                                     </div>

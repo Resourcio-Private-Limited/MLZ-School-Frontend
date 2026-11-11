@@ -72,7 +72,7 @@ export default function ExamsPage() {
 
     return (
         <div className="max-w-7xl space-y-6">
-            <PageHeader title="Exams and results" subtitle="Your exam dates, admit cards and published results." />
+            <PageHeader title="Exams" subtitle="Your exam dates, admit cards and marks. Your report card is under Results." />
 
             <section aria-labelledby="next-exam" className={`overflow-hidden rounded-xl shadow-sm ${heroGradient}`}>
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-5 sm:px-6">

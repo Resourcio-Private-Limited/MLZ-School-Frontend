@@ -27,7 +27,7 @@ export default function TeacherClassroomPage({ params }: { params: Promise<{ id:
         { href: `${base}/students`, label: "Students", hint: "Class list with attendance and latest grades", icon: Users },
         { href: `${base}/announcements`, label: "Announcements", hint: "Post updates that every student in the class sees", icon: Megaphone },
         { href: `/teacher/classroom/${classroomId}/messages`, label: "Messages", hint: "Write to a student in this class", icon: MessageSquare },
-        ...(isClassTeacher ? [{ href: `${base}/exams`, label: "Exam marks", hint: "Enter half-yearly and final marks for the class", icon: FileSpreadsheet }] : []),
+        { href: `${base}/exams`, label: "Exam marks", hint: isClassTeacher ? "Enter half-yearly and final marks (or grades) for every subject" : "Enter half-yearly and final marks (or grades) for your subjects", icon: FileSpreadsheet },
     ];
 
     return (

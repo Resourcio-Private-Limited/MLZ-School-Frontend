@@ -24,7 +24,7 @@ function Details({ fields }: { fields: Field[] }) {
             {fields.map((f) => (
                 <div key={f.label} className={`min-w-0 ${f.wide ? "col-span-2 lg:col-span-3" : ""}`}>
                     <dt className="text-sm text-gray-500">{f.label}</dt>
-                    <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
+                    <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-500"}`}>{f.value || "Not added"}</dd>
                 </div>
             ))}
         </dl>
@@ -187,12 +187,12 @@ export default function ProfilePage() {
                         <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{personal.fullName}</h1>
                         <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
                             <span className="inline-flex items-center gap-1.5">
-                                <GraduationCap size={15} aria-hidden="true" className="text-sky-300" />
+                                <GraduationCap size={15} aria-hidden="true" className="shrink-0 text-sky-300" />
                                 {currentClass.name}
                             </span>
                             {roll != null && (
                                 <span className="inline-flex items-center gap-1.5">
-                                    <Award size={15} aria-hidden="true" className="text-sky-300" />
+                                    <Award size={15} aria-hidden="true" className="shrink-0 text-sky-300" />
                                     Roll {roll}
                                 </span>
                             )}
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                 subtitle="To correct anything here, ask the school office."
                 action={
                     <Link href="/student/profile/reset-password" className={secondaryBtn}>
-                        <KeyRound size={15} aria-hidden="true" />
+                        <KeyRound size={15} aria-hidden="true" className="shrink-0" />
                         Change password
                     </Link>
                 }

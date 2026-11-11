@@ -13,6 +13,7 @@ import {
     UserSummary,
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
+import { apiErrorMessage } from "@/lib/apiError";
 
 type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
 
@@ -211,9 +212,8 @@ export default function UserManagementPage() {
             setNewUser(emptyForm);
             toast.success("User added successfully!");
             refetch();
-        } catch (err: unknown) {
-            const error = err as { data?: { message?: string }; message?: string };
-            toast.error(error?.data?.message ?? "Failed to add user. Email may already be in use.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "User not added. The email may already be in use."));
         }
     };
 
@@ -225,9 +225,8 @@ export default function UserManagementPage() {
             setNewUser(emptyForm);
             toast.success("Principal added successfully! The previous principal has been deactivated.");
             refetch();
-        } catch (err: unknown) {
-            const error = err as { data?: { message?: string }; message?: string };
-            toast.error(error?.data?.message ?? "Failed to add principal. Email may already be in use.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Principal not added. The email may already be in use."));
         }
     };
 
@@ -239,8 +238,8 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to delete user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "User not deactivated. Check your connection and try again."));
         }
     };
 
@@ -252,25 +251,25 @@ export default function UserManagementPage() {
             fullName: user.fullName,
             email: user.email,
             primaryContact: user.primaryContact ?? '',
-            secondaryContact: (user as any).secondaryContact ?? '',
+            secondaryContact: user.secondaryContact ?? '',
             dob: formattedDob,
             gender: user.gender ?? '',
             residentialAddress: user.residentialAddress ?? '',
-            nationality: (user as any).nationality ?? 'Indian',
-            caste: (user as any).caste ?? '',
-            isPwd: (user as any).isPwd ?? false,
-            aadharNo: (user as any).aadharNo ?? '',
-            identificationMark: (user as any).identificationMark ?? '',
+            nationality: user.nationality ?? 'Indian',
+            caste: user.caste ?? '',
+            isPwd: user.isPwd ?? false,
+            aadharNo: user.aadharNo ?? '',
+            identificationMark: user.identificationMark ?? '',
             employeeId: user.employeeId ?? '',
             highestQualification: user.highestQualification ?? '',
-            designation: (user as any).designation ?? '',
-            department: (user as any).department ?? '',
-            joiningDate: (user as any).joiningDate ? new Date((user as any).joiningDate).toISOString().split('T')[0] : '',
+            designation: user.designation ?? '',
+            department: user.department ?? '',
+            joiningDate: user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : '',
             salary: user.salary ?? '',
-            status: (user as any).status ?? 'Active',
-            officialDocType: (user as any).officialDocType ?? 'Aadhar',
-            officialDocNumber: (user as any).officialDocNumber ?? '',
-            employmentType: (user as any).employmentType ?? 'Permanent',
+            status: user.status ?? 'Active',
+            officialDocType: user.officialDocType ?? 'Aadhar',
+            officialDocNumber: user.officialDocNumber ?? '',
+            employmentType: user.employmentType ?? 'Permanent',
             customRole: user.customRole ?? '',
         });
         setShowEditModal(true);
@@ -316,8 +315,8 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User updated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Changes not saved. Check your connection and try again."));
         }
     };
 
@@ -335,8 +334,8 @@ export default function UserManagementPage() {
             setPasswordForm({ currentPassword: '', newPassword: '' });
             toast.success("Password changed successfully!");
             refetch();
-        } catch (err: any) {
-            toast.error(err?.data?.message ?? "Failed to change password.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Password not changed. Check the current password and try again."));
         }
     };
 
@@ -360,8 +359,8 @@ export default function UserManagementPage() {
             setPendingPrincipalActivation(null);
             toast.success(activate ? "User activated successfully!" : "User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user status.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Status not changed. Check your connection and try again."));
         } finally {
             setTogglingId(null);
         }
@@ -418,8 +417,8 @@ export default function UserManagementPage() {
                 ),
                 { duration: 6000 }
             );
-        } catch {
-            toast.error(`Couldn't deactivate ${user.fullName}. Try again.`);
+        } catch (err) {
+            toast.error(apiErrorMessage(err, `Couldn't deactivate ${user.fullName}. Try again.`));
         } finally {
             setTogglingId(null);
         }
@@ -431,7 +430,7 @@ export default function UserManagementPage() {
     const singular = { Teachers: 'teacher', Staff: 'staff member', Students: 'student' }[selectedTab];
 
     const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500";
-    const iconBtn = `inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:scale-95 motion-safe:transition ${focusRing}`;
+    const iconBtn = `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 active:scale-95 motion-safe:transition ${focusRing}`;
     const th = "px-6 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap";
     const pageBtn = `h-9 px-3 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 active:scale-[0.97] ${focusRing} focus-visible:ring-offset-1 disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:hover:bg-gray-50 disabled:hover:text-gray-400 disabled:active:scale-100 disabled:cursor-not-allowed motion-safe:transition`;
 
@@ -442,7 +441,7 @@ export default function UserManagementPage() {
         const revealed = revealedIds.has(user.id);
         return user.password ? (
             <div className="flex items-center gap-1">
-                <span className={`min-w-[7.5rem] text-sm tabular-nums ${revealed ? "text-gray-900" : "text-gray-400 tracking-widest"}`}>
+                <span className={`min-w-[7.5rem] text-sm tabular-nums ${revealed ? "text-gray-900" : "text-gray-500 tracking-widest"}`}>
                     {revealed ? user.password : "••••••••"}
                 </span>
                 <Tooltip content={revealed ? "Hide password" : "Show password"} side="top">
@@ -458,7 +457,7 @@ export default function UserManagementPage() {
                 </Tooltip>
             </div>
         ) : (
-            <span className="text-sm text-gray-400">—</span>
+            <span className="text-sm text-gray-500">—</span>
         )
     };
 
@@ -580,7 +579,7 @@ export default function UserManagementPage() {
                     </div>
 
                     <div className="pb-3 lg:w-80 lg:pb-0"><div className="relative">
-                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                         <label htmlFor="user-search" className="sr-only">Search {selectedTab.toLowerCase()}</label>
                         <input
                             id="user-search"
@@ -596,7 +595,7 @@ export default function UserManagementPage() {
                                 type="button"
                                 onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
                                 aria-label="Clear search"
-                                className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                                className={`absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
                             >
                                 <X size={14} aria-hidden="true" />
                             </button>
@@ -709,10 +708,10 @@ export default function UserManagementPage() {
                                                 </td>
                                             )}
                                             <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600 tabular-nums">
-                                                {(isStudents ? user.admissionNumber : user.employeeId) || <span className="text-gray-400">—</span>}
+                                                {(isStudents ? user.admissionNumber : user.employeeId) || <span className="text-gray-500">—</span>}
                                             </td>
                                             {isStudents && (
-                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{user.classroom || <span className="text-gray-400">—</span>}</td>
+                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{user.classroom || <span className="text-gray-500">—</span>}</td>
                                             )}
                                             <td className="px-6 py-3 whitespace-nowrap">
                                                 {passwordControl(user)}
@@ -751,7 +750,7 @@ export default function UserManagementPage() {
                                     Prev
                                 </button>
                                 {getPageItems(currentPage, totalPages).map((page, idx) => page === 'gap' ? (
-                                    <span key={`gap-${idx}`} aria-hidden="true" className="w-9 h-9 flex items-center justify-center text-sm text-gray-400 select-none">…</span>
+                                    <span key={`gap-${idx}`} aria-hidden="true" className="w-9 h-9 flex items-center justify-center text-sm text-gray-500 select-none">…</span>
                                 ) : (
                                     <button
                                         key={page}
@@ -786,7 +785,7 @@ export default function UserManagementPage() {
                                 <h2 className="text-2xl font-bold text-gray-800">Add New User</h2>
                                 <p className="text-sm text-gray-500 mt-1">Create a new user account. Employee ID will be auto-generated.</p>
                             </div>
-                            <button onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <button type="button" aria-label="Close" onClick={() => { setShowAddModal(false); setNewUser(emptyForm); }} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={24} className="text-gray-600" />
                             </button>
                         </div>
@@ -817,8 +816,8 @@ export default function UserManagementPage() {
                                             <input type={showPassword ? "text" : "password"} value={newUser.password}
                                                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                                                 className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                            <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
                                         </div>
@@ -839,7 +838,7 @@ export default function UserManagementPage() {
                                         <input type="text" value={newUser.employeeId} readOnly
                                             placeholder="Auto-generated (MLZS/BKP/...)"
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 font-mono cursor-not-allowed" />
-                                        <p className="text-xs text-gray-400 mt-1">Auto-generated based on role & joining year.</p>
+                                        <p className="text-xs text-gray-500 mt-1">Auto-generated based on role & joining year.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1063,7 +1062,7 @@ export default function UserManagementPage() {
                                 </h2>
                                 <p className="text-sm text-gray-500 mt-1">{roleLabel(selectedUser.role)} — {selectedUser.fullName} {selectedUser.employeeId ? `(ID: ${selectedUser.employeeId})` : ''}</p>
                             </div>
-                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                            <button type="button" aria-label="Close" onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                 <X size={20} className="text-gray-600" />
                             </button>
@@ -1251,7 +1250,7 @@ export default function UserManagementPage() {
                         </div>
 
                         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex items-center justify-end space-x-3">
-                            <button onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                            <button type="button" aria-label="Close" onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
                                 className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                 Cancel
                             </button>
@@ -1278,7 +1277,7 @@ export default function UserManagementPage() {
                                     <Key size={20} className="text-amber-600" />
                                     Change Password
                                 </h2>
-                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1295,8 +1294,8 @@ export default function UserManagementPage() {
                                         <input type={showCurrentPassword ? "text" : "password"} value={passwordForm.currentPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                                             className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                        <button type="button" aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                             {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
@@ -1307,8 +1306,8 @@ export default function UserManagementPage() {
                                         <input type={showNewPassword ? "text" : "password"} value={passwordForm.newPassword}
                                             onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                                             className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                                        <button type="button" aria-label={showNewPassword ? "Hide new password" : "Show new password"} onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
                                             {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
@@ -1316,7 +1315,7 @@ export default function UserManagementPage() {
                             </div>
 
                             <div className="flex justify-end space-x-3 mt-6">
-                                <button onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>
@@ -1344,7 +1343,7 @@ export default function UserManagementPage() {
                                     <AlertCircle size={22} className="text-amber-500" />
                                     Principal Activation Warning
                                 </h2>
-                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1371,7 +1370,7 @@ export default function UserManagementPage() {
                                 )}
                             </div>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowPrincipalWarningModal(false); setPendingPrincipalActivation(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>
@@ -1407,7 +1406,7 @@ export default function UserManagementPage() {
                         <div className="p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-bold text-gray-800">Confirm Delete</h2>
-                                <button onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                     <X size={20} className="text-gray-600" />
                                 </button>
@@ -1418,7 +1417,7 @@ export default function UserManagementPage() {
                                 </p>
                             </div>
                             <div className="flex justify-end space-x-3">
-                                <button onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+                                <button type="button" aria-label="Close" onClick={() => { setShowDeleteModal(false); setSelectedUser(null); }}
                                     className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                     Cancel
                                 </button>

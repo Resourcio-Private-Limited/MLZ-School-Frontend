@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Home, Bell, CreditCard, FileText, LogOut, ChevronLeft, ChevronRight, Loader2, School, MessageSquare, ClipboardList, Menu, X, type LucideIcon } from "lucide-react";
+import { Award, Home, Bell, CreditCard, FileText, LogOut, ChevronLeft, ChevronRight, Loader2, School, MessageSquare, ClipboardList, Menu, X, type LucideIcon } from "lucide-react";
 import { useGetProfileQuery } from "@/redux/api/studentApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import { heroGradient, sidebarGradient } from "@/components/student/brand";
@@ -25,7 +25,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     {
         label: "Exams",
         items: [
-            { href: "/student/exams", label: "Exams and results", icon: ClipboardList },
+            { href: "/student/exams", label: "Exams", icon: ClipboardList },
+            { href: "/student/results", label: "Results", icon: Award },
             { href: "/student/admit-cards", label: "Admit cards", icon: FileText },
         ],
     },

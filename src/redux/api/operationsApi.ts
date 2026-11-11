@@ -93,6 +93,7 @@ export const operationsApi = baseApi.injectEndpoints({
 
     getAnnouncements: builder.query<Announcement[], string>({
       query: (classroomId) => ({ url: `/operations/announcements/${classroomId}`, method: 'GET' }),
+      providesTags: (_result, _error, classroomId) => [{ type: 'Announcements', id: classroomId }],
     }),
 
     getClassroomTeachers: builder.query<ClassroomTeacher[], string>({
@@ -108,6 +109,8 @@ export const operationsApi = baseApi.injectEndpoints({
 
     createAnnouncement: builder.mutation<Announcement, CreateAnnouncementPayload>({
       query: (body) => ({ url: '/operations/announcements', method: 'POST', body }),
+      // Refresh the class's list so the new post appears without a reload.
+      invalidatesTags: (_result, _error, body) => [{ type: 'Announcements', id: body.classroomId }],
     }),
 
     sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { receiverId: string; content: string }>({

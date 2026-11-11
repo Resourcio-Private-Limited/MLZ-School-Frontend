@@ -41,8 +41,9 @@ main {
   min-width: 0;
 }
 
-/* Lucide icons are excluded: they have fixed width/height, and a percentage
-   max-width lets browsers collapse them to 0px inside tight table cells. */
+/* Lucide icons have a fixed size; a percentage max-width collapses them to 0px
+   inside shrink-to-fit containers such as squeezed table cells, flex buttons and
+   icon-only buttons, so they are excluded from the responsive media rule. */
 main img,
 main svg:not(.lucide) {
   max-width: 100%;

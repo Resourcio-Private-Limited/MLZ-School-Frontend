@@ -36,14 +36,17 @@ const dashboard = {
 };
 
 const subjects = ["English", "Mathematics", "Science", "Bengali", "History", "Geography", "Computer"];
+// Stand-in for the admit card and result files (the real templates are served by the backend).
+const ADMIT_SVG = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560"><rect width="800" height="560" fill="#fff" stroke="#0369a1" stroke-width="6"/><text x="400" y="80" font-family="Arial" font-size="32" text-anchor="middle" fill="#0c4a6e">Mount Litera Zee School</text><text x="400" y="130" font-family="Arial" font-size="24" text-anchor="middle" fill="#334155">Admit card</text><text x="60" y="220" font-family="Arial" font-size="20" fill="#334155">Name: Aarav Mitra</text><text x="60" y="260" font-family="Arial" font-size="20" fill="#334155">Class 7 - Section B, roll 12</text></svg>')}`;
+
 const exams = [
-    ...subjects.map((s, i) => ({ id: `up${i}`, name: "Unit test 3", examDate: iso(day(9 + i)), submissionOpen: i !== 5, subject: s, admitCard: i < 3 ? { fileUrl: "/admit/Admit Card-Half Year.svg", issuedAt: iso(day(-1)) } : null, result: null })),
-    ...subjects.map((s, i) => ({ id: `hy${i}`, name: "Half-yearly", examDate: iso(day(-60 + i)), submissionOpen: true, subject: s, admitCard: { fileUrl: "/admit/Admit Card-Half Year.svg", issuedAt: iso(day(-70)) }, result: i < 5 ? { fileUrl: "/admit/Admit Card-Half Year.svg", publishedAt: iso(day(-40)) } : null })),
+    ...subjects.map((s, i) => ({ id: `up${i}`, name: "Unit test 3", examDate: iso(day(9 + i)), submissionOpen: i !== 5, subject: s, admitCard: i < 3 ? { fileUrl: ADMIT_SVG, issuedAt: iso(day(-1)) } : null, result: null })),
+    ...subjects.map((s, i) => ({ id: `hy${i}`, name: "Half-yearly", examDate: iso(day(-60 + i)), submissionOpen: true, subject: s, admitCard: { fileUrl: ADMIT_SVG, issuedAt: iso(day(-70)) }, result: i < 5 ? { fileUrl: ADMIT_SVG, publishedAt: iso(day(-40)) } : null })),
 ];
 
 const admitCards = [
-    { id: "ac1", issuedAt: iso(day(-1)), fileUrl: "/admit/Admit Card-Half Year.svg", svgUrl: "/admit/Admit Card-Half Year.svg", examName: "Unit test 3", examDate: iso(day(9)) },
-    { id: "ac2", issuedAt: iso(day(-70)), fileUrl: "/admit/Admit Card-Final Exam.svg", svgUrl: "/admit/Admit Card-Final Exam.svg", examName: "Half-yearly", examDate: iso(day(-60)) },
+    { id: "ac1", issuedAt: iso(day(-1)), fileUrl: ADMIT_SVG, svgUrl: ADMIT_SVG, examName: "Unit test 3", examDate: iso(day(9)) },
+    { id: "ac2", issuedAt: iso(day(-70)), fileUrl: ADMIT_SVG, svgUrl: ADMIT_SVG, examName: "Half-yearly", examDate: iso(day(-60)) },
 ];
 
 const fees = Array.from({ length: 12 }, (_, i) => {
@@ -117,6 +120,29 @@ const thread = (other) => [
     { id: "m2", createdAt: iso(day(0, 9)), content: "Yes, you can submit the project on Monday. Get well soon.", senderId: other, receiverId: me },
 ].map((m) => ({ ...m, sender: { id: m.senderId, email: "", role: "" }, receiver: { id: m.receiverId, email: "", role: "" } }));
 
+// Switches the tour flips per scenario.
+const state = { reportReleased: true };
+
+const REPORT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1123" height="794" viewBox="0 0 1123 794"><rect width="1123" height="794" fill="#fff"/><rect x="20" y="20" width="1083" height="754" fill="none" stroke="#0c4a6e" stroke-width="4"/><text x="561" y="80" font-family="Arial" font-size="34" font-weight="bold" text-anchor="middle" fill="#0c4a6e">Mount Litera Zee School</text><text x="561" y="120" font-family="Arial" font-size="22" text-anchor="middle" fill="#334155">Report card, session ${year}-${String(year + 1).slice(2)}</text><text x="60" y="180" font-family="Arial" font-size="18" fill="#334155">Name: Aarav Mitra    Class: Class 7 - Section B    Roll: 12</text>${["English", "Mathematics", "Science", "Social Science", "Bengali", "Computer Science"].map((sub, i) => `<line x1="60" x2="1063" y1="${220 + i * 60}" y2="${220 + i * 60}" stroke="#cbd5e1"/><text x="70" y="${258 + i * 60}" font-family="Arial" font-size="18" fill="#0f172a">${sub}</text><text x="620" y="${258 + i * 60}" font-family="Arial" font-size="18" fill="#0f172a">${78 + i * 3} / 100</text>`).join("")}<text x="60" y="640" font-family="Arial" font-size="18" fill="#334155">Class teacher's remarks: Consistent and attentive in class.</text></svg>`;
+
+function reportCard() {
+    const subjects = 6;
+    const released = state.reportReleased;
+    return {
+        session: `${year}-${String(year + 1).slice(2)}`,
+        classType: "SECONDARY",
+        classroomName: "Class 7 - Section B",
+        studentName: "Aarav Mitra",
+        exams: {
+            HALF_YEARLY: { completedSubjects: released ? subjects : 4, totalSubjects: subjects, released },
+            FINAL: { completedSubjects: 0, totalSubjects: subjects, released: false },
+        },
+        available: released,
+        issuedOn: released ? iso(day(-3)) : null,
+        svg: released ? REPORT_SVG : null,
+    };
+}
+
 function respond(url) {
     const u = new URL(url);
     const p = u.pathname;
@@ -124,6 +150,7 @@ function respond(url) {
     if (p === "/student/dashboard") return dashboard;
     if (p === "/student/exams") return exams;
     if (p === "/student/admit-cards") return admitCards;
+    if (p === "/student/report-card") return reportCard();
     if (p === "/student/message-recipients") return recipients;
     if (p === "/student/fees/monthly") return monthlyFees;
     if (p.startsWith("/student/payments/")) return receipt(p.split("/")[3]);
@@ -135,4 +162,4 @@ function respond(url) {
     return [];
 }
 
-module.exports = { respond, me };
+module.exports = { respond, me, state };

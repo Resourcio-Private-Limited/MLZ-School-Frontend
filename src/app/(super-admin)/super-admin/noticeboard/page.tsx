@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Edit2, ExternalLink, Plus, Search, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiErrorMessage } from "@/lib/apiError";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
     useGetNoticesQuery,
@@ -105,7 +106,7 @@ function NoticeItem({
             </time>
             <div className="min-w-0">
                 <div className="flex items-start justify-between gap-4">
-                    <h3 className={`text-base font-semibold ${notice.title.trim() ? "text-gray-900" : "text-gray-400"}`}>{title}</h3>
+                    <h3 className={`text-base font-semibold ${notice.title.trim() ? "text-gray-900" : "text-gray-500"}`}>{title}</h3>
                     {!preview && (
                         <div className="-mr-2 -mt-1 flex shrink-0 items-center gap-0.5">
                             <Tooltip content="Edit notice" side="top">
@@ -133,7 +134,7 @@ function NoticeItem({
                     </span>
                     <span>Posted by {notice.senderName}</span>
                 </p>
-                <p className={`mt-3 max-w-prose whitespace-pre-line text-sm leading-relaxed ${notice.content.trim() ? "text-gray-700" : "text-gray-400"}`}>
+                <p className={`mt-3 max-w-prose whitespace-pre-line text-sm leading-relaxed ${notice.content.trim() ? "text-gray-700" : "text-gray-500"}`}>
                     {notice.content.trim() || "Your message will appear here."}
                 </p>
                 {notice.link && (
@@ -246,10 +247,13 @@ export default function SuperAdminNoticeBoardPage() {
                 toast.success("Notice published.");
             }
             closeForm();
-        } catch {
-            toast.error(editingNotice
-                ? "Couldn't save your changes. Check your connection and try again."
-                : "Couldn't publish the notice. Check your connection and try again.");
+        } catch (err) {
+            toast.error(
+                apiErrorMessage(
+                    err,
+                    editingNotice ? "Couldn't save your changes. Check your connection and try again." : "Couldn't publish the notice. Check your connection and try again."
+                )
+            );
         }
     };
 
@@ -260,8 +264,8 @@ export default function SuperAdminNoticeBoardPage() {
             if (editingNotice?.id === deleteTarget.id) closeForm();
             setDeleteTarget(null);
             toast.success("Notice deleted.");
-        } catch {
-            toast.error("Couldn't delete the notice. Try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Couldn't delete the notice. Try again."));
         }
     };
 
@@ -442,7 +446,7 @@ export default function SuperAdminNoticeBoardPage() {
                                         />
                                     )}
                                     <span className="relative">{f.label}</span>
-                                    <span className={`relative text-xs tabular-nums ${active ? "text-gray-700" : "text-gray-400"}`}>
+                                    <span className={`relative text-xs tabular-nums ${active ? "text-gray-700" : "text-gray-500"}`}>
                                         {isLoading ? "…" : f.count}
                                     </span>
                                 </button>
@@ -451,7 +455,7 @@ export default function SuperAdminNoticeBoardPage() {
                     </div>
 
                     <div className="relative lg:w-72">
-                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                         <label htmlFor="notice-search" className="sr-only">Search notices</label>
                         <input
                             id="notice-search"
@@ -467,7 +471,7 @@ export default function SuperAdminNoticeBoardPage() {
                                 type="button"
                                 onClick={() => setSearch("")}
                                 aria-label="Clear search"
-                                className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                                className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
                             >
                                 <X size={14} aria-hidden="true" />
                             </button>

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, CheckCircle2, Clock, Download, Eye, Loader2, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiErrorMessage } from "@/lib/apiError";
 import {
     MonthlyFeeRecord,
     PaymentReceipt,
@@ -58,9 +59,20 @@ export default function PaymentPage() {
         0,
     );
     const remainingAfterSelection = Math.max(0, (data?.annualSummary.remaining ?? 0) - flexibleAnnual);
-    const toggleMonth = (month: number) => setSelected((current) => (
-        current.includes(month) ? current.filter((selectedMonth) => selectedMonth !== month) : [...current, month]
-    ));
+    // Unpaid months with a balance, in the order they must be paid. The server refuses a selection that skips one.
+    const payableMonths = useMemo(
+        () => data?.fees.filter((fee) => !fee.isPaid && fee.totalAmount > 0).map((fee) => fee.month) ?? [],
+        [data],
+    );
+    // The selection is always a gap-free run from the earliest unpaid month: choosing a month also
+    // chooses every unpaid month before it, and clearing a month also clears every month after it.
+    const toggleMonth = (month: number) => {
+        const position = payableMonths.indexOf(month);
+        if (position === -1) return;
+        const next = selected.includes(month) ? payableMonths.slice(0, position) : payableMonths.slice(0, position + 1);
+        setSelected(next);
+        setAnnualContributions((current) => Object.fromEntries(Object.entries(current).filter(([key]) => next.includes(Number(key)))));
+    };
 
     const pay = async () => {
         if (!data || !selectedFees.length || selectedTotal <= 0) return;
@@ -107,7 +119,8 @@ export default function PaymentPage() {
                 theme: { color: "#0284c7" },
             }).open();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Payment couldn't start. Check your connection and try again.");
+            // The server explains refusals, for example "Fees must be paid month by month. Please pay X before Y."
+            toast.error(apiErrorMessage(error, error instanceof Error ? error.message : "Payment couldn't start. Check your connection and try again."));
         }
     };
 
@@ -123,7 +136,7 @@ export default function PaymentPage() {
 
     return (
         <div className="max-w-7xl space-y-6 pb-24 lg:pb-0">
-            <PageHeader title="Fee payment" subtitle="Choose one or more months and pay them together. Fees are set by the accounts office." />
+            <PageHeader title="Fee payment" subtitle="Fees are paid month by month, in order. Choosing a later month also chooses the unpaid months before it." />
 
             {/* Annual fees summary */}
             <section aria-labelledby="annual-fees" className={`overflow-hidden rounded-xl shadow-sm ${heroGradient}`}>
@@ -203,7 +216,7 @@ export default function PaymentPage() {
                                                 transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 38 }}
                                             />
                                         )}
-                                        <span className="relative">{f.label} <span className="tabular-nums text-gray-400">{isLoading ? "" : count}</span></span>
+                                        <span className="relative">{f.label} <span className="tabular-nums text-gray-500">{isLoading ? "" : count}</span></span>
                                     </button>
                                 );
                             })}
@@ -229,8 +242,10 @@ export default function PaymentPage() {
                         <ul className="divide-y divide-gray-100">
                             {visible.map((fee) => {
                                 const active = selected.includes(fee.month);
-                                const canSelect = !fee.isPaid && fee.totalAmount > 0;
+                                const canSelect = payableMonths.includes(fee.month);
                                 const inputId = `month-${fee.month}`;
+                                // Months that choosing this one would also choose, so the student isn't surprised.
+                                const alsoSelects = canSelect && !active ? payableMonths.filter((m) => m < fee.month && !selected.includes(m)) : [];
                                 return (
                                     <li key={fee.month} className={`px-4 py-4 motion-safe:transition-colors sm:px-6 ${active ? "bg-sky-50/60" : ""}`}>
                                         <div className="flex gap-3">
@@ -244,7 +259,8 @@ export default function PaymentPage() {
                                                         checked={active}
                                                         disabled={!canSelect}
                                                         onChange={() => toggleMonth(fee.month)}
-                                                        className="h-5 w-5 cursor-pointer rounded border-gray-300 accent-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed"
+                                                        aria-describedby={alsoSelects.length ? `${inputId}-order` : undefined}
+                                                        className="h-5 w-5 cursor-pointer rounded border-gray-300 accent-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
                                                     />
                                                 )}
                                             </div>
@@ -263,6 +279,11 @@ export default function PaymentPage() {
                                                                 "Not set yet"
                                                             )}
                                                         </p>
+                                                        {alsoSelects.length > 0 && (
+                                                            <p id={`${inputId}-order`} className="mt-0.5 text-xs text-gray-500">
+                                                                Also chooses {alsoSelects.map((m) => MONTHS[m - 1]).join(", ")}, because months are paid in order.
+                                                            </p>
+                                                        )}
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-3">
                                                         <span className="text-base font-semibold tabular-nums text-gray-900">{inr(fee.totalAmount)}</span>
@@ -319,7 +340,7 @@ export default function PaymentPage() {
                     <div className="px-6 pt-5">
                         <h2 id="pay-summary" className="text-base font-semibold text-gray-900">Payment summary</h2>
                         <p className="mt-1 text-sm text-gray-500">
-                            {selectedFees.length ? `${selectedFees.length} ${selectedFees.length === 1 ? "month" : "months"} selected` : "Select the months you want to pay."}
+                            {selectedFees.length ? `${selectedFees.length} ${selectedFees.length === 1 ? "month" : "months"} selected` : "Choose the months to pay, starting with the earliest unpaid one."}
                         </p>
                     </div>
                     <dl className="mx-6 mt-4 space-y-2 border-y border-gray-100 py-4 text-sm">
@@ -365,7 +386,7 @@ function Detail({ label, value, warn }: { label: string; value: number; warn?: b
     return (
         <div>
             <dt className="text-xs text-gray-500">{label}</dt>
-            <dd className={`tabular-nums ${warn ? "font-medium text-red-700" : value ? "text-gray-700" : "text-gray-400"}`}>{value ? inr(value) : "—"}</dd>
+            <dd className={`tabular-nums ${warn ? "font-medium text-red-700" : value ? "text-gray-700" : "text-gray-500"}`}>{value ? inr(value) : "—"}</dd>
         </div>
     );
 }

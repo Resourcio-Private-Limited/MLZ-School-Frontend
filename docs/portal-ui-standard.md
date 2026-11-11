@@ -145,7 +145,7 @@ Screenshot tour: `node scripts/ui-tour/principal-tour.js ../mobile-ui/principal-
 Still open for Principal:
 
 - `principal/students`, `principal/fees` and `principal/promotion` render **mock** data from `lib/mocks` and aren't linked. `GET /principal/students` exists, so a real student directory (class, then section) could replace the first one. Delete them or rebuild them on real endpoints.
-- There is no Principal Messages page, although students and teachers can write to the principal. Build one on the Super Admin Messages pattern.
+- ~~There is no Principal Messages page.~~ Added in the dev-Ind merge (1.9).
 - The classroom page calls `/accounts/students/:id` and `/accounts/students/:id/eligibility`, so the backend must allow the PRINCIPAL role there.
 - `getClassroom` and `getClassroomStudents` have no cache tags, so promoting or admitting a student leaves the Classrooms counts stale until they refetch. `updatePrincipalProfile` doesn't invalidate `PrincipalProfile`, so the page refetches by hand.
 - The admission number is still generated in the browser from a random number, so duplicates are possible.
@@ -189,6 +189,21 @@ Still open for Accounts:
 - Unclear backend semantics: whether `totalAmount` on a part-paid month is the full total or the balance, and whether class-wide other fees replace or add to a student's existing other fees.
 - `/accounts/balance` totals include fees, so they don't equal the sum of income and expense entries. Analysis labels its category panels as coming from the entries.
 - Accounts has no profile page or endpoint, and no Change password page.
+
+### 1.9 Merge of `dev-Ind` (November 2026)
+
+IndraniSom's QA and feature branch (`dev-Ind`, described in `CHANGES.md`) was built on the old UI. It was merged into the redesign: **the redesigned UI was kept, and every fix and feature was ported into it.**
+
+| Area | What came in |
+|---|---|
+| Teacher marks entry | `teacher/classroom/[id]/exams` runs on the new `SubjectAssessment` API (`GET`/`PUT /teacher/class/:id/assessments`). Primary classes get grades BG, PG, PF and NA for terms 1 to 3. Secondary classes get component marks out of their maximums. Saves can be partial. Class teacher remarks appear on the Final only. Each teacher can edit only what they're allowed to. A lock banner shows when the principal hasn't opened entry. `/teacher/exams` is now a class picker that links to each class's exams page, and `components/teacher/marks.tsx` is gone. |
+| Student Results | New `student/results` page in sky, on `GET /student/report-card` and `/pdf`, linked under Exams. |
+| Student payment | Months are paid strictly in order: picking a month picks every earlier unpaid month, and the server's refusal message is shown. |
+| Principal Messages | New `principal/messages` page on the Super Admin pattern, using `GET /principal/message-recipients`, linked under Communication. |
+| Everywhere | `src/lib/apiError.ts` (`apiErrorMessage`). The Accounts `errorMessage` now delegates to it. `src/lib/dates.ts` (`todayLocal`) is used for date defaults instead of the UTC date. Contrast fixes, labels on icon-only buttons (`tooltip.tsx` now adds them automatically), and her mock-page redirects. |
+| Kept from the redesign over hers | The real Principal Teachers page (she had redirected it as a mock). The deletion of `StudentFeeModal.tsx` and `MessagesCenter.tsx`. |
+
+The backend side of `CHANGES.md` (migrations, role guards, report-card templates) must be deployed with this frontend.
 
 ## 2. Design principles
 
@@ -307,7 +322,7 @@ Do these in order for Principal, Teacher, Student and Accounts:
 5. Tables become cards below `xl`; figure rows stack below `lg`.
 6. Modals move to `components/ui/dialog.tsx`; forms use labels, chips and inline hints; actions end in matching toasts.
 7. Shared screens:
-   - **Messages:** done for Student, Teacher and Accounts. `components/messages/MessagesCenter.tsx` was removed. Principal still has no Messages page.
+   - **Messages:** done for every portal. `components/messages/MessagesCenter.tsx` was removed.
    - **Notice board:** copy the Super Admin notice board, read-only where the role can't publish.
    - **Income / Expenses (Accounts):** done, on `LedgerPage` with `accent="yellow"`, `onUpdate` and `onDelete`.
 8. Fix the Principal notice board tag-colour bug while you're there.

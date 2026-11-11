@@ -4,6 +4,7 @@ import { Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronRight, Lock, MessageSquare, Plus, Search, Send } from "lucide-react";
+import { apiErrorMessage } from "@/lib/apiError";
 import toast from "react-hot-toast";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { useGetMessageRecipientsQuery } from "@/redux/api/studentApi";
@@ -76,7 +77,7 @@ function PersonRow({ contact, conv, onOpen }: { contact: Contact; conv?: Convers
                                 Read only
                             </span>
                         )}
-                        <span className={`min-w-0 truncate text-sm ${conv ? "text-gray-600" : "text-gray-400"}`}>
+                        <span className={`min-w-0 truncate text-sm ${conv ? "text-gray-600" : "text-gray-500"}`}>
                             {conv ? `${conv.direction === "sent" ? "You: " : ""}${conv.lastMessage}` : "No messages yet"}
                         </span>
                     </span>
@@ -169,8 +170,8 @@ function MessagesContent() {
         try {
             await sendMessage({ receiverId: threadId, content: text }).unwrap();
             setReply("");
-        } catch {
-            toast.error("Message not sent. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Message not sent. Check your connection and try again."));
         }
     };
 
@@ -189,8 +190,8 @@ function MessagesContent() {
             const name = contactById.get(composeTo)?.name;
             setComposeOpen(false);
             toast.success(name ? `Message sent to ${name}.` : "Message sent.");
-        } catch {
-            toast.error("Message not sent. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Message not sent. Check your connection and try again."));
         }
     };
 

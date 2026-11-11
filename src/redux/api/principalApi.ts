@@ -151,6 +151,11 @@ export const principalApi = baseApi.injectEndpoints({
     // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
     overrideExisting: process.env.NODE_ENV === "development",
     endpoints: (builder) => ({
+        // Active super admin, accountants and teachers the principal can message.
+        getPrincipalMessageRecipients: builder.query<Array<{ id: string; name: string; role: string }>, void>({
+            query: () => ({ url: '/principal/message-recipients', method: 'GET' }),
+        }),
+
         getAllClassrooms: builder.query<ClassroomSummary[], void>({
             query: () => ({ url: '/principal/classrooms', method: 'GET' }),
             providesTags: ['Classroom'],
@@ -290,10 +295,10 @@ export const principalApi = baseApi.injectEndpoints({
                 url: '/principal/admit-cards',
                 method: 'POST',
                 body,
-                // RTK Query's TypeScript types don't include 'blob' as a literal
-                // for `responseHandler` in some versions — cast through any to
-                // keep the public API typed. The runtime behaviour is correct.
-                responseHandler: 'blob' as any,
+                // fetchBaseQuery only understands 'json' | 'text' | 'content-type'
+                // or a function; the string 'blob' was silently not applied, so the
+                // page received a non-Blob and the download failed.
+                responseHandler: (response: Response) => response.blob(),
             }),
         }),
 
@@ -308,6 +313,7 @@ export const principalApi = baseApi.injectEndpoints({
 
 export const {
     useGetPrincipalProfileQuery,
+    useGetPrincipalMessageRecipientsQuery,
     useUpdateMarksEntrySettingMutation,
     useUpdatePrincipalProfileMutation,
     useGetAllClassroomsQuery,

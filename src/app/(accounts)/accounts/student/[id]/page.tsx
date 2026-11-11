@@ -338,7 +338,7 @@ export default function ClassFeesPage() {
                                             onClick={(e) => !(e.target as HTMLElement).closest("a, button") && router.push(detailHref(s))}
                                             className="cursor-pointer hover:bg-yellow-50/40"
                                         >
-                                            <td className="py-3 pl-6 pr-3 tabular-nums text-gray-900">{s.rollNumber || <span className="text-gray-400">None</span>}</td>
+                                            <td className="py-3 pl-6 pr-3 tabular-nums text-gray-900">{s.rollNumber || <span className="text-gray-500">None</span>}</td>
                                             <td className="px-3 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar name={s.fullName} />
@@ -351,7 +351,7 @@ export default function ClassFeesPage() {
                                                 <TransportTag opted={s.transportOpted} />
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-900">{inr(s.totalAmount)}</td>
-                                            <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-700">{s.paidAmount > 0 ? inr(s.paidAmount) : <span className="text-gray-400">None</span>}</td>
+                                            <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-700">{s.paidAmount > 0 ? inr(s.paidAmount) : <span className="text-gray-500">None</span>}</td>
                                             <td className="px-3 py-3">
                                                 <StatusBadge status={statusOf(s)} past={isPastMonth} />
                                             </td>
@@ -453,7 +453,7 @@ function StatusBadge({ status, past }: { status: FeeStatus; past: boolean }) {
 
 function TransportTag({ opted }: { opted: boolean }) {
     return (
-        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${opted ? "bg-gray-100 text-gray-700" : "text-gray-400"}`}>
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${opted ? "bg-gray-100 text-gray-700" : "text-gray-500"}`}>
             <Bus size={13} aria-hidden="true" />
             {opted ? "Transport" : "No transport"}
         </span>

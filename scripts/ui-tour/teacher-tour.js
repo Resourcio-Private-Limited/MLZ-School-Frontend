@@ -86,18 +86,19 @@ add("06-noticeboard", "01-all", "/noticeboard", async () => {}, true);
 
 add("07-marks", "01-class-exam-marks", `${CLS}/exams`, async () => {}, true);
 add("07-marks", "02-class-exam-edit", `${CLS}/exams`, async (p) => {
-    await p.getByRole("button", { name: /marks for/i }).first().click();
+    await p.getByRole("button", { name: /^enter marks for /i }).first().click();
     await wait(p);
-    await p.getByRole("dialog").getByRole("spinbutton").fill("72");
+    await p.getByRole("dialog").getByRole("spinbutton").first().fill("8");
 });
-add("07-marks", "03-final-locked", `${CLS}/exams`, async (p) => p.getByRole("group", { name: /^exam$/i }).getByRole("button", { name: /^final/i }).click(), true);
-add("07-marks", "04-primary-grades", "/classroom/cls-3a/exams", async (p) => {
-    await p.getByRole("group", { name: /^exam$/i }).getByRole("button", { name: /half-yearly/i }).click();
-    await wait(p);
-    await p.getByRole("button", { name: /marks for/i }).first().click();
+add("07-marks", "03-not-started-filter", `${CLS}/exams`, async (p) => p.getByRole("group", { name: /filter by progress/i }).getByRole("button", { name: /^not started/i }).click(), true);
+add("07-marks", "04-final-locked-remarks", `${CLS}/exams`, async (p) => {
+    await p.getByRole("tab", { name: /^final/i }).click();
+    await wait(p, 700);
+    await p.getByRole("button", { name: /^view marks for /i }).first().click();
 });
-add("07-marks", "05-marks-entry", "/exams", async () => {}, true);
-add("07-marks", "06-marks-entry-missing", "/exams", async (p) => p.getByRole("group", { name: /^show$/i }).getByRole("button", { name: /not entered/i }).click(), true);
+add("07-marks", "05-primary-grades", "/classroom/cls-3a/exams", async (p) => p.getByRole("button", { name: /^enter marks for /i }).first().click());
+add("07-marks", "06-subject-teacher", "/classroom/cls-8a/exams", async (p) => p.getByRole("button", { name: /^enter marks for /i }).first().click());
+add("07-marks", "07-marks-entry-picker", "/exams", async () => {}, true);
 
 add("08-profile", "01-profile", "/profile", async () => {}, true);
 

@@ -32,6 +32,7 @@ import {
     secondaryBtn,
 } from "@/components/accounts/ui";
 import { MoneyInput, MonthStepper, errorClass, hintClass, labelClass, monthLabel, parseMoney } from "./feeForms";
+import { todayLocal } from "@/lib/dates";
 
 // ─── Levels ────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function ClassCard({ c, ...actions }: Actions & { c: ClassroomWithFees }) {
             <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-gray-100 pt-4 text-sm">
                 <div>
                     <dt className="text-gray-500">Tuition</dt>
-                    <dd className="mt-0.5 font-medium tabular-nums text-gray-900">{c.tuitionFees > 0 ? inr(c.tuitionFees) : <span className="text-gray-400">Not set</span>}</dd>
+                    <dd className="mt-0.5 font-medium tabular-nums text-gray-900">{c.tuitionFees > 0 ? inr(c.tuitionFees) : <span className="text-gray-500">Not set</span>}</dd>
                 </div>
                 <div>
                     <dt className="text-gray-500">Late fee</dt>
@@ -176,10 +177,10 @@ function ClassTable({ rows, actionsFor }: { rows: ClassroomWithFees[]; actionsFo
                                 </div>
                             </td>
                             <td className="px-4 py-3 text-right tabular-nums text-gray-700">{c.totalStudents.toLocaleString("en-IN")}</td>
-                            <td className="px-4 py-3 text-right tabular-nums text-gray-900">{c.tuitionFees > 0 ? inr(c.tuitionFees) : <span className="text-gray-400">Not set</span>}</td>
+                            <td className="px-4 py-3 text-right tabular-nums text-gray-900">{c.tuitionFees > 0 ? inr(c.tuitionFees) : <span className="text-gray-500">Not set</span>}</td>
                             <td className="px-4 py-3 text-right tabular-nums text-gray-700">{inr(c.lateFees)}</td>
                             <td className="px-4 py-3 text-right tabular-nums text-gray-700">{inr(c.annualCharges)}</td>
-                            <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-700">{c.annualFeeExpiryDate ? shortDate(c.annualFeeExpiryDate) : <span className="text-gray-400">Not set</span>}</td>
+                            <td className="whitespace-nowrap px-4 py-3 tabular-nums text-gray-700">{c.annualFeeExpiryDate ? shortDate(c.annualFeeExpiryDate) : <span className="text-gray-500">Not set</span>}</td>
                             <td className="py-3 pl-4 pr-6">
                                 <div className="flex justify-end">
                                     <ClassActions c={c} {...actionsFor(c)} />
@@ -203,7 +204,7 @@ function CardPager({ page, pageCount, onPage }: { page: number; pageCount: numbe
             </button>
             {getPageItems(page, pageCount).map((n, i) =>
                 n === "gap" ? (
-                    <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 items-center justify-center text-sm text-gray-400">
+                    <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 items-center justify-center text-sm text-gray-500">
                         &hellip;
                     </span>
                 ) : (
@@ -419,8 +420,7 @@ export default function FeeManagementPage() {
     const notSet = classrooms.filter(feesNotSet);
 
     // The soonest annual-fee end date from today on, and how many classes share it.
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = todayLocal();
     const upcoming = classrooms.map((c) => dateOnly(c.annualFeeExpiryDate)).filter((d) => d && d >= today).sort();
     const nextExpiry = upcoming[0];
     const nextExpiryCount = upcoming.filter((d) => d === nextExpiry).length;
@@ -546,7 +546,7 @@ export default function FeeManagementPage() {
                         >
                             {onlyNotSet && <Check size={15} aria-hidden="true" />}
                             Fees not set
-                            <span className={`text-xs tabular-nums ${onlyNotSet ? "text-yellow-800" : "text-gray-400"}`}>{notSet.length}</span>
+                            <span className={`text-xs tabular-nums ${onlyNotSet ? "text-yellow-800" : "text-gray-500"}`}>{notSet.length}</span>
                         </button>
                     </div>
                     <FilterChips label="Filter by level" value={level} options={levelOptions} onChange={(v) => changeFilter(() => setLevel(v))} layoutId="accounts-level-chip" />
@@ -644,7 +644,7 @@ function StudentFinder() {
         <section aria-labelledby="find-student" className="rounded-xl border border-gray-200 bg-white">
             <div className="px-4 pt-4 sm:px-6 sm:pt-5">
                 <h2 id="find-student" className="flex items-center gap-2 text-base font-semibold text-gray-900">
-                    <UserSearch size={18} aria-hidden="true" className="text-gray-400" />
+                    <UserSearch size={18} aria-hidden="true" className="text-gray-500" />
                     Find a student
                 </h2>
                 <p className="mt-0.5 text-sm text-gray-500">Search across all classes by name or roll number, then open their fees.</p>
@@ -683,7 +683,7 @@ function StudentFinder() {
                                         </span>
                                     </span>
                                     <MonthStatus s={s} />
-                                    <ChevronRight size={18} aria-hidden="true" className="shrink-0 text-gray-400" />
+                                    <ChevronRight size={18} aria-hidden="true" className="shrink-0 text-gray-500" />
                                 </Link>
                             </li>
                         ))}

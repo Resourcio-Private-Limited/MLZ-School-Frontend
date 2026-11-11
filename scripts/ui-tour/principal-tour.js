@@ -96,6 +96,21 @@ add("05-noticeboard", "02-composer", "/noticeboard", async (p) => {
 }, true);
 add("05-noticeboard", "03-delete", "/noticeboard", async (p) => btn(p, /^delete /i).click());
 
+add("07-messages", "01-teachers", "/messages", async () => {}, true);
+add("07-messages", "02-office", "/messages", async (p) => p.getByRole("tab", { name: /^school office/i }).click(), true);
+add("07-messages", "03-students", "/messages", async (p) => {
+    await p.getByRole("tab", { name: /^students/i }).click();
+    await wait(p, 700);
+}, true);
+add("07-messages", "04-conversation", "/messages", async (p) => {
+    await p.getByRole("tab", { name: /^students/i }).click();
+    await wait(p, 700);
+    await p.getByRole("tabpanel").getByRole("button").first().click();
+    await wait(p, 700);
+});
+add("07-messages", "05-new-message", "/messages", async (p) => btn(p, /^new message$/i).click());
+add("07-messages", "06-deep-link", "/messages?to=u-t-3", async () => {});
+
 add("06-profile", "01-profile", "/profile", async () => {}, true);
 add("06-profile", "02-edit", "/profile", async (p) => btn(p, /^edit details$/i).click(), true);
 

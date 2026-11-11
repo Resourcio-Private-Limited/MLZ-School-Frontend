@@ -8,6 +8,7 @@ import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { useGetAttendanceByDateQuery, useGetAttendanceHistoryQuery, useGetClassDetailsQuery, useGetTeacherClassesQuery, type AttendanceDay } from "@/redux/api/teacherApi";
 import { heroGradient } from "@/components/teacher/brand";
 import { AttendanceBadge, EmptyState, FilterChips, PageHeader, Pager, Skeleton, focusRing, paginate, secondaryBtn } from "@/components/teacher/ui";
+import { todayLocal } from "@/lib/dates";
 
 type Filter = "ALL" | "MARKED" | "UNMARKED";
 
@@ -15,7 +16,8 @@ type Filter = "ALL" | "MARKED" | "UNMARKED";
 const asDate = (key: string) => new Date(`${key}T12:00:00`);
 const longDay = (key: string) => asDate(key).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 const monthName = (year: number, month: number) => new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-const todayKey = () => new Date().toISOString().slice(0, 10);
+// Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
+const todayKey = () => todayLocal();
 
 const stepBtn = `inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 motion-safe:transition ${focusRing}`;
 

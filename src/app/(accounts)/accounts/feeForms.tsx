@@ -28,7 +28,7 @@ export function parseMoney(value: string): number | null {
 export function MoneyInput({ id, value, onChange, invalid, describedBy, autoFocus }: { id: string; value: string; onChange: (v: string) => void; invalid?: boolean; describedBy?: string; autoFocus?: boolean }) {
     return (
         <div className="relative mt-1.5">
-            <IndianRupee size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <IndianRupee size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
                 id={id}
                 type="number"

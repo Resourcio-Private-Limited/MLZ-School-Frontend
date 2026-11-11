@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Bell, FileText, GraduationCap, LogOut, ChevronLeft, ChevronRight, Loader2, Menu, School, X, type LucideIcon } from "lucide-react";
+import { Bell, FileText, GraduationCap, LogOut, MessageSquare, ChevronLeft, ChevronRight, Loader2, Menu, School, X, type LucideIcon } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -18,7 +18,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     { label: "Overview", items: [{ href: "/principal", label: "Classrooms", icon: School }] },
     { label: "School", items: [{ href: "/principal/teachers", label: "Teachers", icon: GraduationCap }] },
     { label: "Exams", items: [{ href: "/principal/admit-card", label: "Admit cards", icon: FileText }] },
-    { label: "Communication", items: [{ href: "/principal/noticeboard", label: "Notice board", icon: Bell }] },
+    {
+        label: "Communication",
+        items: [
+            { href: "/principal/messages", label: "Messages", icon: MessageSquare },
+            { href: "/principal/noticeboard", label: "Notice board", icon: Bell },
+        ],
+    },
 ];
 
 const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);

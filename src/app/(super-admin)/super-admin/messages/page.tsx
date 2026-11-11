@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronRight, MessageSquare, Plus, Search, Send } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiErrorMessage } from "@/lib/apiError";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
 import {
@@ -115,7 +116,7 @@ function PersonRow({ contact, conv, showClass, onOpen }: { contact: Contact; con
                             </time>
                         )}
                     </span>
-                    <span className={`mt-0.5 block truncate text-sm ${conv ? "text-gray-600" : "text-gray-400"}`}>
+                    <span className={`mt-0.5 block truncate text-sm ${conv ? "text-gray-600" : "text-gray-500"}`}>
                         {conv ? `${conv.direction === "sent" ? "You: " : ""}${conv.lastMessage}` : "No messages yet"}
                     </span>
                 </span>
@@ -267,8 +268,8 @@ export default function SuperAdminMessagesPage() {
         try {
             await sendMessage({ receiverId: threadId, content: text }).unwrap();
             setReply("");
-        } catch {
-            toast.error("Message not sent. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Message not sent. Check your connection and try again."));
         }
     };
 
@@ -299,8 +300,8 @@ export default function SuperAdminMessagesPage() {
             const name = contactById.get(composeTo)?.name;
             setComposeOpen(false);
             toast.success(name ? `Message sent to ${name}.` : "Message sent.");
-        } catch {
-            toast.error("Message not sent. Check your connection and try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Message not sent. Check your connection and try again."));
         }
     };
 
@@ -393,7 +394,7 @@ export default function SuperAdminMessagesPage() {
                     </div>
                     <div className="pb-3 lg:w-72 lg:pb-0">
                         <div className="relative">
-                            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                             <label htmlFor="message-search" className="sr-only">Search people</label>
                             <input
                                 id="message-search"
@@ -506,7 +507,7 @@ export default function SuperAdminMessagesPage() {
                                         </button>
                                         {getPageItems(currentPage, pageCount).map((n, i) =>
                                             n === "gap" ? (
-                                                <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-400">
+                                                <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-500">
                                                     &hellip;
                                                 </span>
                                             ) : (
@@ -571,7 +572,7 @@ export default function SuperAdminMessagesPage() {
                                                         <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
                                                         <time
                                                             dateTime={m.createdAt}
-                                                            className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-rose-100" : "text-gray-400"}`}
+                                                            className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-rose-100" : "text-gray-500"}`}
                                                         >
                                                             {clock(m.createdAt)}
                                                         </time>

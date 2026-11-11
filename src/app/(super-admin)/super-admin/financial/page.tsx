@@ -385,7 +385,7 @@ export default function FinancialOverviewPage() {
                             <>
                                 <div className="flex">
                                     {/* Y axis */}
-                                    <div aria-hidden="true" className="relative h-48 w-14 shrink-0 text-right text-xs tabular-nums text-gray-400">
+                                    <div aria-hidden="true" className="relative h-48 w-14 shrink-0 text-right text-xs tabular-nums text-gray-500">
                                         {[1, 0.5, 0].map((f) => (
                                             <span key={f} className="absolute right-3 -translate-y-1/2" style={{ top: `${(1 - f) * 100}%` }}>
                                                 {shortInr(ceiling * f)}
@@ -444,7 +444,7 @@ export default function FinancialOverviewPage() {
                                                             </span>
                                                             <span className={`relative block pb-1 pt-2 text-center text-xs tabular-nums ${active ? "font-semibold text-gray-900" : "text-gray-500"}`}>
                                                                 {monthName(t.ym, "short")}
-                                                                {showYear && <span className="block font-normal text-gray-400">{t.ym.y}</span>}
+                                                                {showYear && <span className="block font-normal text-gray-500">{t.ym.y}</span>}
                                                             </span>
                                                         </button>
                                                         <AnimatePresence>
@@ -580,7 +580,7 @@ export default function FinancialOverviewPage() {
                                         </button>
                                         {getPageItems(currentPage, pageCount).map((n, i) =>
                                             n === "gap" ? (
-                                                <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-400">
+                                                <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-500">
                                                     &hellip;
                                                 </span>
                                             ) : (

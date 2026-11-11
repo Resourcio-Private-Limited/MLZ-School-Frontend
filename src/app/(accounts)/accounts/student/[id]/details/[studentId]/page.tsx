@@ -225,7 +225,7 @@ export default function StudentFeesPage() {
                 </div>
                 <p className="text-sm tabular-nums text-gray-600">
                     <span className="font-semibold text-gray-900">{k.paidMonths}</span> of {monthsBilled} months paid in {year}
-                    {isFetching && <span className="ml-2 text-gray-400">Updating…</span>}
+                    {isFetching && <span className="ml-2 text-gray-500">Updating…</span>}
                 </p>
             </section>
 
@@ -576,7 +576,7 @@ function Detail({ label, value, numeric, className = "" }: { label: string; valu
     return (
         <div className={`min-w-0 ${className}`}>
             <dt className="text-sm text-gray-500">{label}</dt>
-            <dd className={`mt-0.5 break-words text-sm ${value ? "text-gray-900" : "text-gray-400"} ${numeric ? "tabular-nums" : ""}`}>{value || "Not added"}</dd>
+            <dd className={`mt-0.5 break-words text-sm ${value ? "text-gray-900" : "text-gray-500"} ${numeric ? "tabular-nums" : ""}`}>{value || "Not added"}</dd>
         </div>
     );
 }
@@ -721,7 +721,7 @@ function MonthDialog({
                 {label}
             </label>
             <div className="relative mt-1">
-                <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
+                <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">₹</span>
                 <input
                     id={`${uid}-${key}`}
                     type="number"
@@ -761,7 +761,7 @@ function MonthDialog({
                         {money("otherFees", "Other fees")}
                         <div>
                             <label htmlFor={`${uid}-remarks`} className="block text-sm font-medium text-gray-700">
-                                What the other fees are for <span className="font-normal text-gray-400">(optional)</span>
+                                What the other fees are for <span className="font-normal text-gray-500">(optional)</span>
                             </label>
                             <input
                                 id={`${uid}-remarks`}

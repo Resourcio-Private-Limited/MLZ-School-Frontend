@@ -301,7 +301,7 @@ export default function AnalysisPage() {
                             <>
                                 <div className="flex">
                                     {/* Y axis */}
-                                    <div aria-hidden="true" className="relative h-48 w-12 shrink-0 text-right text-xs tabular-nums text-gray-400 sm:w-14">
+                                    <div aria-hidden="true" className="relative h-48 w-12 shrink-0 text-right text-xs tabular-nums text-gray-500 sm:w-14">
                                         {[1, 0.5, 0].map((f) => (
                                             <span key={f} className="absolute right-2 -translate-y-1/2 sm:right-3" style={{ top: `${(1 - f) * 100}%` }}>
                                                 {shortInr(ceiling * f)}
@@ -359,7 +359,7 @@ export default function AnalysisPage() {
                                                             </span>
                                                             <span className={`relative block pb-1 pt-2 text-center text-xs tabular-nums ${active ? "font-semibold text-gray-900" : "text-gray-500"}`}>
                                                                 {monthName(t.ym, "short")}
-                                                                {showYear && <span className="block font-normal text-gray-400">{t.ym.y}</span>}
+                                                                {showYear && <span className="block font-normal text-gray-500">{t.ym.y}</span>}
                                                             </span>
                                                         </button>
                                                         <AnimatePresence>

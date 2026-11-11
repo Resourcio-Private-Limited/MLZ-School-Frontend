@@ -244,6 +244,56 @@ const notices = Array.from({ length: 14 }, (_, i) => {
     };
 });
 
+
+// ─── Messages (GET /principal/message-recipients and the operations conversation endpoints) ───
+const recipients = [
+    { id: "u-sa-1", role: "SUPER_ADMIN", name: "Arindam Sen" },
+    { id: "u-acc-1", role: "ACCOUNTANT", name: "Partha Sarathi Ghosh" },
+    ...teachers.filter((t) => t.isActive).map((t, i) => ({ id: `u-t-${i + 1}`, role: "TEACHER", name: t.fullName })),
+].sort((a, b) => ({ SUPER_ADMIN: 0, ACCOUNTANT: 1, TEACHER: 2 })[a.role] - ({ SUPER_ADMIN: 0, ACCOUNTANT: 1, TEACHER: 2 })[b.role] || a.name.localeCompare(b.name));
+const msgAgo = (h) => new Date(Date.now() - h * 3600_000).toISOString();
+const studentPartners = [
+    { id: "u-s-1", email: "priya.bose.597@student.mlzs.in" },
+    { id: "u-s-2", email: "arjun.saha.201@student.mlzs.in" },
+    { id: "u-s-3", email: "sneha.ghosh.202@student.mlzs.in" },
+];
+const threads = {
+    "u-t-3": [
+        { from: "u-t-3", text: "Good morning. The half-yearly marks for Class 7 B are complete; please open entry for the final exam when ready.", h: 30 },
+        { from: me, text: "Thank you. I'll open final-exam entry after the review meeting on Friday.", h: 26 },
+    ],
+    "u-acc-1": [{ from: "u-acc-1", text: "Fee collection for November stands at 67%. Reminders go out to parents of Class 9 tomorrow.", h: 5 }],
+    "u-sa-1": [{ from: me, text: "Please share the revised transport routes before the parent-teacher meeting.", h: 50 }],
+    "u-s-1": [{ from: "u-s-1", text: "Respected Ma'am, may I submit my science project after the Diwali break? I was unwell last week.", h: 2 }],
+    "u-s-2": [
+        { from: "u-s-2", text: "Ma'am, my admit card shows the wrong roll number.", h: 72 },
+        { from: me, text: "Thank you, Arjun. The office has corrected it; please download it again.", h: 70 },
+    ],
+    "u-s-3": [{ from: "u-s-3", text: "Ma'am, I would like to join the inter-school quiz team.", h: 120 }],
+};
+const roleOf = (id) => recipients.find((r) => r.id === id)?.role ?? (id === me ? "PRINCIPAL" : "STUDENT");
+const emailOf = (id) => studentPartners.find((s) => s.id === id)?.email ?? (id === me ? "principal@mlzs.in" : `${id}@mlzs.in`);
+const conversations = Object.entries(threads)
+    .map(([other, list]) => {
+        const last = list[list.length - 1];
+        return { otherUserId: other, otherUserRole: roleOf(other), lastMessage: last.text, lastMessageAt: msgAgo(last.h), direction: last.from === me ? "sent" : "received" };
+    })
+    .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+function thread(other) {
+    return (threads[other] ?? []).map((m, i) => {
+        const to = m.from === me ? other : me;
+        return {
+            id: `${other}-${i}`,
+            createdAt: msgAgo(m.h),
+            content: m.text,
+            senderId: m.from,
+            receiverId: to,
+            sender: { id: m.from, email: emailOf(m.from), role: roleOf(m.from) },
+            receiver: { id: to, email: emailOf(to), role: roleOf(to) },
+        };
+    });
+}
+
 const classroomById = (id) => classrooms.find((c) => c.id === id) ?? classrooms[0];
 const order = classrooms.map((c) => c.id);
 
@@ -267,6 +317,9 @@ function respond(url) {
     if ((m = p.match(/^\/principal\/students\/([^/]+)\/admit-card-preview$/))) return admitPreview(m[1], u.searchParams.get("examType") || "HALF_YEARLY");
     if ((m = p.match(/^\/accounts\/students\/([^/]+)$/))) return studentDetail(m[1]);
     if (p === "/operations/notices") return notices;
+    if (p === "/principal/message-recipients") return recipients;
+    if (p === "/operations/conversations") return conversations;
+    if (p === "/operations/conversation") return thread(u.searchParams.get("otherUserId"));
     unknown.add(p);
     return [];
 }
@@ -278,6 +331,7 @@ function respondWrite(method, url, body) {
     if (p === "/upload/profile-image") return { success: true, imageUrl: body?.imageUrl ?? "" };
     if (/\/roll-arrange$/.test(p)) return { count: 30 };
     if (p === "/principal/exam-schedule") return body?.schedule ?? [];
+    if (p === "/operations/message") return { id: "m-new", content: body?.content ?? "", senderId: me, receiverId: body?.receiverId ?? "" };
     return { id: "new", success: true, count: 1, ...(body && typeof body === "object" ? body : {}) };
 }
 

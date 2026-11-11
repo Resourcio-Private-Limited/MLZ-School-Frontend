@@ -11,9 +11,10 @@ const ALL = "__all__";
 
 function AnnouncementsContent() {
     const searchParams = useSearchParams();
-    // The classroom page passes ?classroomId=; fall back to the student's own classroom when it's missing.
+    // Always the student's own classroom, so direct links and bookmarks work and a changed
+    // ?classroomId= can't show another class. The parameter only fills in while the dashboard loads.
     const { data: dashboard, isLoading: dashLoading } = useGetDashboardQuery();
-    const classroomId = searchParams.get("classroomId") || dashboard?.classroom?.id || "";
+    const classroomId = dashboard?.classroom?.id ?? searchParams.get("classroomId") ?? "";
 
     const annQ = useGetAnnouncementsQuery(classroomId, { skip: !classroomId });
     const { data: teachers = [] } = useGetClassroomTeachersQuery(classroomId, { skip: !classroomId });
@@ -59,7 +60,7 @@ function AnnouncementsContent() {
                                 className={`inline-flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium motion-safe:transition-colors ${focusRing} ${active ? "bg-sky-50 text-gray-900 ring-1 ring-sky-100" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
                             >
                                 {name === ALL ? "All teachers" : name}
-                                <span className={`text-xs tabular-nums ${active ? "text-sky-700" : "text-gray-400"}`}>
+                                <span className={`text-xs tabular-nums ${active ? "text-sky-700" : "text-gray-500"}`}>
                                     {loading ? "…" : name === ALL ? announcements.length : countFor(name)}
                                 </span>
                             </button>
@@ -83,7 +84,7 @@ function AnnouncementsContent() {
                             type="button"
                             onClick={() => updateSearch("")}
                             aria-label="Clear search"
-                            className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                            className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
                         >
                             <X size={14} aria-hidden="true" />
                         </button>

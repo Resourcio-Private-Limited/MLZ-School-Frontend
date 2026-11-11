@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("@playwright/test");
-const { respond, me } = require("./student-mock");
+const { respond, me, state } = require("./student-mock");
 
 const OUT = process.argv[2];
 const W = Number(process.argv[3] || 390);
@@ -15,7 +15,9 @@ const wait = (p, ms = 450) => p.waitForTimeout(ms);
 const btn = (p, name) => p.getByRole("button", { name }).first();
 
 const S = [];
-const add = (folder, file, route, steps = async () => {}, full = false) => S.push({ folder, file, route, steps, full });
+// mock: values for the mock's state during this scenario (for example { reportReleased: false }).
+const add = (folder, file, route, steps = async () => {}, full = false, mock = {}) => S.push({ folder, file, route, steps, full, mock });
+const MOCK_DEFAULTS = { ...state };
 
 add("00-navigation", "01-top-bar", "");
 add("00-navigation", "02-menu-open", "", async (p) => btn(p, /open menu/i).click());
@@ -52,6 +54,8 @@ add("05-exams", "01-upcoming", "/exams", async () => {}, true);
 add("05-exams", "02-past", "/exams", async (p) => p.getByRole("tab", { name: /past/i }).click(), true);
 add("05-exams", "03-admit-cards", "/admit-cards", async () => {}, true);
 add("05-exams", "04-admit-card-preview", "/admit-cards", async (p) => btn(p, /^preview$/i).click());
+add("05-exams", "05-results", "/results", async () => {}, true);
+add("05-exams", "06-results-not-published", "/results", async () => {}, true, { reportReleased: false });
 
 add("06-payment", "01-payment-full", "/payment", async () => {}, true);
 add("06-payment", "02-months-selected", "/payment", async (p) => {
@@ -60,6 +64,12 @@ add("06-payment", "02-months-selected", "/payment", async (p) => {
     await boxes.nth(1).check();
     await wait(p);
 }, false);
+// Months are paid in order: choosing a later month also chooses the unpaid months before it.
+add("06-payment", "05-later-month-picks-earlier", "/payment", async (p) => {
+    await p.getByRole("checkbox").nth(2).check();
+    await wait(p);
+}, true);
+add("06-payment", "06-order-hint", "/payment", async () => {}, false);
 add("06-payment", "03-all-months", "/payment", async (p) => p.getByRole("group", { name: /show months/i }).getByRole("button", { name: /^all months/i }).click(), true);
 add("06-payment", "04-receipt", "/payment", async (p) => {
     await p.getByRole("group", { name: /show months/i }).getByRole("button", { name: /^paid/i }).click();
@@ -93,6 +103,7 @@ add("07-profile", "02-change-password", "/profile/reset-password", async (p) => 
     let n = 0;
     for (const s of S.filter((x) => !ONLY || `${x.folder}/${x.file}`.includes(ONLY))) {
         try {
+            Object.assign(state, MOCK_DEFAULTS, s.mock);
             await page.goto(`${BASE}${s.route}`, { waitUntil: "networkidle" });
             await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
             await wait(page, 600);

@@ -124,7 +124,7 @@ export default function StudentNoticeBoardPage() {
                                         />
                                     )}
                                     <span className="relative">{f.label}</span>
-                                    <span className={`relative text-xs tabular-nums ${active ? "text-sky-700" : "text-gray-400"}`}>{isLoading ? "…" : f.count}</span>
+                                    <span className={`relative text-xs tabular-nums ${active ? "text-sky-700" : "text-gray-500"}`}>{isLoading ? "…" : f.count}</span>
                                 </button>
                             );
                         })}
@@ -146,7 +146,7 @@ export default function StudentNoticeBoardPage() {
                                 type="button"
                                 onClick={() => updateSearch("")}
                                 aria-label="Clear search"
-                                className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                                className={`absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
                             >
                                 <X size={14} aria-hidden="true" />
                             </button>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronRight, Search, X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
+import { apiErrorMessage } from "@/lib/apiError";
 
 // Shared building blocks for the Accounts portal pages. Yellow is the portal accent.
 // White text on yellow fails contrast, so filled yellow surfaces (primary buttons, the current page, tab underline) use yellow-400 with dark text,
@@ -123,7 +124,7 @@ export function Pager({ total, page, pageCount, onPage }: { total: number; page:
                     </button>
                     {getPageItems(page, pageCount).map((n, i) =>
                         n === "gap" ? (
-                            <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-400">
+                            <span key={`gap-${i}`} aria-hidden="true" className="flex h-9 w-9 select-none items-center justify-center text-sm text-gray-500">
                                 &hellip;
                             </span>
                         ) : (
@@ -235,9 +236,7 @@ export function readAuthUser(): { id: string } {
 
 /** Pulls a readable message out of an RTK Query error, or falls back to the given text. */
 export function errorMessage(err: unknown, fallback: string) {
-    const e = err as { data?: { message?: string | string[] } };
-    const m = e?.data?.message;
-    return (Array.isArray(m) ? m[0] : m) || fallback;
+    return apiErrorMessage(err, fallback);
 }
 
 /** Segmented filter with a sliding highlight. Buttons carry aria-pressed. */
@@ -268,7 +267,7 @@ export function FilterChips<T extends string>({
                     >
                         {active && <ActiveChip layoutId={layoutId} />}
                         <span className="relative">{o.label}</span>
-                        {o.count !== undefined && <span className={`relative text-xs tabular-nums ${active ? "text-yellow-700" : "text-gray-400"}`}>{o.count}</span>}
+                        {o.count !== undefined && <span className={`relative text-xs tabular-nums ${active ? "text-yellow-700" : "text-gray-500"}`}>{o.count}</span>}
                     </button>
                 );
             })}
@@ -365,7 +364,7 @@ export function Tabs<T extends string>({
 export function SearchBox({ id, label, value, onChange, placeholder, className = "" }: { id: string; label: string; value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
     return (
         <div className={`relative ${className}`}>
-            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <label htmlFor={id} className="sr-only">{label}</label>
             <input
                 id={id}
@@ -383,7 +382,7 @@ export function SearchBox({ id, label, value, onChange, placeholder, className =
                     type="button"
                     onClick={() => onChange("")}
                     aria-label="Clear search"
-                    className={`absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                    className={`absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
                 >
                     <X size={14} aria-hidden="true" />
                 </button>
