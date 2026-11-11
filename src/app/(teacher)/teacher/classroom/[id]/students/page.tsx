@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Users } from "lucide-react";
 import { useGetClassStudentsQuery, useGetTeacherClassesQuery, type ClassStudent } from "@/redux/api/teacherApi";
+import { byRoll, rollOf } from "@/lib/roll";
 import {
     AttendanceBadge,
     EmptyState,
@@ -22,7 +23,6 @@ import {
 type Filter = "ALL" | "PRESENT" | "ABSENT" | "UNMARKED";
 
 const statusOf = (s: ClassStudent): Exclude<Filter, "ALL"> => (s.attendance === "PRESENT" ? "PRESENT" : s.attendance === "ABSENT" ? "ABSENT" : "UNMARKED");
-const byRoll = (a: ClassStudent, b: ClassStudent) => (a.rollNumber ?? "~").localeCompare(b.rollNumber ?? "~", "en-IN", { numeric: true }) || a.fullName.localeCompare(b.fullName);
 
 export default function StudentListPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
@@ -37,7 +37,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
     const q = search.trim().toLowerCase();
     const rows = [...students]
         .sort(byRoll)
-        .filter((s) => (filter === "ALL" || statusOf(s) === filter) && (!q || s.fullName.toLowerCase().includes(q) || (s.rollNumber ?? "").toLowerCase().includes(q)));
+        .filter((s) => (filter === "ALL" || statusOf(s) === filter) && (!q || s.fullName.toLowerCase().includes(q) || (rollOf(s) ?? "").toLowerCase().includes(q)));
     const { pageCount, current, pageRows } = paginate(rows, page);
     const count = (f: Exclude<Filter, "ALL">) => students.filter((s) => statusOf(s) === f).length;
     const messageHref = (s: ClassStudent) => `/teacher/messages?class=${encodeURIComponent(classroomId)}&to=${encodeURIComponent(s.userId)}`;
@@ -94,7 +94,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                                     <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700">{initials(s.fullName)}</span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-medium text-gray-900">{s.fullName}</p>
-                                        <p className="text-sm tabular-nums text-gray-500">Roll {s.rollNumber ?? "not set"}</p>
+                                        <p className="text-sm tabular-nums text-gray-500">Roll {rollOf(s) ?? "not set"}</p>
                                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-600">
                                             <AttendanceBadge status={s.attendance} />
                                             <span>Grade {s.overallGrade ?? <span className="text-gray-400">not yet</span>}</span>
@@ -124,7 +124,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                                 <tbody className="divide-y divide-gray-100">
                                     {pageRows.map((s) => (
                                         <tr key={s.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-3.5 tabular-nums text-gray-600">{s.rollNumber ?? "—"}</td>
+                                            <td className="px-6 py-3.5 tabular-nums text-gray-600">{rollOf(s) ?? "—"}</td>
                                             <td className="px-6 py-3.5">
                                                 <span className="flex items-center gap-3">
                                                     <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700">{initials(s.fullName)}</span>

@@ -66,6 +66,7 @@ export interface ClassStudent {
   userId: string;
   fullName: string;
   rollNumber: string | null;
+  classRoll?: number | null;
   attendance: string | null;
   overallGrade: string | null;
   lastExam: { name: string; examDate: string } | null;
@@ -127,6 +128,8 @@ export interface AttendanceByDateRecord {
   studentId: string;
   fullName: string;
   rollNumber: string;
+  // Class roll (1, 2, 3…), the same number marks entry shows. Null when not assigned.
+  classRoll?: number | null;
   status: 'PRESENT' | 'ABSENT';
 }
 

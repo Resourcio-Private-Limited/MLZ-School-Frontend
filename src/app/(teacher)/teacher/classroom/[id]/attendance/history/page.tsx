@@ -238,7 +238,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                                     ) : (
                                         records.map((r) => (
                                             <li key={r.studentId} className="flex items-center gap-3 px-4 py-3 sm:px-6">
-                                                <span className="w-10 shrink-0 text-sm tabular-nums text-gray-500">{r.rollNumber}</span>
+                                                <span className="w-10 shrink-0 text-sm tabular-nums text-gray-500">{r.classRoll ?? r.rollNumber}</span>
                                                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{r.fullName}</span>
                                                 <AttendanceBadge status={r.status} />
                                             </li>

@@ -33,14 +33,13 @@ import {
     secondaryBtn,
 } from "@/components/teacher/ui";
 import { todayLocal } from "@/lib/dates";
+import { byRoll, rollOf } from "@/lib/roll";
 
 type Filter = "ALL" | "PRESENT" | "ABSENT";
 
 // The backend groups attendance by the UTC calendar day, so "today" uses the same key.
 // Local date, not UTC: before 5:30 am in India the UTC date is still yesterday.
 const todayKey = () => todayLocal();
-const byRoll = (a: { rollNumber: string | null; fullName: string }, b: { rollNumber: string | null; fullName: string }) =>
-    (a.rollNumber ?? "~").localeCompare(b.rollNumber ?? "~", "en-IN", { numeric: true }) || a.fullName.localeCompare(b.fullName);
 
 function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
     return (
@@ -83,7 +82,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const q = search.trim().toLowerCase();
-    const visible = records.filter((r) => (filter === "ALL" || r.status === filter) && (!q || r.fullName.toLowerCase().includes(q) || (r.rollNumber ?? "").toLowerCase().includes(q)));
+    const visible = records.filter((r) => (filter === "ALL" || r.status === filter) && (!q || r.fullName.toLowerCase().includes(q) || (rollOf(r) ?? "").toLowerCase().includes(q)));
     const { pageCount, current, pageRows } = paginate(visible, page);
 
     // Marking dialog: everyone starts present; the teacher switches off the absentees.
@@ -92,7 +91,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
     const [absent, setAbsent] = useState<Set<string>>(new Set());
     const [markSearch, setMarkSearch] = useState("");
     const mq = markSearch.trim().toLowerCase();
-    const markRows = students.filter((s) => !mq || s.fullName.toLowerCase().includes(mq) || (s.rollNumber ?? "").toLowerCase().includes(mq));
+    const markRows = students.filter((s) => !mq || s.fullName.toLowerCase().includes(mq) || (rollOf(s) ?? "").toLowerCase().includes(mq));
     const absentees = students.filter((s) => absent.has(s.id));
 
     const openMarking = () => {
@@ -126,8 +125,8 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
 
     const download = () => {
         const rows: (string | number)[][] = [["Roll", "Student", "Status", "Date"]];
-        if (markedToday) records.forEach((r) => rows.push([r.rollNumber ?? "", r.fullName, r.status === "PRESENT" ? "Present" : "Absent", date]));
-        else students.forEach((s) => rows.push([s.rollNumber ?? "", s.fullName, "Not marked", date]));
+        if (markedToday) records.forEach((r) => rows.push([rollOf(r) ?? "", r.fullName, r.status === "PRESENT" ? "Present" : "Absent", date]));
+        else students.forEach((s) => rows.push([rollOf(s) ?? "", s.fullName, "Not marked", date]));
         const sheet = XLSX.utils.aoa_to_sheet(rows);
         const book = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(book, sheet, "Attendance");
@@ -280,7 +279,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                     const isPresent = !absent.has(s.id);
                                     return (
                                         <li key={s.id} className="flex items-center gap-3 px-4 py-3 sm:px-6">
-                                            <span className="w-10 shrink-0 text-sm tabular-nums text-gray-500">{s.rollNumber ?? "—"}</span>
+                                            <span className="w-10 shrink-0 text-sm tabular-nums text-gray-500">{rollOf(s) ?? "—"}</span>
                                             <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">{s.fullName}</span>
                                             <span className={`w-14 text-right text-sm font-medium ${isPresent ? "text-emerald-700" : "text-red-700"}`}>{isPresent ? "Present" : "Absent"}</span>
                                             <Switch on={isPresent} onToggle={() => toggle(s.id)} label={`${s.fullName} present`} />
@@ -319,7 +318,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                     <ul className="mt-2 flex flex-wrap gap-2">
                                         {absentees.map((s) => (
                                             <li key={s.id} className="rounded-full bg-red-50 px-2.5 py-1 text-sm text-red-800 ring-1 ring-red-100">
-                                                {s.rollNumber ? `${s.rollNumber}. ` : ""}
+                                                {rollOf(s) ? `${rollOf(s)}. ` : ""}
                                                 {s.fullName}
                                             </li>
                                         ))}
@@ -353,7 +352,7 @@ function RegisterList({ rows }: { rows: (Omit<AttendanceByDateRecord, "rollNumbe
                         <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-xs font-semibold text-emerald-700">{initials(r.fullName)}</span>
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium text-gray-900">{r.fullName}</span>
-                            <span className="block text-sm tabular-nums text-gray-500">Roll {r.rollNumber ?? "not set"}</span>
+                            <span className="block text-sm tabular-nums text-gray-500">Roll {r.classRoll ?? r.rollNumber ?? "not set"}</span>
                         </span>
                         <AttendanceBadge status={r.status} />
                     </li>
@@ -370,7 +369,7 @@ function RegisterList({ rows }: { rows: (Omit<AttendanceByDateRecord, "rollNumbe
                 <tbody className="divide-y divide-gray-100">
                     {rows.map((r) => (
                         <tr key={r.studentId} className="hover:bg-gray-50">
-                            <td className="px-6 py-3 tabular-nums text-gray-600">{r.rollNumber ?? "—"}</td>
+                            <td className="px-6 py-3 tabular-nums text-gray-600">{r.classRoll ?? r.rollNumber ?? "—"}</td>
                             <td className="px-6 py-3 font-medium text-gray-900">{r.fullName}</td>
                             <td className="px-6 py-3"><AttendanceBadge status={r.status} /></td>
                         </tr>
