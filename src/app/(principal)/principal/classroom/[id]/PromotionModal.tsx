@@ -1,258 +1,243 @@
 "use client";
 
-import { useState } from "react";
-import { X, UserCheck } from "lucide-react";
-import toast from 'react-hot-toast';
-import { usePromoteStudentsMutation, useGetNextClassroomsQuery } from "@/redux/api/principalApi";
+import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { AlertTriangle, ArrowRight, UserCheck } from "lucide-react";
+import { usePromoteStudentsMutation, useGetNextClassroomsQuery, type ClassroomStudent, type ClassroomSummary } from "@/redux/api/principalApi";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { SearchBox, Skeleton, errorMessage, inputClass, primaryBtn, secondaryBtn } from "@/components/principal/ui";
 
-type Student = {
-    id: string;
-    admissionNo: string;
-    fullName: string;
-    averageMarks?: number;
-    feeStatus?: 'CLEARED' | 'PENDING' | 'OVERDUE';
-};
+type Step = "choose" | "confirm";
 
-type Classroom = {
-    id: string;
-    name: string;
-    grade?: string;
-};
-
+/** Two steps: pick the students and the class they move to, then confirm. */
 export default function PromotionModal({
+    open,
     classroom,
     students,
     onClose,
     onSuccess,
 }: {
-    classroom: Classroom;
-    students: Student[];
+    open: boolean;
+    classroom: ClassroomSummary;
+    students: ClassroomStudent[];
     onClose: () => void;
     onSuccess: () => void;
 }) {
-    const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-    const [targetClassroomId, setTargetClassroomId] = useState<string>("");
+    return (
+        <Dialog open={open} onClose={onClose} labelledBy="promote-title" className="sm:max-w-2xl">
+            <PromotionBody classroom={classroom} students={students} onClose={onClose} onSuccess={onSuccess} />
+        </Dialog>
+    );
+}
 
-    const { data: allClassrooms = [], isLoading: loadingClassrooms } = useGetNextClassroomsQuery(classroom.id);
-    const [promoteStudents, { isLoading: isPromoting }] = usePromoteStudentsMutation();
+function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom: ClassroomSummary; students: ClassroomStudent[]; onClose: () => void; onSuccess: () => void }) {
+    const [step, setStep] = useState<Step>("choose");
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [targetId, setTargetId] = useState("");
+    const [search, setSearch] = useState("");
 
-    // Group classrooms by grade for display
-    const classroomsByGrade = allClassrooms.reduce<Record<string, typeof allClassrooms>>((acc, cls) => {
-        if (!acc[cls.grade]) acc[cls.grade] = [];
-        acc[cls.grade].push(cls);
-        return acc;
-    }, {});
+    const { data: classrooms = [], isLoading: loadingClassrooms, isError: classroomsError } = useGetNextClassroomsQuery(classroom.id);
+    const [promoteStudents, { isLoading: promoting }] = usePromoteStudentsMutation();
 
-    const selectedClassroom = allClassrooms.find((c) => c.id === targetClassroomId);
+    const target = classrooms.find((c) => c.id === targetId);
+    const seatsLeft = target ? target.capacity - target.total : 0;
+    const overCapacity = !!target && selected.size > seatsLeft;
 
-    const toggleStudent = (studentId: string) => {
-        setSelectedStudents((prev) =>
-            prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId],
-        );
-    };
+    const byGrade = useMemo(() => {
+        const groups = new Map<string, ClassroomSummary[]>();
+        for (const c of classrooms) groups.set(c.grade, [...(groups.get(c.grade) ?? []), c]);
+        return [...groups.entries()].sort(([a], [b]) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b));
+    }, [classrooms]);
 
-    const selectAll = () => {
-        setSelectedStudents(students.map((s) => s.id));
-    };
+    const sorted = useMemo(
+        () => [...students].sort((a, b) => (a.classRoll ?? Infinity) - (b.classRoll ?? Infinity) || a.fullName.localeCompare(b.fullName)),
+        [students]
+    );
+    const visible = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return q ? sorted.filter((s) => s.fullName.toLowerCase().includes(q) || s.admissionNo.toLowerCase().includes(q)) : sorted;
+    }, [sorted, search]);
 
-    const deselectAll = () => {
-        setSelectedStudents([]);
-    };
+    const toggle = (id: string) =>
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
 
-    const handlePromote = async () => {
-        if (selectedStudents.length === 0) {
-            toast.error("Please select at least one student to promote");
-            return;
-        }
-        if (!targetClassroomId) {
-            toast.error("Please select a target classroom");
-            return;
-        }
+    const allVisibleSelected = visible.length > 0 && visible.every((s) => selected.has(s.id));
+    const toggleVisible = () =>
+        setSelected((prev) => {
+            const next = new Set(prev);
+            for (const s of visible) {
+                if (allVisibleSelected) next.delete(s.id);
+                else next.add(s.id);
+            }
+            return next;
+        });
 
+    const promote = async () => {
+        if (!target || selected.size === 0) return;
         try {
-            await promoteStudents({ studentIds: selectedStudents, targetClassroomId }).unwrap();
-            toast.success(`${selectedStudents.length} student(s) promoted successfully!`);
+            await promoteStudents({ studentIds: [...selected], targetClassroomId: target.id }).unwrap();
+            toast.success(`${selected.size} ${selected.size === 1 ? "student" : "students"} promoted to ${target.name}.`);
             onSuccess();
             onClose();
-        } catch (err: any) {
-            toast.error(err?.data?.message ?? "Failed to promote students. Please try again.");
+        } catch (err) {
+            toast.error(errorMessage(err, "Couldn't promote the students. Nothing was changed, so you can try again."));
         }
     };
 
+    const plural = (n: number) => `${n} ${n === 1 ? "student" : "students"}`;
+
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="p-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <UserCheck size={32} />
-                            <div>
-                                <h2 className="text-2xl font-bold">Promote Students</h2>
-                                <p className="text-sm opacity-90 mt-1">
-                                    From {classroom.name}
-                                    {selectedClassroom ? ` → ${selectedClassroom.name}` : ' — select a target classroom below'}
-                                </p>
+        <>
+            <DialogHeader
+                id="promote-title"
+                title={step === "choose" ? "Promote students" : "Confirm promotion"}
+                subtitle={step === "choose" ? `From ${classroom.name}` : `${classroom.name} to ${target?.name ?? ""}`}
+                onClose={onClose}
+                accent="purple"
+            />
+
+            {step === "choose" ? (
+                <>
+                    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                        <div>
+                            <label htmlFor="promote-target" className="block text-sm font-medium text-gray-900">
+                                Move to
+                            </label>
+                            <p id="promote-target-hint" className="mt-0.5 text-sm text-gray-500">
+                                Full classes can&apos;t be chosen.
+                            </p>
+                            {loadingClassrooms ? (
+                                <Skeleton className="mt-2 block h-10 w-full" />
+                            ) : classroomsError ? (
+                                <p className="mt-2 text-sm text-red-700">The list of classes couldn&apos;t be loaded. Close this and try again.</p>
+                            ) : classrooms.length === 0 ? (
+                                <p className="mt-2 text-sm text-gray-500">There&apos;s no class to promote into yet. Create the next class from Classrooms first.</p>
+                            ) : (
+                                <select id="promote-target" aria-describedby="promote-target-hint" value={targetId} onChange={(e) => setTargetId(e.target.value)} className={`${inputClass} mt-2`}>
+                                    <option value="">Choose a class</option>
+                                    {byGrade.map(([grade, list]) => (
+                                        <optgroup key={grade} label={`Grade ${grade}`}>
+                                            {list.map((c) => {
+                                                const left = c.capacity - c.total;
+                                                return (
+                                                    <option key={c.id} value={c.id} disabled={left <= 0}>
+                                                        {c.name}, {left <= 0 ? "full" : `${left} ${left === 1 ? "seat" : "seats"} left`}
+                                                    </option>
+                                                );
+                                            })}
+                                        </optgroup>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        <fieldset>
+                            <legend className="text-sm font-medium text-gray-900">Students</legend>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <SearchBox id="promote-search" label="Search students to promote" value={search} onChange={setSearch} placeholder="Search by name or admission number" className="min-w-0 flex-1" />
+                                <button type="button" onClick={toggleVisible} disabled={visible.length === 0} className={secondaryBtn}>
+                                    {allVisibleSelected ? (search ? "Clear these" : "Clear all") : search ? `Select these (${visible.length})` : `Select all (${visible.length})`}
+                                </button>
                             </div>
-                        </div>
-                        <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                            <X size={24} />
-                        </button>
+                            <p className="mt-2 text-sm tabular-nums text-gray-500" aria-live="polite">
+                                {plural(selected.size)} selected of {students.length}
+                            </p>
+                            {visible.length === 0 ? (
+                                <p className="mt-2 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">No students match that search.</p>
+                            ) : (
+                                <ul className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200">
+                                    {visible.map((s) => {
+                                        const checked = selected.has(s.id);
+                                        return (
+                                            <li key={s.id}>
+                                                <label className={`flex cursor-pointer items-center gap-3 px-4 py-3 motion-safe:transition-colors ${checked ? "bg-purple-50/60" : "hover:bg-gray-50"}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={() => toggle(s.id)}
+                                                        className="h-4 w-4 shrink-0 rounded border-gray-300 accent-purple-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                                                    />
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate text-sm font-medium text-gray-900">{s.fullName}</span>
+                                                        <span className="block text-sm tabular-nums text-gray-500">
+                                                            {s.classRoll != null ? `Roll ${s.classRoll}, ` : ""}
+                                                            {s.admissionNo}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </fieldset>
                     </div>
-                </div>
-
-                {/* Summary Cards */}
-                <div className="p-6 bg-gray-50 border-b grid grid-cols-3 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-600 text-sm font-medium">Total Students</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-1">{students.length}</p>
-                    </div>
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                        <p className="text-green-600 text-sm font-medium">Selected</p>
-                        <p className="text-3xl font-bold text-green-700 mt-1">{selectedStudents.length}</p>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-600 text-sm font-medium">Target Classroom</p>
-                        <p className="text-xl font-bold text-gray-900 mt-1 truncate">
-                            {selectedClassroom ? selectedClassroom.name : 'Not selected'}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Target Classroom Selection — Dropdown */}
-                <div className="px-6 py-4 bg-gray-50 border-b">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Select Target Classroom <span className="text-red-500">*</span>
-                    </label>
-                    {loadingClassrooms ? (
-                        <p className="text-sm text-gray-500">Loading classrooms...</p>
-                    ) : allClassrooms.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">No other classrooms available.</p>
-                    ) : (
-                        <select
-                            value={targetClassroomId}
-                            onChange={(e) => setTargetClassroomId(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 bg-white focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition"
-                        >
-                            <option value="">— Choose a classroom —</option>
-                            {Object.entries(classroomsByGrade)
-                                .sort(([a], [b]) => Number(a) - Number(b))
-                                .map(([grade, classrooms]) => (
-                                    <optgroup key={grade} label={`Grade ${grade}`}>
-                                        {classrooms.map((cls) => {
-                                            const seatsLeft = cls.capacity - cls.total;
-                                            const isFull = seatsLeft <= 0;
-                                            return (
-                                                <option key={cls.id} value={cls.id} disabled={isFull}>
-                                                    {cls.name} ({cls.total}/{cls.capacity})
-                                                    {isFull ? ' — FULL' : ` · ${seatsLeft} seats left`}
-                                                </option>
-                                            );
-                                        })}
-                                    </optgroup>
-                                ))}
-                        </select>
-                    )}
-                    {selectedClassroom && (
-                        <p className="mt-2 text-sm text-green-700 font-medium">
-                            Selected: {selectedClassroom.name} &mdash; {selectedClassroom.total}/{selectedClassroom.capacity} enrolled
+                    {overCapacity && (
+                        <p className="flex items-center gap-1.5 border-t border-gray-200 bg-amber-50 px-6 py-2.5 text-sm text-amber-900">
+                            <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
+                            {target?.name} has only {seatsLeft} {seatsLeft === 1 ? "seat" : "seats"} left.
                         </p>
                     )}
-                </div>
-
-                {/* Student Selection Bar */}
-                <div className="p-4 bg-gray-50 border-b flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={selectAll}
-                            className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition text-sm font-medium"
-                        >
-                            Select All ({students.length})
+                    <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+                        <button type="button" onClick={onClose} className={secondaryBtn}>
+                            Cancel
                         </button>
-                        <button
-                            onClick={deselectAll}
-                            className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
-                        >
-                            Deselect All
+                        <button type="button" onClick={() => setStep("confirm")} disabled={!target || selected.size === 0} className={primaryBtn}>
+                            Review
                         </button>
                     </div>
-                    <div className="text-sm text-gray-600">
-                        <span className="font-semibold text-gray-900">{selectedStudents.length}</span> selected
-                    </div>
-                </div>
-
-                {/* Student List */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    {students.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            <UserCheck size={48} className="mx-auto text-gray-300 mb-3" />
-                            <p className="font-medium">No students in this classroom</p>
+                </>
+            ) : (
+                <>
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                        <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-4 text-sm">
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-gray-500">From</span>
+                                <span className="block truncate font-medium text-gray-900">{classroom.name}</span>
+                            </span>
+                            <ArrowRight size={18} aria-hidden="true" className="shrink-0 text-gray-400" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-gray-500">To</span>
+                                <span className="block truncate font-medium text-gray-900">{target?.name}</span>
+                            </span>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {students.map((student) => (
-                                <label
-                                    key={student.id}
-                                    className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition ${
-                                        selectedStudents.includes(student.id)
-                                            ? 'border-green-500 bg-green-50'
-                                            : 'border-gray-200 bg-white hover:border-green-300'
-                                    }`}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedStudents.includes(student.id)}
-                                        onChange={() => toggleStudent(student.id)}
-                                        className="w-5 h-5 text-green-600 rounded focus:ring-green-500 shrink-0"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-gray-900 truncate">{student.fullName}</p>
-                                        <p className="text-sm text-gray-600 font-mono">{student.admissionNo}</p>
-                                    </div>
-                                    {student.averageMarks !== undefined && (
-                                        <span className="text-xs font-medium text-gray-500 shrink-0">
-                                            Avg: {student.averageMarks}
-                                        </span>
-                                    )}
-                                </label>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 bg-gray-50 border-t flex items-center justify-between">
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition font-medium"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handlePromote}
-                        disabled={isPromoting || selectedStudents.length === 0 || !targetClassroomId}
-                        className={`px-6 py-2 rounded-lg font-medium transition flex items-center space-x-2 ${
-                            isPromoting || selectedStudents.length === 0 || !targetClassroomId
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
-                        }`}
-                    >
-                        {isPromoting ? (
-                            <>
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span>Promoting...</span>
-                            </>
-                        ) : (
-                            <>
-                                <UserCheck size={20} />
-                                <span>
-                                    Promote {selectedStudents.length} Student{selectedStudents.length !== 1 ? 's' : ''}
-                                </span>
-                            </>
+                        <p className="text-sm text-gray-600">
+                            <span className="font-medium tabular-nums text-gray-900">{plural(selected.size)}</span> will leave {classroom.name} and join {target?.name}. They&apos;ll
+                            show up in the new class list straight away.
+                        </p>
+                        {overCapacity && (
+                            <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
+                                <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                                {target?.name} has {seatsLeft} {seatsLeft === 1 ? "seat" : "seats"} left, so it will go over capacity.
+                            </p>
                         )}
-                    </button>
-                </div>
-            </div>
-        </div>
+                        <ul aria-label="Students to promote" className="max-h-60 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+                            {sorted
+                                .filter((s) => selected.has(s.id))
+                                .map((s) => (
+                                    <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                                        <span className="truncate text-gray-900">{s.fullName}</span>
+                                        <span className="shrink-0 tabular-nums text-gray-500">{s.admissionNo}</span>
+                                    </li>
+                                ))}
+                        </ul>
+                    </div>
+                    <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-6 py-4 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={() => setStep("choose")} disabled={promoting} className={secondaryBtn}>
+                            Back
+                        </button>
+                        <button type="button" onClick={promote} disabled={promoting} className={primaryBtn}>
+                            <UserCheck size={16} aria-hidden="true" />
+                            {promoting ? "Promoting…" : `Promote ${plural(selected.size)}`}
+                        </button>
+                    </div>
+                </>
+            )}
+        </>
     );
 }

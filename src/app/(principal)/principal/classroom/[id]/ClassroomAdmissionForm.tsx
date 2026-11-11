@@ -1,87 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { X, User as UserIcon, Eye, EyeOff } from "lucide-react";
-import toast from 'react-hot-toast';
-import { useAddStudentMutation } from "@/redux/api/principalApi";
+import { useState, type FormEvent, type ReactNode } from "react";
+import toast from "react-hot-toast";
+import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { useAddStudentMutation, type ClassroomSummary } from "@/redux/api/principalApi";
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { errorMessage, focusRing, inputClass, primaryBtn, secondaryBtn } from "@/components/principal/ui";
 
-type Classroom = {
-    id: string;
-    name: string;
-    grade: string;
-    section: string;
-    capacity: number;
-    total: number;
-    classTeacher: { id: string; fullName: string; employeeId: string } | null;
-};
-
+/** Admission form for one class, in a dialog (a bottom sheet on phones). */
 export default function ClassroomAdmissionForm({
+    open,
     classroom,
     classroomId,
     onClose,
     onSuccess,
 }: {
-    classroom: Classroom;
+    open: boolean;
+    classroom: ClassroomSummary;
     classroomId: string;
     onClose: () => void;
     onSuccess: () => void;
 }) {
+    return (
+        <Dialog open={open} onClose={onClose} labelledBy="admission-title" className="sm:max-w-3xl">
+            <AdmissionBody classroom={classroom} classroomId={classroomId} onClose={onClose} onSuccess={onSuccess} />
+        </Dialog>
+    );
+}
+
+function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classroom: ClassroomSummary; classroomId: string; onClose: () => void; onSuccess: () => void }) {
     const [addStudent, { isLoading }] = useAddStudentMutation();
     const [showPassword, setShowPassword] = useState(false);
-
     const currentYear = new Date().getFullYear();
-    const currentDate = new Date().toISOString().split('T')[0];
 
-    const generateAdmissionNo = () => {
-        const suffix = String(Math.floor(Math.random() * 9999)).padStart(4, '0');
+    // Generated once per opening, as before.
+    const [admissionNumber] = useState(() => {
+        const suffix = String(Math.floor(Math.random() * 9999)).padStart(4, "0");
         return `MLZS/${currentYear}/${classroomId.substring(0, 4).toUpperCase()}/${suffix}`;
-    };
+    });
 
-    const [admissionNumber] = useState(generateAdmissionNo);
-    const passingYear = currentYear + (12 - parseInt(classroom.grade || "1")) + 1;
-    const academicYear = `${currentYear}-${currentYear + 1}`;
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const form = e.currentTarget;
-        const formData = new FormData(form);
+        const formData = new FormData(e.currentTarget);
+        const get = (key: string) => ((formData.get(key) as string | null) ?? "").trim();
 
-        const fullName = formData.get("fullName") as string;
-        const dob = formData.get("dob") as string;
-        const gender = formData.get("gender") as string;
-        const residentialAddress = formData.get("residentialAddress") as string;
-        const primaryContact = formData.get("primaryContact") as string;
-        const secondaryContact = formData.get("secondaryContact") as string;
-        const nationality = formData.get("nationality") as string;
-        const caste = formData.get("caste") as string;
-        const isPwd = formData.get("isPwd") === "yes";
-        const aadharNo = formData.get("aadharNo") as string;
-        const identificationMark = formData.get("identificationMark") as string;
-        const rollNumber = formData.get("rollNumber") as string;
-
-        const fatherName = formData.get("fatherName") as string;
-        const fatherContact = formData.get("fatherContact") as string;
-        const motherName = formData.get("motherName") as string;
-        const motherContact = formData.get("motherContact") as string;
-
-        // Transportation: "yes" → opted-in, "no" → not opted-in
-        const transportOpted = (formData.get("transportOpted") as string) === "yes";
-
+        const fullName = get("fullName");
         const password = formData.get("password") as string;
         if (!password) {
-            toast.error("Password is required");
+            toast.error("Set a login password for the student.");
             return;
         }
 
-        const email = (formData.get("email") as string) || `${fullName.toLowerCase().replace(/\s+/g, '.')}@student.mlzs.edu.in`;
-
-        // Combine parents into parentName / parentContact columns
-        const combinedParentName = [fatherName, motherName].filter(Boolean).join(" / ");
-        const combinedParentContact = [fatherContact, motherContact].filter(Boolean).join(" / ");
-
-        const rollNumberFormatted = rollNumber
-            ? (rollNumber.startsWith("EZNK") ? rollNumber : `EZNK${rollNumber}`)
-            : undefined;
+        const email = get("email") || `${fullName.toLowerCase().replace(/\s+/g, ".")}@student.mlzs.edu.in`;
+        const parentName = [get("fatherName"), get("motherName")].filter(Boolean).join(" / ");
+        const parentContact = [get("fatherContact"), get("motherContact")].filter(Boolean).join(" / ");
 
         try {
             await addStudent({
@@ -89,260 +61,205 @@ export default function ClassroomAdmissionForm({
                 password,
                 admissionNumber,
                 admissionYear: currentYear,
-                rollNumber: rollNumberFormatted,
+                rollNumber: undefined,
                 fullName,
-                dob,
-                gender,
-                residentialAddress,
-                primaryContact,
-                secondaryContact: secondaryContact || undefined,
-                nationality: nationality || "Indian",
-                caste: caste || undefined,
-                isPwd,
-                aadharNo: aadharNo || undefined,
-                identificationMark: identificationMark || undefined,
-                parentName: combinedParentName || undefined,
-                parentContact: combinedParentContact || undefined,
-                transportOpted,
+                dob: get("dob"),
+                gender: get("gender"),
+                residentialAddress: get("residentialAddress"),
+                primaryContact: get("primaryContact"),
+                secondaryContact: get("secondaryContact") || undefined,
+                nationality: get("nationality") || "Indian",
+                caste: get("caste") || undefined,
+                isPwd: get("isPwd") === "yes",
+                aadharNo: get("aadharNo") || undefined,
+                identificationMark: get("identificationMark") || undefined,
+                parentName: parentName || undefined,
+                parentContact: parentContact || undefined,
+                transportOpted: get("transportOpted") === "yes",
                 classroomId,
             }).unwrap();
 
-            toast.success("Student admitted successfully!");
+            toast.success(`${fullName} admitted to ${classroom.name}.`);
             onSuccess();
-        } catch (err: any) {
-            toast.error(err?.data?.message ?? "Failed to admit student. Please try again.");
+        } catch (err) {
+            toast.error(errorMessage(err, "Couldn't admit the student. Check the details and try again."));
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="sticky top-0 z-50 bg-gradient-to-r from-purple-600 to-purple-700 text-white p-6 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-bold">Admit New Student</h2>
-                        <p className="text-purple-100 text-sm mt-1">{classroom.name} &mdash; Grade {classroom.grade}</p>
-                    </div>
-                    <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition">
-                        <X size={24} />
-                    </button>
+        <>
+            <DialogHeader id="admission-title" title="Admit student" subtitle={`${classroom.name}, grade ${classroom.grade}`} onClose={onClose} accent="purple" />
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-6 py-5">
+                    <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 ring-1 ring-gray-200">
+                        Admission number <span className="font-medium tabular-nums text-gray-900">{admissionNumber}</span> will be given to this student.
+                    </p>
+
+                    <FormSection title="Login" hint="The student signs in to the student portal with these.">
+                        <TextField name="email" label="Email" type="email" required placeholder="student@mlzs.edu.in" autoComplete="off" />
+                        <div>
+                            <label htmlFor="admission-password" className="block text-sm font-medium text-gray-700">
+                                Password <Req />
+                            </label>
+                            <div className="relative mt-1.5">
+                                <input
+                                    id="admission-password"
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    autoComplete="new-password"
+                                    aria-describedby="admission-password-hint"
+                                    className={`${inputClass} pr-10`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((v) => !v)}
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                    aria-pressed={showPassword}
+                                    className={`absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${focusRing}`}
+                                >
+                                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                                </button>
+                            </div>
+                            <p id="admission-password-hint" className="mt-1 text-xs text-gray-500">
+                                Share it with the family after admission.
+                            </p>
+                        </div>
+                    </FormSection>
+
+                    <FormSection title="Student">
+                        <TextField name="fullName" label="Full name" required placeholder="As on the birth certificate" wide />
+                        <TextField name="dob" label="Date of birth" type="date" required />
+                        <ChoiceChips
+                            name="gender"
+                            label="Gender"
+                            required
+                            options={[
+                                { value: "MALE", label: "Male" },
+                                { value: "FEMALE", label: "Female" },
+                                { value: "OTHER", label: "Other" },
+                            ]}
+                        />
+                        <TextField name="nationality" label="Nationality" defaultValue="Indian" />
+                        <TextField name="caste" label="Caste" />
+                        <ChoiceChips
+                            name="isPwd"
+                            label="Person with disability"
+                            defaultValue="no"
+                            options={[
+                                { value: "no", label: "No" },
+                                { value: "yes", label: "Yes" },
+                            ]}
+                        />
+                        <TextField name="aadharNo" label="Aadhaar number" inputMode="numeric" maxLength={12} hint="12 digits, no spaces." />
+                        <TextField name="identificationMark" label="Identification mark" placeholder="For example, a mole on the left cheek" wide />
+                    </FormSection>
+
+                    <FormSection title="Contact">
+                        <TextField name="primaryContact" label="Primary contact" type="tel" required placeholder="+91 98765 43210" />
+                        <TextField name="secondaryContact" label="Emergency contact" type="tel" placeholder="+91 98765 43210" />
+                        <div className="sm:col-span-2">
+                            <label htmlFor="admission-residentialAddress" className="block text-sm font-medium text-gray-700">
+                                Home address <Req />
+                            </label>
+                            <textarea id="admission-residentialAddress" name="residentialAddress" required rows={3} className={`${inputClass} mt-1.5 resize-y`} placeholder="House, street, area, city and PIN code" />
+                        </div>
+                    </FormSection>
+
+                    <FormSection title="Parents or guardians" hint="Saved together as the parent name and contact.">
+                        <TextField name="fatherName" label="Father's name" />
+                        <TextField name="fatherContact" label="Father's phone" type="tel" />
+                        <TextField name="motherName" label="Mother's name" />
+                        <TextField name="motherContact" label="Mother's phone" type="tel" />
+                    </FormSection>
+
+                    <FormSection title="Transport">
+                        <ChoiceChips
+                            name="transportOpted"
+                            label="Uses school transport"
+                            required
+                            defaultValue="no"
+                            options={[
+                                { value: "no", label: "No" },
+                                { value: "yes", label: "Yes" },
+                            ]}
+                        />
+                    </FormSection>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Login Credentials */}
-                    <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center space-x-2">
-                            <UserIcon size={18} />
-                            <span>Login Credentials</span>
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="label">Student Email<span className="text-red-500">*</span></label>
-                                <input name="email" type="email" required className="input" placeholder="student@mlzs.edu.in" />
-                            </div>
-                            <div>
-                                <label className="label">Password <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <input
-                                        name="password"
-                                        type={showPassword ? "text" : "password"}
-                                        required
-                                        className="input pr-10"
-                                        placeholder="Set student login password"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    >
-                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-6 py-4 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={onClose} className={secondaryBtn}>
+                        Cancel
+                    </button>
+                    <button type="submit" disabled={isLoading} className={primaryBtn}>
+                        <UserPlus size={16} aria-hidden="true" />
+                        {isLoading ? "Admitting…" : "Admit student"}
+                    </button>
+                </div>
+            </form>
+        </>
+    );
+}
 
-                    {/* Personal Details */}
-                    <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center space-x-2">
-                            <UserIcon size={18} />
-                            <span>Personal Details</span>
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2">
-                                <label className="label">Full Name <span className="text-red-500">*</span></label>
-                                <input name="fullName" required className="input" placeholder="Enter student's full name" />
-                            </div>
-                            <div>
-                                <label className="label">Date of Birth <span className="text-red-500">*</span></label>
-                                <input name="dob" type="date" required className="input" />
-                            </div>
-                            <div>
-                                <label className="label">Gender <span className="text-red-500">*</span></label>
-                                <select name="gender" required className="input">
-                                    <option value="">Select Gender</option>
-                                    <option value="MALE">Male</option>
-                                    <option value="FEMALE">Female</option>
-                                    <option value="OTHER">Other</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="label">Nationality</label>
-                                <input name="nationality" className="input" placeholder="Nationality" defaultValue="Indian" />
-                            </div>
-                            <div>
-                                <label className="label">Caste</label>
-                                <input name="caste" className="input" placeholder="Caste" />
-                            </div>
-                            <div>
-                                <label className="label">PWD (Yes/No)</label>
-                                <select name="isPwd" className="input">
-                                    <option value="no">No</option>
-                                    <option value="yes">Yes</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="label">Aadhar No.</label>
-                                <input name="aadharNo" className="input" placeholder="12-digit Aadhar" />
-                            </div>
-                            <div>
-                                <label className="label">Identification Mark (if any)</label>
-                                <input name="identificationMark" className="input" placeholder="e.g., mole on left cheek" />
-                            </div>
-                            <div>
-                                <label className="label">Primary Contact <span className="text-red-500">*</span></label>
-                                <input name="primaryContact" required className="input" placeholder="+91 XXXXX XXXXX" />
-                            </div>
-                            <div>
-                                <label className="label">Secondary / Emergency Contact</label>
-                                <input name="secondaryContact" className="input" placeholder="+91 XXXXX XXXXX" />
-                            </div>
-                            <div className="col-span-2">
-                                <label className="label">Residential Address <span className="text-red-500">*</span></label>
-                                <textarea name="residentialAddress" required className="input h-20" placeholder="Enter complete address"></textarea>
-                            </div>
-                        </div>
-                    </div>
+function Req() {
+    return (
+        <span className="text-red-600" aria-hidden="true">
+            *
+        </span>
+    );
+}
 
-                    {/* Academic Details */}
-                    {/* <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3">Academic Details</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="label">Roll Number (EZNK)</label>
-                                <div className="flex">
-                                    <span className="inline-flex items-center px-2 rounded-l border border-r-0 border-gray-300 bg-gray-100 text-gray-600 text-xs font-mono">EZNK</span>
-                                    <input name="rollNumber" className="input rounded-l-none" placeholder="0001" />
-                                </div>
-                            </div>
-                        </div>
-                    </div> */}
+function FormSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+    return (
+        <fieldset>
+            <legend className="text-sm font-semibold text-gray-900">{title}</legend>
+            {hint && <p className="mt-0.5 text-sm text-gray-500">{hint}</p>}
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">{children}</div>
+        </fieldset>
+    );
+}
 
-                    {/* Parent / Guardian Details */}
-                    <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3">Parent / Guardian Details</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="label">Father's Name</label>
-                                <input name="fatherName" className="input" placeholder="e.g. Mr. Rajesh Kumar" />
-                            </div>
-                            <div>
-                                <label className="label">Father's Contact No.</label>
-                                <input name="fatherContact" type="tel" className="input" placeholder="+91..." />
-                            </div>
-                            <div>
-                                <label className="label">Mother's Name</label>
-                                <input name="motherName" className="input" placeholder="e.g. Mrs. Priya Kumar" />
-                            </div>
-                            <div>
-                                <label className="label">Mother's Contact No.</label>
-                                <input name="motherContact" type="tel" className="input" placeholder="+91..." />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Transportation Service */}
-                    <div className="border-t pt-4">
-                        <h3 className="font-semibold text-gray-700 mb-3">Transportation Service</h3>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="label">
-                                    Do you need transportation service? <span className="text-red-500">*</span>
-                                </label>
-                                <div className="flex items-center gap-6 mt-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="transportOpted"
-                                            value="yes"
-                                            required
-                                            defaultChecked={false}
-                                            className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                                        />
-                                        <span className="text-gray-700 font-medium">Yes</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="transportOpted"
-                                            value="no"
-                                            required
-                                            defaultChecked
-                                            className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                                        />
-                                        <span className="text-gray-700 font-medium">No</span>
-                                    </label>
-                                </div>
-                                {/* <p className="text-xs text-gray-500 mt-2">
-                                    If Yes, the school transport office will assign a bus route and stop after admission.
-                                </p> */}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Submit Buttons */}
-                    <div className="pt-4 flex justify-end space-x-3 border-t">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition font-medium"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium shadow-md hover:shadow-lg"
-                        >
-                            {isLoading ? "Admitting..." : "Admit Student"}
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <style jsx>{`
-                .label {
-                    display: block;
-                    font-size: 0.875rem;
-                    font-weight: 600;
-                    color: #374151;
-                    margin-bottom: 0.375rem;
-                }
-                .input {
-                    width: 100%;
-                    border: 1px solid #d1d5db;
-                    border-radius: 0.5rem;
-                    padding: 0.625rem;
-                    color: #111827;
-                    transition: all 0.2s;
-                }
-                .input:focus {
-                    outline: none;
-                    border-color: #9333ea;
-                    ring: 2px;
-                    ring-color: #9333ea20;
-                }
-            `}</style>
+function TextField({
+    name,
+    label,
+    hint,
+    wide,
+    required,
+    ...rest
+}: { name: string; label: string; hint?: string; wide?: boolean; required?: boolean } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "name">) {
+    const id = `admission-${name}`;
+    return (
+        <div className={wide ? "sm:col-span-2" : undefined}>
+            <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+                {label} {required && <Req />}
+            </label>
+            <input id={id} name={name} required={required} aria-describedby={hint ? `${id}-hint` : undefined} className={`${inputClass} mt-1.5`} {...rest} />
+            {hint && (
+                <p id={`${id}-hint`} className="mt-1 text-xs text-gray-500">
+                    {hint}
+                </p>
+            )}
         </div>
+    );
+}
+
+/** Radio buttons styled as chips; they post with the form like any radio group. */
+function ChoiceChips({ name, label, options, defaultValue, required }: { name: string; label: string; options: { value: string; label: string }[]; defaultValue?: string; required?: boolean }) {
+    return (
+        <fieldset>
+            <legend className="block text-sm font-medium text-gray-700">
+                {label} {required && <Req />}
+            </legend>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+                {options.map((o) => (
+                    <label key={o.value} className="cursor-pointer">
+                        <input type="radio" name={name} value={o.value} defaultChecked={o.value === defaultValue} required={required} className="peer sr-only" />
+                        <span className="inline-flex h-10 items-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 hover:border-gray-400 motion-safe:transition-colors peer-checked:border-purple-600 peer-checked:bg-purple-50 peer-checked:text-purple-800 peer-focus-visible:ring-2 peer-focus-visible:ring-purple-500 peer-focus-visible:ring-offset-1">
+                            {o.label}
+                        </span>
+                    </label>
+                ))}
+            </div>
+        </fieldset>
     );
 }

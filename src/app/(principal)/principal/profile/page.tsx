@@ -1,47 +1,182 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { useRef, useState } from "react";
+import { Briefcase, Camera, IdCard, Loader2, Mail, Pencil, User } from "lucide-react";
+import toast from "react-hot-toast";
 import {
-    Briefcase,
-    IdCard,
-    User,
-    MapPin,
-    Phone,
-    Mail,
-    ArrowLeft,
-    Camera,
-    Loader2,
-    Calendar,
-    Globe,
-    GraduationCap,
-    IndianRupee,
-    Book,
-    CheckCircle2,
-    FileText,
-    Award,
-    Clock,
-} from "lucide-react";
-import { useRef } from "react";
-import { useGetPrincipalProfileQuery, useUploadProfileImageMutation } from "@/redux/api/principalApi";
+    useGetPrincipalProfileQuery,
+    useUpdatePrincipalProfileMutation,
+    useUploadProfileImageMutation,
+    type PrincipalFullProfile,
+    type UpdatePrincipalProfilePayload,
+} from "@/redux/api/principalApi";
+import { heroGradient } from "@/components/principal/brand";
+import { errorMessage, inputClass, inr, primaryBtn, secondaryBtn } from "@/components/principal/ui";
 
-function formatDate(dateStr: string | null | undefined) {
-    if (!dateStr) return "—";
-    try {
-        return new Date(dateStr).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    } catch {
-        return "—";
-    }
+// Fields the profile endpoint can return beyond the typed ones. Shown only from real data.
+type Extra = Partial<{
+    employeeId: string;
+    joiningDate: string;
+    highestQualification: string;
+    qualifications: string;
+    salary: number | string;
+    currentSalary: number | string;
+    status: string;
+    officialDocType: string;
+    officialDocNumber: string;
+}>;
+
+type ProfileForm = Required<UpdatePrincipalProfilePayload>;
+
+const toForm = (p: PrincipalFullProfile): ProfileForm => ({
+    fullName: p.fullName ?? "",
+    dob: p.dob ? String(p.dob).split("T")[0] : "",
+    gender: p.gender ?? "",
+    residentialAddress: p.residentialAddress ?? "",
+    primaryContact: p.primaryContact ?? "",
+    secondaryContact: p.secondaryContact ?? "",
+    email: p.email ?? "",
+    designation: p.designation ?? "",
+    department: p.department ?? "",
+});
+
+const GENDERS = [
+    { value: "MALE", label: "Male" },
+    { value: "FEMALE", label: "Female" },
+    { value: "OTHER", label: "Other" },
+];
+
+function formatDate(value: string | null | undefined) {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+}
+const sentence = (s: string | null | undefined) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase().replace(/_/g, " ") : null);
+
+type Field = { label: string; value: string | null | undefined; wide?: boolean };
+
+function Details({ fields }: { fields: Field[] }) {
+    return (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-5 sm:gap-x-6 sm:px-6 lg:grid-cols-3">
+            {fields.map((f) => (
+                <div key={f.label} className={`min-w-0 ${f.wide ? "col-span-2 lg:col-span-3" : ""}`}>
+                    <dt className="text-sm text-gray-500">{f.label}</dt>
+                    <dd className={`mt-0.5 break-words text-sm ${f.value ? "font-medium text-gray-900" : "text-gray-400"}`}>{f.value || "Not added"}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function Section({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
+                <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+                    {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+                </div>
+                {action}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function FormField({
+    id,
+    label,
+    value,
+    onChange,
+    type = "text",
+    autoFocus = false,
+    required = false,
+    error,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    type?: string;
+    autoFocus?: boolean;
+    required?: boolean;
+    error?: string | null;
+}) {
+    return (
+        <div>
+            <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+                {label}
+                {!required && <span className="font-normal text-gray-500"> (optional)</span>}
+            </label>
+            <input
+                id={id}
+                type={type}
+                value={value}
+                autoFocus={autoFocus}
+                required={required}
+                aria-invalid={!!error}
+                aria-describedby={error ? `${id}-error` : undefined}
+                onChange={(e) => onChange(e.target.value)}
+                className={`mt-1.5 ${inputClass} ${error ? "border-red-400 focus:border-red-500 focus:ring-red-500/30" : ""}`}
+            />
+            {error && (
+                <p id={`${id}-error`} className="mt-1.5 text-xs text-red-700">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
 }
 
 export default function PrincipalProfilePage() {
-    const { data: profile, isLoading, refetch } = useGetPrincipalProfileQuery();
+    const { data, isLoading, isError, refetch } = useGetPrincipalProfileQuery();
+    const [updateProfile, { isLoading: isUpdating }] = useUpdatePrincipalProfileMutation();
     const [uploadProfileImage, { isLoading: isUploading }] = useUploadProfileImageMutation();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Shows the new photo straight away while the profile refetches.
+    const [localImage, setLocalImage] = useState<string | null>(null);
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState<ProfileForm | null>(null);
+    const [triedSave, setTriedSave] = useState(false);
+
+    const startEditing = () => {
+        if (data) setForm(toForm(data));
+        setTriedSave(false);
+        setEditing(true);
+    };
+
+    const nameError = form && !form.fullName.trim() ? "Enter your full name." : null;
+    const contactError = form && !form.primaryContact.trim() ? "Enter a phone number the school can reach you on." : null;
+    const emailError = form && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) ? "Enter an email address like name@school.com." : null;
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form || !data) return;
+        setTriedSave(true);
+        if (nameError || contactError || emailError) return;
+
+        // Send only what changed, so empty optional fields never overwrite stored values.
+        const original = toForm(data);
+        const changes: UpdatePrincipalProfilePayload = {};
+        (Object.keys(form) as (keyof ProfileForm)[]).forEach((k) => {
+            const next = form[k].trim();
+            if (next !== original[k].trim()) changes[k] = next;
+        });
+        if (Object.keys(changes).length === 0) {
+            setEditing(false);
+            toast("No changes to save.");
+            return;
+        }
+        try {
+            await updateProfile(changes).unwrap();
+            toast.success("Details saved.");
+            setEditing(false);
+            refetch();
+        } catch (err) {
+            toast.error(errorMessage(err, "Details not saved. Check your connection and try again."));
+        }
+    };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -50,15 +185,17 @@ export default function PrincipalProfilePage() {
         const reader = new FileReader();
         reader.onload = async () => {
             try {
+                // Compress the image before uploading.
                 const img = new window.Image();
                 img.src = reader.result as string;
-                await new Promise((resolve) => { img.onload = resolve; });
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                });
 
-                const canvas = document.createElement('canvas');
+                const canvas = document.createElement("canvas");
                 const maxSize = 800;
                 let width = img.width;
                 let height = img.height;
-
                 if (width > maxSize || height > maxSize) {
                     if (width > height) {
                         height = (height / width) * maxSize;
@@ -68,199 +205,183 @@ export default function PrincipalProfilePage() {
                         height = maxSize;
                     }
                 }
-
                 canvas.width = width;
                 canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, width, height);
+                canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
 
-                const compressedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
-                await uploadProfileImage({ imageUrl: compressedImageUrl }).unwrap();
+                const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                await uploadProfileImage({ imageUrl: compressed }).unwrap();
+                setLocalImage(compressed);
+                toast.success("Photo updated.");
                 refetch();
             } catch (err) {
-                console.error('Failed to upload image:', err);
+                toast.error(errorMessage(err, "Photo not uploaded. Try a smaller image."));
             }
         };
         reader.readAsDataURL(file);
+        e.target.value = "";
     };
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="max-w-7xl space-y-6" aria-busy="true">
+                <div className={`h-40 rounded-xl ${heroGradient} motion-safe:animate-pulse`} />
+                <div className="h-64 rounded-xl border border-gray-200 bg-white" />
             </div>
         );
     }
 
-    if (!profile) {
+    if (!data || isError) {
         return (
-            <div className="min-h-screen bg-gray-50 pb-12 flex items-center justify-center">
-                <p className="text-slate-500">Failed to load profile. Please refresh.</p>
+            <div className="max-w-7xl rounded-xl border border-gray-200 bg-white px-6 py-16 text-center">
+                <p className="font-medium text-gray-900">Your profile couldn&apos;t be loaded</p>
+                <p className="mt-1 text-sm text-gray-500">Check your connection, then try again.</p>
+                <button type="button" onClick={() => refetch()} className={`${secondaryBtn} mt-4`}>
+                    Try again
+                </button>
             </div>
         );
     }
 
-    const employeeId = (profile as any).employeeId ?? '—';
-    const joiningDate = (profile as any).joiningDate ? formatDate((profile as any).joiningDate) : '—';
-    const currentSalary = (profile as any).currentSalary ?? (profile as any).salary ?? null;
-    const qualifications = (profile as any).qualifications ?? (profile as any).highestQualification ?? '—';
-    const status = (profile as any).status ?? 'Active';
-    const officialDocType = (profile as any).officialDocType ?? '—';
-    const officialDocNumber = (profile as any).officialDocNumber ?? '—';
-    const isPwd = (profile as any).isPwd ?? false;
-    const caste = (profile as any).caste ?? '—';
-    const nationality = (profile as any).nationality ?? 'Indian';
-    const aadharNo = (profile as any).aadharNo ?? '—';
-    const identificationMark = (profile as any).identificationMark ?? '—';
-    const secondaryContact = (profile as any).secondaryContact ?? '—';
+    const profile = data as PrincipalFullProfile & Extra;
+    const photo = localImage ?? profile.profileImage;
+    const rawSalary = profile.currentSalary ?? profile.salary;
+    const salary = rawSalary !== null && rawSalary !== undefined && rawSalary !== "" && Number.isFinite(Number(rawSalary)) ? inr(Number(rawSalary)) : null;
+    const doc = [profile.officialDocType, profile.officialDocNumber].filter(Boolean).join(", ");
+
+    const details: Field[] = [
+        { label: "Full name", value: profile.fullName },
+        { label: "Date of birth", value: formatDate(profile.dob) },
+        { label: "Gender", value: sentence(profile.gender) },
+        { label: "Contact email", value: profile.email },
+        { label: "Primary contact", value: profile.primaryContact },
+        { label: "Emergency contact", value: profile.secondaryContact },
+        { label: "Designation", value: profile.designation },
+        { label: "Department", value: profile.department },
+        { label: "Residential address", value: profile.residentialAddress, wide: true },
+    ];
+
+    const records: Field[] = [
+        { label: "Nationality", value: profile.nationality },
+        { label: "Caste", value: profile.caste },
+        { label: "Person with disability", value: profile.isPwd === undefined || profile.isPwd === null ? null : profile.isPwd ? "Yes" : "No" },
+        { label: "Aadhaar number", value: profile.aadharNo },
+        { label: "Employee ID", value: profile.employeeId },
+        { label: "Date of joining", value: formatDate(profile.joiningDate) },
+        { label: "Highest qualification", value: profile.highestQualification ?? profile.qualifications },
+        { label: "Status", value: sentence(profile.status) },
+        ...(salary ? [{ label: "Monthly salary", value: salary }] : []),
+        { label: "Official document", value: doc || null },
+        { label: "Identification mark", value: profile.identificationMark, wide: true },
+    ];
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-12">
-            {/* Hero Section */}
-            <div className="bg-slate-900 pt-12 pb-32 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center space-x-4 mb-6">
-                        <Link href="/principal" className="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                            <span className="font-medium">Back</span>
-                        </Link>
-                    </div>
-                    <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
-                        <div className="relative group">
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-slate-700 overflow-hidden shadow-2xl shrink-0 bg-slate-800">
-                                {profile.profileImage ? (
-                                    <Image
-                                        src={profile.profileImage}
-                                        alt="Principal Photo"
-                                        width={160}
-                                        height={160}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-slate-700">
-                                        <User size={48} className="text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg transition-all disabled:opacity-50"
-                                title="Upload Photo"
-                            >
-                                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-                            </button>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
-                        </div>
-                        <div className="text-center md:text-left text-white">
-                            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{profile.fullName}</h1>
-                            <div className="mt-2 flex flex-wrap justify-center md:justify-start gap-4 text-slate-400 font-medium">
-                                <span className="flex items-center gap-1">
-                                    <Briefcase size={18} className="text-blue-400" />
-                                    {profile.designation ?? "Principal"}
+        <div className="max-w-7xl space-y-6">
+            <section className={`overflow-hidden rounded-xl px-4 py-6 shadow-sm sm:px-8 sm:py-8 ${heroGradient}`}>
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="relative shrink-0">
+                        <div className="h-20 w-20 overflow-hidden rounded-full bg-white/10 ring-4 ring-white/10 sm:h-28 sm:w-28">
+                            {photo ? (
+                                <Image src={photo} alt="" width={112} height={112} unoptimized className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-purple-200 sm:text-4xl">
+                                    {profile.fullName?.[0]?.toUpperCase() ?? <User size={36} aria-hidden="true" />}
                                 </span>
-                                {profile.department && (
-                                    <span className="flex items-center gap-1">
-                                        <IdCard size={18} className="text-blue-400" />
-                                        {profile.department}
-                                    </span>
-                                )}
-                                {employeeId !== '—' && (
-                                    <span className="flex items-center gap-1 font-mono">
-                                        <IdCard size={18} className="text-blue-400" />
-                                        ID: {employeeId}
-                                    </span>
-                                )}
-                            </div>
+                            )}
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            aria-label="Change photo"
+                            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-900 bg-purple-600 text-white shadow-lg hover:bg-purple-500 disabled:opacity-60 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                            {isUploading ? <Loader2 size={16} className="motion-safe:animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+                        </button>
+                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{profile.fullName}</h1>
+                        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
+                            <span className="inline-flex items-center gap-1.5">
+                                <Briefcase size={15} aria-hidden="true" className="text-purple-300" />
+                                {profile.designation ?? "Principal"}
+                            </span>
+                            {profile.employeeId && (
+                                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                                    <IdCard size={15} aria-hidden="true" className="text-purple-300" />
+                                    Employee ID {profile.employeeId}
+                                </span>
+                            )}
+                            {profile.userEmail && (
+                                <span className="inline-flex min-w-0 items-center gap-1.5">
+                                    <Mail size={15} aria-hidden="true" className="shrink-0 text-purple-300" />
+                                    <span className="truncate">{profile.userEmail}</span>
+                                </span>
+                            )}
+                        </p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            {/* Floating Cards */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 space-y-8">
-                {/* Personal Details Card */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <User size={24} />
-                            </div>
+            <Section
+                title={editing ? "Edit details" : "Details"}
+                subtitle={editing ? "Changes show across the portal straight away." : "Your contact and role details."}
+                action={
+                    !editing && (
+                        <button type="button" onClick={startEditing} className={secondaryBtn}>
+                            <Pencil size={15} aria-hidden="true" />
+                            Edit details
+                        </button>
+                    )
+                }
+            >
+                {editing && form ? (
+                    <form onSubmit={handleSave} noValidate>
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-5 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-3">
+                            <FormField id="pf-name" label="Full name" required autoFocus value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} error={triedSave ? nameError : null} />
+                            <FormField id="pf-dob" label="Date of birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800">Personal Details</h2>
-                                <p className="text-sm text-gray-500">Your personal information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-                            <InfoField label="Full Name" value={profile.fullName} icon={<User size={16} />} />
-                            <InfoField label="Date of Birth" value={formatDate(profile.dob)} icon={<Calendar size={16} />} />
-                            <InfoField label="Gender" value={profile.gender} icon={<User size={16} />} />
-                            <InfoField label="Email ID" value={profile.email ?? '—'} icon={<Mail size={16} />} />
-                            <InfoField label="Primary Contact" value={profile.primaryContact ?? '—'} icon={<Phone size={16} />} />
-                            <InfoField label="Secondary / Emergency Contact" value={secondaryContact} icon={<Phone size={16} />} />
-                            <InfoField label="Residential Address" value={profile.residentialAddress} icon={<MapPin size={16} />} className="md:col-span-2 lg:col-span-3" />
-                            <InfoField label="Nationality" value={nationality} icon={<Globe size={16} />} />
-                            <InfoField label="Caste" value={caste} icon={<FileText size={16} />} />
-                            <InfoField label="PWD" value={isPwd ? 'Yes' : 'No'} icon={<CheckCircle2 size={16} />} />
-                            <InfoField label="Aadhar No." value={aadharNo} icon={<IdCard size={16} />} />
-                            <InfoField label="Identification Mark" value={identificationMark} icon={<FileText size={16} />} className="md:col-span-2 lg:col-span-3" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Professional Details */}
-                <div className="bg-white rounded-xl shadow-xl overflow-hidden border-t-4 border-blue-500">
-                    <div className="p-6 md:p-8">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                <Briefcase size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">Professional Details</h2>
-                                <p className="text-sm text-gray-500">Official records and information</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <InfoField label="Employee ID" value={employeeId} icon={<IdCard size={16} />} />
-                            <InfoField label="Designation / Role" value={profile.designation ?? 'Principal'} icon={<Briefcase size={16} />} />
-                            <InfoField label="Department" value={profile.department ?? '—'} icon={<Book size={16} />} />
-                            <InfoField label="Qualification" value={qualifications} icon={<GraduationCap size={16} />} />
-                            <InfoField label="Date of Joining" value={joiningDate} icon={<Calendar size={16} />} />
-                            <InfoField label="Current Salary" value={currentSalary != null ? `₹ ${Number(currentSalary).toLocaleString('en-IN')}` : '—'} icon={<IndianRupee size={16} />} />
-                            <div>
-                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                    <Award size={14} /> Status
+                                <label htmlFor="pf-gender" className="block text-sm font-medium text-gray-700">
+                                    Gender <span className="font-normal text-gray-500">(optional)</span>
                                 </label>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status === 'Active' || status === 'ACTIVE' ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-red-100 text-red-800"}`}>
-                                    {status}
-                                </span>
+                                <select id="pf-gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className={`mt-1.5 ${inputClass}`}>
+                                    <option value="">Not added</option>
+                                    {GENDERS.map((g) => (
+                                        <option key={g.value} value={g.value}>
+                                            {g.label}
+                                        </option>
+                                    ))}
+                                    {form.gender && !GENDERS.some((g) => g.value === form.gender) && <option value={form.gender}>{sentence(form.gender)}</option>}
+                                </select>
                             </div>
-                            <InfoField label="Official Document" value={`${officialDocType} - ${officialDocNumber}`} icon={<FileText size={16} />} className="md:col-span-2" />
+                            <FormField id="pf-email" label="Contact email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} error={triedSave ? emailError : null} />
+                            <FormField id="pf-primary" label="Primary contact" type="tel" required value={form.primaryContact} onChange={(v) => setForm({ ...form, primaryContact: v })} error={triedSave ? contactError : null} />
+                            <FormField id="pf-secondary" label="Emergency contact" type="tel" value={form.secondaryContact} onChange={(v) => setForm({ ...form, secondaryContact: v })} />
+                            <FormField id="pf-designation" label="Designation" value={form.designation} onChange={(v) => setForm({ ...form, designation: v })} />
+                            <FormField id="pf-department" label="Department" value={form.department} onChange={(v) => setForm({ ...form, department: v })} />
+                            <div className="sm:col-span-2 lg:col-span-3">
+                                <FormField id="pf-address" label="Residential address" value={form.residentialAddress} onChange={(v) => setForm({ ...form, residentialAddress: v })} />
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
+                        <p className="px-4 pb-4 text-xs text-gray-500 sm:px-6">Your sign-in email ({profile.userEmail}) doesn&apos;t change here.</p>
+                        <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+                            <button type="button" onClick={() => setEditing(false)} className={`${secondaryBtn} h-10`}>
+                                Cancel
+                            </button>
+                            <button type="submit" disabled={isUpdating} className={primaryBtn}>
+                                {isUpdating ? "Saving…" : "Save details"}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <Details fields={details} />
+                )}
+            </Section>
 
-function InfoField({ label, value, icon, className = "" }: { label: string; value: string; icon?: React.ReactNode; className?: string }) {
-    return (
-        <div className={`group ${className}`}>
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
-            </label>
-            <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
-                {value || "—"}
-            </p>
+            <Section title="School record" subtitle="Held by the school office. Ask them to correct anything here.">
+                <Details fields={records} />
+            </Section>
         </div>
     );
 }
