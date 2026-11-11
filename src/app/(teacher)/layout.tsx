@@ -259,7 +259,7 @@ function SidebarContent({
             >
                 {!isCollapsed ? (
                     <span className="flex flex-col items-center gap-2">
-                        <Image src="/sidebar_logo_expanded.png" alt="Mount Litera Zee School" width={128} height={40} className="h-auto w-32 rounded-lg object-contain" />
+                        <Image src="/sidebar_logo_expanded.png" alt="Mount Litera Zee School" width={128} height={64} priority className="h-auto w-32 rounded-lg object-contain" />
                         <span className="text-xs font-medium text-slate-400">Teacher portal</span>
                     </span>
                 ) : (

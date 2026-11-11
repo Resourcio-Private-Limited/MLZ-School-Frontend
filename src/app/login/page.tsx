@@ -103,8 +103,8 @@ export default function UnifiedLoginPage() {
                         <Image
                             src="/sidebar_logo_expanded.png"
                             alt="Mount Litera Zee School"
-                            width={120}
-                            height={40}
+                            width={128}
+                            height={64}
                             className="h-16 w-auto opacity-90"
                             priority
                         />
@@ -128,8 +128,9 @@ export default function UnifiedLoginPage() {
                         <Image
                             src="/MLZS_contents/Students Stage 1.png"
                             alt="Mount Litera Zee School, North Kolkata, Barrackpore"
-                            width={500}
-                            height={300}
+                            width={640}
+                            height={408}
+                            priority
                             className="object-cover w-full h-auto opacity-90 hover:opacity-100 transition-opacity duration-500"
                         />
                         <div className="absolute inset-0 bg-linear-to-t from-slate-900/40 to-transparent"></div>
@@ -153,9 +154,9 @@ export default function UnifiedLoginPage() {
                             <Image
                                 src="/MLZS_contents/Horizontal MLZS Logo.png"
                                 alt="Mount Litera Zee School, North Kolkata, Barrackpore"
-                                width={180}
-                                height={50}
-                                className="h-auto"
+                                width={160}
+                                height={90}
+                                className="h-auto w-40"
                             />
                         </div>
                         <h2 className="text-3xl font-bold text-slate-800 mb-2">

@@ -13,8 +13,8 @@ export default function Home() {
             <Image
               src="/sidebar_logo_expanded.png"
               alt="Mount Litera Zee School"
-              width={120}
-              height={40}
+              width={128}
+              height={64}
               className="h-16 w-auto opacity-90"
               priority
             />
