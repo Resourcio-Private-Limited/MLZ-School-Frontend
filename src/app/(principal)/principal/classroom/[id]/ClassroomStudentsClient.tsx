@@ -202,7 +202,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                     <button
                         onClick={handleOpenRollArrange}
                         disabled={students.length === 0}
-                        className="flex items-center space-x-2 bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md hover:shadow-lg"
+                        className="flex items-center space-x-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md hover:shadow-lg"
                         title="Re-number every student's ClassRoll (1, 2, 3…) in alphabetical order by full name"
                     >
                         <ListOrdered size={20} />
@@ -241,7 +241,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <Search size={20} className="text-gray-400" />
+                        <Search size={20} className="text-gray-500" />
                         <input
                             type="text"
                             placeholder="Search by name, admission no, or email..."
@@ -377,7 +377,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                     </td>
                                     <td className="p-4">
                                         <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded text-gray-700">
-                                            {student.rollNumber ?? 'N/A'}
+                                            {student.classRoll ?? student.rollNumber ?? 'N/A'}
                                         </span>
                                     </td>
                                     <td className="p-4">
@@ -391,14 +391,14 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                                 {student.attendancePercentage.toFixed(1)}%
                                             </span>
                                         ) : (
-                                            <span className="text-gray-400 text-sm">N/A</span>
+                                            <span className="text-gray-500 text-sm">N/A</span>
                                         )}
                                     </td>
                                     <td className="p-4">
                                         {student.averageMarks !== undefined ? (
                                             <span className="font-semibold text-gray-800">{student.averageMarks}</span>
                                         ) : (
-                                            <span className="text-gray-400 text-sm">N/A</span>
+                                            <span className="text-gray-500 text-sm">N/A</span>
                                         )}
                                     </td>
                                     <td className="p-4">
@@ -412,7 +412,7 @@ export default function ClassroomStudentsClient({ classroom, classroomId }: { cl
                                                 {student.feeStatus}
                                             </span>
                                         ) : (
-                                            <span className="text-gray-400 text-sm">N/A</span>
+                                            <span className="text-gray-500 text-sm">N/A</span>
                                         )}
                                     </td>
                                     <td className="p-4">

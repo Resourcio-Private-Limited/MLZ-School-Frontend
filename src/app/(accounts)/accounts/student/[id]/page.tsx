@@ -16,6 +16,7 @@ import {
 } from "@/redux/api/accountsApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
 export default function StudentFeePage() {
     const params = useParams();
     const router = useRouter();
@@ -59,8 +60,8 @@ export default function StudentFeePage() {
             toast.success(`Exam eligibility ${newVal ? 'enabled' : 'disabled'}`);
             setSelectedStudentId(null);
             refetch();
-        } catch {
-            toast.error("Failed to update exam eligibility.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update exam eligibility."));
         }
     };
 
@@ -81,7 +82,7 @@ export default function StudentFeePage() {
             {/* Search */}
             <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
                 <div className="relative max-w-md">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                     <input
                         type="text"
                         placeholder="Search student by name or roll number..."

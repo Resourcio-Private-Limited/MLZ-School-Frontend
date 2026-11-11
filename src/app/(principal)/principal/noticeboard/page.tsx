@@ -14,6 +14,7 @@ import {
 } from "@/redux/api/operationsApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
     GENERAL: "General",
@@ -114,8 +115,8 @@ export default function PrincipalNoticeBoardPage() {
             toast.success("Notice published successfully!");
             setShowCreateForm(false);
             setForm({ title: "", tag: "GENERAL", content: "", link: "" });
-        } catch {
-            toast.error("Failed to publish notice. Please try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to publish notice. Please try again."));
         }
     };
 
@@ -143,8 +144,8 @@ export default function PrincipalNoticeBoardPage() {
             }).unwrap();
             toast.success("Notice updated successfully!");
             setEditingNotice(null);
-        } catch {
-            toast.error("Failed to update notice.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update notice."));
         }
     };
 
@@ -154,8 +155,8 @@ export default function PrincipalNoticeBoardPage() {
             await deleteNotice(deletingNotice.id).unwrap();
             toast.success("Notice deleted successfully!");
             setDeletingNotice(null);
-        } catch {
-            toast.error("Failed to delete notice.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to delete notice."));
         }
     };
 
@@ -249,7 +250,7 @@ export default function PrincipalNoticeBoardPage() {
                                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                                     form.title.trim() && form.content.trim() && !isCreating
                                         ? "bg-purple-600 text-white hover:bg-purple-700"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
                                 }`}
                             >
                                 {isCreating ? "Publishing..." : "Publish Notice"}
@@ -269,7 +270,7 @@ export default function PrincipalNoticeBoardPage() {
                         <h2 className="text-xl font-bold text-gray-800">All Notices</h2>
                     </div>
                     <div className="relative">
-                        <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -320,7 +321,7 @@ export default function PrincipalNoticeBoardPage() {
                                 <div className="flex flex-col items-center justify-between mt-3 pt-3 border-t border-gray-100">
                                     <div className="text-left">
                                         <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
+                                        <p className="text-xs text-gray-500">{formatTime(notice.createdAt)}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                     <Tooltip content="Edit Notice" side="top">
@@ -429,7 +430,7 @@ export default function PrincipalNoticeBoardPage() {
                                     className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                                         editForm.title.trim() && editForm.content.trim() && !isUpdating
                                             ? "bg-purple-600 text-white hover:bg-purple-700"
-                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            : "bg-gray-200 text-gray-500 cursor-not-allowed"
                                     }`}
                                 >
                                     {isUpdating ? "Saving..." : "Save Changes"}

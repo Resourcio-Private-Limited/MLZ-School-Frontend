@@ -252,7 +252,7 @@ export default function PrincipalHomePage() {
             ) : classrooms.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">
                     <BookOpen size={48} className="mx-auto mb-3 text-gray-300" />
-                    <p className="font-medium">No classrooms found. Run the seed to populate classrooms.</p>
+                    <p className="font-medium">No classrooms yet. Use “Create Classroom” to add the first class section.</p>
                 </div>
             ) : (
                 levels.map((level) => {
@@ -263,7 +263,7 @@ export default function PrincipalHomePage() {
                             <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-purple-500" />
                                 {level}
-                                <span className="text-gray-400 font-normal text-sm">({levelClassrooms.length} sections)</span>
+                                <span className="text-gray-500 font-normal text-sm">({levelClassrooms.length} sections)</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {levelClassrooms.map((cls) => {
@@ -273,7 +273,7 @@ export default function PrincipalHomePage() {
                                             <div className="bg-white rounded-xl shadow-md overflow-hidden border-t-4 border-purple-600 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full">
                                                 <div className="p-6">
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <Link href={`/principal/classroom/${cls.id}`} className="flex-1">
+                                                        <Link href={`/principal/classroom/${cls.id}`} className="flex-1" aria-label={`Open ${cls.name}`}>
                                                             <div className="p-3 rounded-lg bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300 inline-flex">
                                                                 <BookOpen size={24} />
                                                             </div>
@@ -284,13 +284,14 @@ export default function PrincipalHomePage() {
                                                             </span>
                                                             <Tooltip className="z-50" content="Classroom Settings" side="top">
                                                             <button
+                                                                aria-label="Classroom settings"
                                                                 onClick={(e) => handleOpenSettings(cls, e)}
                                                                 className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600 transition-colors"
                                                             >
                                                                 <Settings size={16} />
                                                             </button>
-                                                            <Tooltip className="z-50" content="Delete Classroom" side="top"><button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setClassroomToDelete(cls); }} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={16} /></button></Tooltip>
                                                             </Tooltip>
+                                                            <Tooltip className="z-50" content="Delete Classroom" side="top"><button aria-label="Delete classroom" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setClassroomToDelete(cls); }} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={16} /></button></Tooltip>
                                                         </div>
                                                     </div>
 
@@ -301,7 +302,7 @@ export default function PrincipalHomePage() {
                                                         <div className="space-y-3 pt-4 border-t border-gray-100">
                                                             <div className="flex items-center justify-between">
                                                                 <div className="flex items-center text-gray-600 text-sm">
-                                                                    <Users size={16} className="mr-2 text-gray-400" />
+                                                                    <Users size={16} className="mr-2 text-gray-500" />
                                                                     <span>{enrolled} Students</span>
                                                                 </div>
                                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${getCapacityColor(enrolled, cls.capacity)}`}>
@@ -397,7 +398,7 @@ export default function PrincipalHomePage() {
                                 <div className="space-y-2 mb-4">
                                     {classroomSubjects.length === 0 ? (
                                         <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                                            <BookOpen className="mx-auto text-gray-400 mb-2" size={28} />
+                                            <BookOpen className="mx-auto text-gray-500 mb-2" size={28} />
                                             <p className="text-sm text-gray-500">No subjects added yet</p>
                                         </div>
                                     ) : (
@@ -420,7 +421,8 @@ export default function PrincipalHomePage() {
                                                                 className="w-full px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
                                                             >
                                                                 <option value="">Select teacher (optional)</option>
-                                                                {availableTeachersForNewSubject.map((t) => (
+                                                                {/* Keep the subject's current teacher selectable while editing. */}
+                                                                {availableTeachers.filter((t) => !assignedTeacherIds.has(t.id) || subj.teachers.some((st) => st.id === t.id)).map((t) => (
                                                                     <option key={t.id} value={t.id}>
                                                                         {t.fullName} {t.employeeId ? `(${t.employeeId})` : ""}
                                                                     </option>
@@ -579,7 +581,7 @@ export default function PrincipalHomePage() {
                 </div>
             )}
 
-            {showCreateModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={handleCreateClassroom} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-xl font-bold text-slate-900">Create classroom</h3><p className="text-sm text-slate-500">Add a new class section.</p></div><button type="button" onClick={() => setShowCreateModal(false)}><X className="text-slate-400" /></button></div><div className="space-y-3">{([['name','Classroom name','e.g. Class 1 - Section A'],['grade','Grade','e.g. 1'],['section','Section','e.g. A'],['capacity','Capacity','40']] as const).map(([key,label,placeholder]) => <label key={key} className="block text-sm font-semibold text-slate-700">{label}<input required type={key === 'capacity' ? 'number' : 'text'} min={key === 'capacity' ? 1 : undefined} value={newClassroom[key]} onChange={e => setNewClassroom(v => ({ ...v, [key]: e.target.value }))} placeholder={placeholder} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100" /></label>)}<label className="block text-sm font-semibold text-slate-700">Class type<select value={newClassroom.classType} onChange={e => setNewClassroom(v => ({ ...v, classType: e.target.value as 'PRIMARY' | 'SECONDARY' }))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal text-slate-900 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"><option value="PRIMARY">Primary</option><option value="SECONDARY">Secondary</option></select></label></div><button disabled={saving} className="mt-6 w-full rounded-lg bg-purple-600 py-2.5 font-semibold text-white hover:bg-purple-700 disabled:opacity-50">{saving ? 'Creating...' : 'Create Classroom'}</button></form></div>}
+            {showCreateModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={handleCreateClassroom} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-xl font-bold text-slate-900">Create classroom</h3><p className="text-sm text-slate-500">Add a new class section.</p></div><button type="button" onClick={() => setShowCreateModal(false)}><X className="text-slate-500" /></button></div><div className="space-y-3">{([['name','Classroom name','e.g. Class 1 - Section A'],['grade','Grade','e.g. 1'],['section','Section','e.g. A'],['capacity','Capacity','40']] as const).map(([key,label,placeholder]) => <label key={key} className="block text-sm font-semibold text-slate-700">{label}<input required type={key === 'capacity' ? 'number' : 'text'} min={key === 'capacity' ? 1 : undefined} value={newClassroom[key]} onChange={e => setNewClassroom(v => ({ ...v, [key]: e.target.value }))} placeholder={placeholder} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100" /></label>)}<label className="block text-sm font-semibold text-slate-700">Class type<select value={newClassroom.classType} onChange={e => setNewClassroom(v => ({ ...v, classType: e.target.value as 'PRIMARY' | 'SECONDARY' }))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal text-slate-900 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"><option value="PRIMARY">Primary</option><option value="SECONDARY">Secondary</option></select></label></div><button disabled={saving} className="mt-6 w-full rounded-lg bg-purple-600 py-2.5 font-semibold text-white hover:bg-purple-700 disabled:opacity-50">{saving ? 'Creating...' : 'Create Classroom'}</button></form></div>}
 
             {classroomToDelete && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100"><Trash2 className="text-red-600" /></div><h3 className="text-center text-xl font-bold text-slate-900">Delete classroom?</h3><p className="mt-2 text-center text-slate-600">Are you sure you want to delete <strong>{classroomToDelete.name}</strong>? This action cannot be undone.</p><div className="mt-6 flex gap-3"><button onClick={() => setClassroomToDelete(null)} className="flex-1 rounded-lg bg-slate-100 py-2.5 font-semibold text-slate-700 hover:bg-slate-200">Cancel</button><button onClick={confirmDeleteClassroom} disabled={saving} className="flex-1 rounded-lg bg-red-600 py-2.5 font-semibold text-white hover:bg-red-700 disabled:opacity-50">{saving ? 'Deleting...' : 'Yes, delete'}</button></div></div></div>}
 

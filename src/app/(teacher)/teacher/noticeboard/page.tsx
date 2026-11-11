@@ -162,9 +162,9 @@ export default function TeacherNoticeBoardPage() {
                                                         {getFileIcon(attachment.type)}
                                                         <span className="text-gray-700 font-medium">{attachment.name}</span>
                                                         {attachment.type === "link" ? (
-                                                            <ExternalLink size={14} className="text-gray-400 group-hover:text-emerald-500" />
+                                                            <ExternalLink size={14} className="text-gray-500 group-hover:text-emerald-500" />
                                                         ) : (
-                                                            <Download size={14} className="text-gray-400 group-hover:text-emerald-500" />
+                                                            <Download size={14} className="text-gray-500 group-hover:text-emerald-500" />
                                                         )}
                                                     </a>
                                                 ))}

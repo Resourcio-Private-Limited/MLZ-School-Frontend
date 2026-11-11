@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Home, Bell, CreditCard, FileText, User, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Award, Home, Bell, CreditCard, FileText, User, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useGetProfileQuery } from "@/redux/api/studentApi";
 import { Tooltip } from "@/components/ui/tooltip";
 import MobileRoleNavigation, { MobileBackToMenu } from "@/components/navigation/MobileRoleNavigation";
@@ -73,6 +73,7 @@ function StudentLayoutContent({
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     className="absolute -right-3 top-8 bg-blue-600 text-white rounded-full p-1.5 shadow-lg hover:bg-blue-500 transition-colors z-10 border-2 border-slate-900"
                 >
                     {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -112,6 +113,7 @@ function StudentLayoutContent({
                     <NavLink href="/student/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
                     <NavLink href="/student/payment" icon={<CreditCard size={20} />} label="Payment Area" isCollapsed={isCollapsed} />
                     <NavLink href="/student/admit-cards" icon={<FileText size={20} />} label="Admit Cards" isCollapsed={isCollapsed} />
+                    <NavLink href="/student/results" icon={<Award size={20} />} label="Results" isCollapsed={isCollapsed} />
                     <NavLink href="/student/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} />
                 </nav>
 
@@ -154,7 +156,7 @@ function StudentLayoutContent({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Student Portal" subtitle="Your school, at a glance" accent="sky" items={[{href:'/student?view=home',label:'Home',icon:Home},{href:'/student/noticeboard',label:'Notice Board',icon:Bell},{href:'/student/payment',label:'Payment Area',icon:CreditCard},{href:'/student/admit-cards',label:'Admit Cards',icon:FileText},{href:'/student/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/student" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Student Portal" subtitle="Your school, at a glance" accent="sky" items={[{href:'/student?view=home',label:'Home',icon:Home},{href:'/student/noticeboard',label:'Notice Board',icon:Bell},{href:'/student/payment',label:'Payment Area',icon:CreditCard},{href:'/student/admit-cards',label:'Admit Cards',icon:FileText},{href:'/student/results',label:'Results',icon:Award},{href:'/student/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/student" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

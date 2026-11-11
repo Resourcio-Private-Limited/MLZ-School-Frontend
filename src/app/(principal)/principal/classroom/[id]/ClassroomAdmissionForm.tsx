@@ -5,6 +5,7 @@ import { X, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useAddStudentMutation } from "@/redux/api/principalApi";
 
+import { todayLocal } from "@/lib/dates";
 type Classroom = {
     id: string;
     name: string;
@@ -30,7 +31,7 @@ export default function ClassroomAdmissionForm({
     const [showPassword, setShowPassword] = useState(false);
 
     const currentYear = new Date().getFullYear();
-    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDate = todayLocal();
 
     const generateAdmissionNo = () => {
         const suffix = String(Math.floor(Math.random() * 9999)).padStart(4, '0');

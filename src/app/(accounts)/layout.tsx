@@ -70,6 +70,7 @@ function AccountantLayoutContent({
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     className="absolute -right-3 top-8 bg-orange-600 text-white rounded-full p-1.5 shadow-lg hover:bg-orange-500 transition-colors z-10 border-2 border-slate-900"
                 >
                     {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}

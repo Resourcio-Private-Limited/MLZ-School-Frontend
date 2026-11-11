@@ -8,6 +8,7 @@ import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutati
 import { useGetClassStudentsQuery, useGetMessageRecipientsQuery } from "@/redux/api/teacherApi";
 import MessagesCenter from "@/components/messages/MessagesCenter";
 
+import { apiErrorMessage } from "@/lib/apiError";
 function formatTime(dateStr: string) {
     try {
         const date = new Date(dateStr);
@@ -195,8 +196,8 @@ export default function TeacherMessagesPage({ params }: { params: Promise<{ id: 
             toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
-        } catch {
-            toast.error("Failed to send message.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to send message."));
         }
     };
 

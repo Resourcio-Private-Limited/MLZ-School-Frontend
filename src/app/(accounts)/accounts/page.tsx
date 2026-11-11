@@ -8,6 +8,7 @@ import { useApplyClassroomOtherFeesMutation, useGetClassroomsWithFeesQuery, useU
 import toast from "react-hot-toast";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
 const GRADE_LEVELS: Record<string, string> = {
     'Nursery': 'Pre-Primary',
     'KG': 'Pre-Primary',
@@ -76,8 +77,9 @@ export default function AccountantHomePage() {
                 annualFeeExpiryDate: editedClassroom.annualFeeExpiryDate || undefined,
             }).unwrap();
             toast.success("Fee settings saved successfully!");
-        } catch {
-            toast.error("Failed to save fee settings.");
+        } catch (err: unknown) {
+            const message = (err as { data?: { message?: string } })?.data?.message;
+            toast.error(message ?? "Failed to save fee settings.");
         }
         handleCloseSettings();
     };
@@ -104,8 +106,8 @@ export default function AccountantHomePage() {
             if (result.skippedPaidCount) {
                 toast(`Skipped ${result.skippedPaidCount} paid student${result.skippedPaidCount === 1 ? "" : "s"}.`, { icon: "ℹ️" });
             }
-        } catch {
-            toast.error("Failed to apply other fees to the classroom.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to apply other fees to the classroom."));
         }
     };
 
@@ -138,13 +140,13 @@ export default function AccountantHomePage() {
                             <div className="bg-white rounded-xl shadow-md overflow-hidden border-t-4 border-amber-500 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative h-full">
                                 <div className="p-6">
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 rounded-lg bg-gray-50 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
+                                        <div className="p-3 rounded-lg bg-gray-50 text-amber-700 group-hover:bg-amber-500 group-hover:text-white transition-colors duration-300">
                                             <BookOpen size={24} />
                                         </div>
                                         <Tooltip content="Fee Settings" side="left">
                                         <button
                                             onClick={(e) => handleOpenSettings(classroom, e)}
-                                            className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-500 transition-colors"
+                                            className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700 transition-colors"
                                         >
                                             <Settings size={16} />
                                         </button>
@@ -152,12 +154,12 @@ export default function AccountantHomePage() {
                                     </div>
 
                                     <h3 className="text-xl font-bold text-gray-800 mb-1">{classroom.name}</h3>
-                                    <p className="text-amber-500 font-medium text-sm mb-4">{classroom.level}</p>
+                                    <p className="text-amber-700 font-medium text-sm mb-4">{classroom.level}</p>
 
                                     <div className="space-y-3 pt-4 border-t border-gray-100">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center text-gray-600 text-sm">
-                                                <Users size={16} className="mr-2 text-gray-400" />
+                                                <Users size={16} className="mr-2 text-gray-500" />
                                                 <span>{classroom.students} Students</span>
                                             </div>
                                         </div>
@@ -183,7 +185,7 @@ export default function AccountantHomePage() {
                                 </div>
 
                                 <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-center items-center">
-                                    <span className="text-amber-500 text-sm font-semibold">
+                                    <span className="text-amber-700 text-sm font-semibold">
                                         Click to view students
                                     </span>
                                 </div>
@@ -214,7 +216,7 @@ export default function AccountantHomePage() {
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <IndianRupee size={18} className="text-gray-400" />
+                                        <IndianRupee size={18} className="text-gray-500" />
                                     </div>
                                     <input
                                         type="number"
@@ -235,7 +237,7 @@ export default function AccountantHomePage() {
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <IndianRupee size={18} className="text-gray-400" />
+                                        <IndianRupee size={18} className="text-gray-500" />
                                     </div>
                                     <input
                                         type="number"
@@ -253,7 +255,7 @@ export default function AccountantHomePage() {
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <IndianRupee size={18} className="text-gray-400" />
+                                        <IndianRupee size={18} className="text-gray-500" />
                                     </div>
                                     <input
                                         type="number"
@@ -300,7 +302,7 @@ export default function AccountantHomePage() {
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 mb-1">Other Fees per Student</label>
                                     <div className="relative">
-                                        <IndianRupee size={16} className="absolute inset-y-0 left-3 my-auto text-gray-400" />
+                                        <IndianRupee size={16} className="absolute inset-y-0 left-3 my-auto text-gray-500" />
                                         <input
                                             type="number"
                                             min="0"

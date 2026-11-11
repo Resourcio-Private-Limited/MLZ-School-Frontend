@@ -21,6 +21,16 @@ interface LoginFormProps {
     logoSrc?: string;
 }
 
+// Tailwind only generates classes it can see literally in the source, so the
+// accent bar classes cannot be built from strings at runtime.
+const ACCENT_BARS: Record<string, string> = {
+    "blue-600": "from-blue-600 to-blue-200",
+    "emerald-600": "from-emerald-600 to-emerald-200",
+    "purple-600": "from-purple-600 to-purple-200",
+    "amber-600": "from-amber-600 to-amber-200",
+    "rose-600": "from-rose-600 to-rose-200",
+};
+
 export default function LoginForm({
     expectedRole,
     roleLabel,
@@ -135,7 +145,7 @@ export default function LoginForm({
             {/* Right Side: Login Form */}
             <div className="w-full lg:w-1/2 bg-slate-50 flex items-center justify-center p-8">
                 <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-100 relative overflow-hidden">
-                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-${colorScheme.primary} to-${colorScheme.primaryLight}`}></div>
+                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${ACCENT_BARS[colorScheme.primary] ?? "from-blue-600 to-blue-200"}`}></div>
 
                     <div className="mb-8 text-center lg:text-left">
                         <div className="lg:hidden flex justify-center mb-6">
@@ -198,7 +208,8 @@ export default function LoginForm({
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    aria-label={showPassword ? "Hide password" : "Show password"}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                                     tabIndex={-1}
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

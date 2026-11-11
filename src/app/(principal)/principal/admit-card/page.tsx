@@ -9,8 +9,8 @@ import { useGetAllClassroomsQuery, useGetClassroomStudentsQuery, useGetExamSched
 import { Tooltip } from "@/components/ui/tooltip";
 
 const EXAM_TYPES = [
-    { value: "HALF_YEARLY", label: "Half Yearly Examination", svg: "/admit/Admit Card-Half Year.svg" },
-    { value: "FINAL", label: "Final Examination", svg: "/admit/Admit Card-Final Exam.svg" },
+    { value: "HALF_YEARLY", label: "Half Yearly Examination"},
+    { value: "FINAL", label: "Final Examination" },
 ];
 
 const toDateInputValue = (value: string | null | undefined) => value ? value.slice(0, 10) : '';

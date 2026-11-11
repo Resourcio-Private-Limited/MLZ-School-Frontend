@@ -11,6 +11,7 @@ import {
     useRecordStudentPaymentMutation,
 } from "@/redux/api/accountsApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 interface classroom {
     id: string;
     name: string;
@@ -95,8 +96,8 @@ export default function StudentFeeModal({ classroom, onClose }: StudentFeeModalP
             setEditingStudent(null);
             if (searchMode) refetchSearch();
             else refetch();
-        } catch {
-            toast.error("Failed to update fees.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update fees."));
         }
     };
 

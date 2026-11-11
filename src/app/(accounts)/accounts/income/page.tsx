@@ -13,6 +13,8 @@ import {
 } from "@/redux/api/accountsApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
+import { todayLocal } from "@/lib/dates";
 const UI_INCOME_CATEGORIES = ['Donations', 'Events', 'Other'] as const;
 
 const API_INCOME_CATEGORY: Record<string, IncomeCategory> = {
@@ -78,7 +80,7 @@ export default function IncomePage() {
     const [saving, setSaving] = useState(false);
 
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         source: "",
         amount: 0,
         category: "Donations",
@@ -111,7 +113,7 @@ export default function IncomePage() {
         } else {
             setEditingIncome(null);
             setFormData({
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 source: "",
                 amount: 0,
                 category: "Donations",
@@ -137,7 +139,7 @@ export default function IncomePage() {
                 category: toApiCategory(formData.category) as IncomeCategory,
                 categoryName: formData.category === 'Other' ? formData.source : undefined,
                 paymentMode: toApiPaymentMode(formData.paymentMode) as PaymentMode,
-                addedBy: "Mr. Rakesh Kapoor",
+                addedBy: "Accountant", // the server records the logged-in user
                 chequeNumber: formData.paymentMode === 'Cheque' ? formData.chequeNumber || undefined : undefined,
             };
             if (editingIncome) {
@@ -149,8 +151,8 @@ export default function IncomePage() {
             }
             refetch();
             handleCloseModal();
-        } catch {
-            toast.error("Failed to save income.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to save income."));
         } finally {
             setSaving(false);
         }
@@ -162,8 +164,8 @@ export default function IncomePage() {
                 await deleteIncome(id).unwrap();
                 toast.success("Income deleted successfully!");
                 refetch();
-            } catch {
-                toast.error("Failed to delete income.");
+            } catch (err) {
+                toast.error(apiErrorMessage(err, "Failed to delete income."));
             }
         }
     };
@@ -195,7 +197,7 @@ export default function IncomePage() {
                 <div className="flex gap-3">
                     <Tooltip content="Export to Excel" side="left">
                     <button
-                        onClick={() => exportToExcel(filteredIncomes, `income-${new Date().toISOString().split('T')[0]}`)}
+                        onClick={() => exportToExcel(filteredIncomes, `income-${todayLocal()}`)}
                         className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
                     >
                         <Download size={18} />

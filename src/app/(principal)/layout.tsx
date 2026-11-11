@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
-import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Home, User, FileText, Bell, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetPrincipalProfileQuery } from "@/redux/api/principalApi";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -74,6 +74,7 @@ function PrincipalLayoutContent({
                 {/* Toggle Button */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     className="absolute -right-3 top-8 bg-purple-600 text-white rounded-full p-1.5 shadow-lg hover:bg-purple-500 transition-colors z-10 border-2 border-slate-900"
                 >
                     {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -111,6 +112,7 @@ function PrincipalLayoutContent({
                 <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                     <NavLink href="/principal" icon={<Home size={20} />} label="Home" isCollapsed={isCollapsed} />
                     <NavLink href="/principal/admit-card" icon={<FileText size={20} />} label="Create Admit Card" isCollapsed={isCollapsed} />
+                    <NavLink href="/principal/messages" icon={<MessageSquare size={20} />} label="Messages" isCollapsed={isCollapsed} />
                     <NavLink href="/principal/noticeboard" icon={<Bell size={20} />} label="Notice Board" isCollapsed={isCollapsed} />
                     <NavLink href="/principal/profile" icon={<User size={20} />} label="Profile" isCollapsed={isCollapsed} />
                 </nav>
@@ -154,7 +156,7 @@ function PrincipalLayoutContent({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Principal Portal" subtitle="Choose an area to continue" items={[{href:'/principal?view=home',label:'Home',icon:Home},{href:'/principal/admit-card',label:'Admit Cards',icon:FileText},{href:'/principal/noticeboard',label:'Notice Board',icon:Bell},{href:'/principal/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/principal" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10"><div className="md:hidden">{showMobileMenu ? <MobileRoleNavigation title="Principal Portal" subtitle="Choose an area to continue" items={[{href:'/principal?view=home',label:'Home',icon:Home},{href:'/principal/admit-card',label:'Admit Cards',icon:FileText},{href:'/principal/messages',label:'Messages',icon:MessageSquare},{href:'/principal/noticeboard',label:'Notice Board',icon:Bell},{href:'/principal/profile',label:'Profile',icon:User}]} /> : <MobileBackToMenu href="/principal" />}</div><div className={showMobileMenu ? 'hidden md:block' : ''}>{children}</div>
             </main>
         </div>
     );

@@ -90,7 +90,7 @@ export default function ExamsPage() {
                                                     <span>Download</span>
                                                 </a>
                                             ) : (
-                                                <span className="text-slate-400 text-sm italic">Not Published</span>
+                                                <span className="text-slate-500 text-sm italic">Not Published</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-center">
@@ -105,7 +105,7 @@ export default function ExamsPage() {
                                                     <span>View Result</span>
                                                 </a>
                                             ) : (
-                                                <span className="text-slate-400 text-sm italic">Not Published</span>
+                                                <span className="text-slate-500 text-sm italic">Not Published</span>
                                             )}
                                         </td>
                                     </tr>

@@ -7,6 +7,16 @@ import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
 import { useGetAttendanceHistoryQuery, useGetAttendanceByDateQuery } from "@/redux/api/teacherApi";
 
+
+/** "YYYY-MM-DD" → local midnight (new Date("YYYY-MM-DD") is UTC midnight, a day off in some hours/zones). */
+function parseDay(key: string) {
+    const [y, m, d] = key.slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+function startOfToday() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
 const MONTHS = [
     { value: 1, label: "January" },
     { value: 2, label: "February" },
@@ -24,7 +34,7 @@ const MONTHS = [
 
 function formatDate(dateStr: string) {
     try {
-        return new Date(dateStr).toLocaleDateString('en-US', {
+        return parseDay(dateStr).toLocaleDateString('en-US', {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -60,8 +70,8 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
         ];
 
         history.days.forEach((day) => {
-            const dayDate = new Date(day.date);
-            const isFuture = dayDate > now;
+            const dayDate = parseDay(day.date);
+            const isFuture = dayDate > startOfToday();
             worksheetData.push([
                 formatDate(day.date),
                 day.dayName,
@@ -99,7 +109,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                 {history && (
                     <button
                         onClick={handleDownloadAttendance}
-                        className="px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 bg-emerald-500 text-white shadow-emerald-200 hover:bg-emerald-600"
+                        className="px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700"
                     >
                         <Download size={18} />
                         <span>Download Excel</span>
@@ -109,7 +119,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
 
             {/* Month Selector */}
             <div className="flex items-center space-x-4 bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <Calendar size={20} className="text-gray-400" />
+                <Calendar size={20} className="text-gray-500" />
                 <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -190,8 +200,8 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {history.days.map((day) => {
-                                        const dayDate = new Date(day.date);
-                                        const isFuture = dayDate > now;
+                                        const dayDate = parseDay(day.date);
+                                        const isFuture = dayDate > startOfToday();
                                         return (
                                             <tr key={day.date} className={`hover:bg-gray-50 transition-colors ${isFuture ? 'opacity-50' : ''}`}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
@@ -215,14 +225,14 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
                                                     {isFuture ? (
-                                                        <span className="text-xs text-gray-400">Future</span>
+                                                        <span className="text-xs text-gray-500">Future</span>
                                                     ) : day.isMarked ? (
                                                         <span className="text-xs font-medium text-emerald-600 flex items-center justify-center gap-1">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                                             Marked
                                                         </span>
                                                     ) : (
-                                                        <span className="text-xs text-gray-400">Not Marked</span>
+                                                        <span className="text-xs text-gray-500">Not Marked</span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -263,7 +273,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                             </div>
                             <button
                                 onClick={() => setViewDate(null)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                className="text-gray-500 hover:text-gray-600 transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -299,7 +309,7 @@ export default function AttendanceHistoryPage({ params }: { params: Promise<{ id
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-gray-800">{record.fullName}</p>
-                                                <p className="text-xs text-gray-400">Roll: {record.rollNumber}</p>
+                                                <p className="text-xs text-gray-500">Roll: {record.rollNumber}</p>
                                             </div>
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${

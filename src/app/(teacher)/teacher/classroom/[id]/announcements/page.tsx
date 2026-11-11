@@ -6,6 +6,7 @@ import { ArrowLeft, Bell, Send, Paperclip, X, Info } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetAnnouncementsQuery, useCreateAnnouncementMutation } from "@/redux/api/operationsApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("en-IN", {
         day: "2-digit",
@@ -70,8 +71,8 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
             setFileUrl("");
             setIsCreating(false);
             toast.success("Announcement posted successfully!");
-        } catch {
-            toast.error("Failed to create announcement. Please try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to create announcement. Please try again."));
         }
     };
 
@@ -88,7 +89,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                 {!isCreating && (
                     <button
                         onClick={() => setIsCreating(true)}
-                        className="bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all flex items-center space-x-2 shadow-md hover:shadow-lg"
+                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-all flex items-center space-x-2 shadow-md hover:shadow-lg"
                     >
                         <Bell size={20} />
                         <span>New Announcement</span>
@@ -104,7 +105,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                             <Send size={18} className="text-emerald-500" />
                             Compose Announcement
                         </h2>
-                        <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-600">
+                        <button onClick={() => setIsCreating(false)} className="text-gray-500 hover:text-gray-600">
                             <X size={20} />
                         </button>
                     </div>
@@ -158,7 +159,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                 <button
                                     type="submit"
                                     disabled={isCreating_}
-                                    className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors shadow-sm"
+                                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
                                 >
                                     {isCreating_ ? "Posting..." : "Post Announcement"}
                                 </button>
@@ -200,7 +201,7 @@ export default function TeacherAnnouncementsPage({ params }: { params: Promise<{
                                             <Info size={14} />
                                             Announcement
                                         </span>
-                                        <span className="text-sm text-gray-400 font-medium flex items-center">
+                                        <span className="text-sm text-gray-500 font-medium flex items-center">
                                             <span>{formatDate(announcement.createdAt)}</span>
                                             <span className="mx-1.5">•</span>
                                             <span>{formatTime(announcement.createdAt)}</span>

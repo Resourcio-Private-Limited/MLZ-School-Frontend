@@ -168,8 +168,8 @@ export default function TeacherClassroomPage({ params }: { params: Promise<{ id:
                                             <FileSpreadsheet size={24} />
                                         </div>
                                     </div>
-                                    <h2 className="text-xl font-bold text-slate-800 mb-2">Final Exam Marks</h2>
-                                    <p className="text-slate-500 text-sm">Generate and manage student marks for final exams.</p>
+                                    <h2 className="text-xl font-bold text-slate-800 mb-2">Exam Marks</h2>
+                                    <p className="text-slate-500 text-sm">Enter Half Yearly and Final marks (or grades) for every subject.</p>
                                 </div>
                                 <div className="mt-6 flex items-center text-amber-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
                                     Generate Marks <ArrowLeft className="ml-1 rotate-180" size={16} />

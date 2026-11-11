@@ -12,10 +12,14 @@ import {
     ExternalLink,
 } from "lucide-react";
 import { useGetAnnouncementsQuery, useGetClassroomTeachersQuery } from "@/redux/api/operationsApi";
+import { useGetDashboardQuery } from "@/redux/api/studentApi";
 
 function AnnouncementsContent() {
     const searchParams = useSearchParams();
-    const classroomId = searchParams.get("classroomId") ?? "";
+    // Always show the logged-in student's own classroom (works for direct links and
+    // bookmarks too); the query parameter is only a fallback while the dashboard loads.
+    const { data: dashboard } = useGetDashboardQuery();
+    const classroomId = dashboard?.classroom?.id ?? searchParams.get("classroomId") ?? "";
 
     const { data: announcements = [], isLoading: announcementsLoading } = useGetAnnouncementsQuery(classroomId, {
         skip: !classroomId,
@@ -71,7 +75,7 @@ function AnnouncementsContent() {
                         <h2 className="text-xl font-bold text-slate-800">All Announcements</h2>
                     </div>
                     <div className="flex items-center space-x-3">
-                        <Filter size={18} className="text-slate-400" />
+                        <Filter size={18} className="text-slate-500" />
                         <select
                             value={selectedTeacher}
                             onChange={(e) => setSelectedTeacher(e.target.value)}
@@ -116,7 +120,7 @@ function AnnouncementsContent() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-slate-500 font-medium">{formatDate(announcement.createdAt)}</p>
-                                        <p className="text-xs text-slate-400">{formatTime(announcement.createdAt)}</p>
+                                        <p className="text-xs text-slate-500">{formatTime(announcement.createdAt)}</p>
                                     </div>
                                 </div>
                                 <p className="text-slate-600 text-sm leading-relaxed mb-4">{announcement.content}</p>
@@ -131,7 +135,7 @@ function AnnouncementsContent() {
                                         >
                                             <FileText size={16} className="text-blue-500" />
                                             <span className="text-slate-600 font-medium group-hover/att:text-blue-700">Download Attachment</span>
-                                            <ExternalLink size={14} className="text-slate-400 group-hover/att:text-blue-500" />
+                                            <ExternalLink size={14} className="text-slate-500 group-hover/att:text-blue-500" />
                                         </a>
                                     </div>
                                 )}

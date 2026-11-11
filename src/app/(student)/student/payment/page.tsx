@@ -40,9 +40,23 @@ export default function PaymentPage() {
         0,
     );
     const remainingAfterSelection = Math.max(0, (data?.annualSummary.remaining ?? 0) - flexibleAnnual);
-    const toggleMonth = (month: number) => setSelected((current) => (
-        current.includes(month) ? current.filter((selectedMonth) => selectedMonth !== month) : [...current, month]
-    ));
+    // Unpaid months with a balance, in the order they must be paid.
+    const payableMonths = useMemo(
+        () => data?.fees.filter((fee) => !fee.isPaid && fee.totalAmount > 0).map((fee) => fee.month) ?? [],
+        [data],
+    );
+    // Selection is always a gap-free run from the earliest unpaid month:
+    // picking a month also picks every unpaid month before it, and unpicking
+    // a month also unpicks every month after it.
+    const toggleMonth = (month: number) => {
+        const position = payableMonths.indexOf(month);
+        if (position === -1) return;
+        const next = selected.includes(month) ? payableMonths.slice(0, position) : payableMonths.slice(0, position + 1);
+        setSelected(next);
+        setAnnualContributions((current) => Object.fromEntries(
+            Object.entries(current).filter(([key]) => next.includes(Number(key))),
+        ));
+    };
 
     const pay = async () => {
         if (!data || !selectedFees.length || selectedTotal <= 0) return;
@@ -84,7 +98,11 @@ export default function PaymentPage() {
                 theme: { color: "#2563eb" },
             }).open();
         } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Unable to begin payment. Please try again.");
+            const apiMessage = (error as { data?: { message?: string | string[] } })?.data?.message;
+            setMessage(
+                (Array.isArray(apiMessage) ? apiMessage.join(", ") : apiMessage)
+                ?? (error instanceof Error ? error.message : "Unable to begin payment. Please try again."),
+            );
         }
     };
 
@@ -92,7 +110,7 @@ export default function PaymentPage() {
     return <div className="space-y-6">
         <div className="flex items-center gap-4">
             <div className="rounded-xl bg-blue-600 p-3 text-white shadow-lg"><CreditCard size={26} /></div>
-            <div><h1 className="text-3xl font-bold text-slate-800">Fee Payment</h1><p className="text-slate-500">Select one or more monthly fees to pay together.</p></div>
+            <div><h1 className="text-3xl font-bold text-slate-800">Fee Payment</h1><p className="text-slate-500">Fees are paid month by month in order. Selecting a later month also selects the unpaid months before it.</p></div>
         </div>
         {message && <div className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-900"><CheckCircle size={20} className="shrink-0" />{message}</div>}
         {receipt && <ReceiptModal receipt={receipt} fileName={`MLZ-payment-receipt-${receipt.receiptNumber}.svg`} onClose={() => setReceipt(null)} />}
@@ -116,10 +134,14 @@ export default function PaymentPage() {
                 <div className="divide-y divide-slate-100">
                     {isLoading ? <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-600" /></div> : data?.fees.map((fee) => {
                         const active = selected.includes(fee.month);
-                        const canSelect = !fee.isPaid && fee.totalAmount > 0;
+                        const canSelect = payableMonths.includes(fee.month);
+                        const earlierUnpaid = canSelect && !active ? payableMonths.filter((month) => month < fee.month && !selected.includes(month)) : [];
+                        const hint = earlierUnpaid.length
+                            ? `Also selects ${earlierUnpaid.map((month) => MONTHS[month - 1]).join(", ")} - months must be paid in order`
+                            : undefined;
                         return <div key={fee.month} className={`p-5 ${active ? "bg-blue-50/70" : ""}`}>
                             <div className="flex gap-3">
-                                <button disabled={!canSelect} onClick={() => toggleMonth(fee.month)} className="mt-1 text-blue-600 disabled:text-emerald-500">
+                                <button disabled={!canSelect} onClick={() => toggleMonth(fee.month)} title={hint} aria-label={`${active ? "Deselect" : "Select"} ${MONTHS[fee.month - 1]}`} className={`mt-1 ${fee.isPaid ? "text-emerald-500" : "text-blue-600 disabled:text-slate-300"}`}>
                                     {fee.isPaid ? <CheckCircle size={22} /> : active ? <CheckSquare size={22} /> : <Square size={22} />}
                                 </button>
                                 <div className="min-w-0 flex-1">
@@ -158,7 +180,7 @@ export default function PaymentPage() {
                     <div className="mt-2 flex justify-between text-sm text-slate-600"><span>Annual installments</span><span>{money(flexibleAnnual)}</span></div>
                     <div className="mt-3 flex justify-between text-lg font-bold text-slate-900"><span>Total</span><span>{money(selectedTotal)}</span></div>
                 </div>
-                <button disabled={!selectedFees.length || creatingOrder || selectedTotal <= 0} onClick={pay} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">{creatingOrder && <Loader2 className="animate-spin" size={18} />}Pay securely</button>
+                <button disabled={!selectedFees.length || creatingOrder || selectedTotal <= 0} onClick={pay} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{creatingOrder && <Loader2 className="animate-spin" size={18} />}Pay securely</button>
                 <p className="mt-3 flex gap-2 text-xs text-slate-500"><AlertCircle size={15} />The server recalculates the final payable amount.</p>
             </aside>
         </div>

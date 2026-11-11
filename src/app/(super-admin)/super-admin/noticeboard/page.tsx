@@ -5,6 +5,7 @@ import { Bell, Filter, Link2, Plus, X, Edit2, Trash2 } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useGetNoticesQuery, useCreateNoticeMutation, useUpdateNoticeMutation, useDeleteNoticeMutation, NoticeTag, Notice } from "@/redux/api/operationsApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 const TAG_TO_LABEL: Record<NoticeTag, string> = {
     ALL_NOTICES: "All Notices",
     GENERAL: "General",
@@ -128,8 +129,8 @@ export default function SuperAdminNoticeBoardPage() {
             setShowForm(false);
             setForm(emptyForm);
             setEditingNotice(null);
-        } catch {
-            toast.error("Failed to save notice. Please try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to save notice. Please try again."));
         }
     };
 
@@ -138,8 +139,8 @@ export default function SuperAdminNoticeBoardPage() {
             await deleteNotice(noticeId).unwrap();
             setShowDeleteConfirm(null);
             toast.success("Notice deleted successfully!");
-        } catch {
-            toast.error("Failed to delete notice.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to delete notice."));
         }
     };
 
@@ -235,7 +236,7 @@ export default function SuperAdminNoticeBoardPage() {
                                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                                     form.title.trim() && form.content.trim() && !isCreating && !isUpdating
                                         ? "bg-rose-600 text-white hover:bg-rose-700"
-                                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
                                 }`}
                             >
                                 {editingNotice ? (isUpdating ? "Saving..." : "Save Changes") : (isCreating ? "Broadcasting..." : "Broadcast Notice")}
@@ -280,7 +281,7 @@ export default function SuperAdminNoticeBoardPage() {
                         <h2 className="text-xl font-bold text-gray-800">All Broadcast Notices</h2>
                     </div>
                     <div className="relative">
-                        <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -330,17 +331,19 @@ export default function SuperAdminNoticeBoardPage() {
                                 <div className="flex flex-col">
                                 <div className="text-right ml-4 shrink-0">
                                         <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                        <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
+                                        <p className="text-xs text-gray-500">{formatTime(notice.createdAt)}</p>
                                     </div>
                                 <div className="absolute top-5 right-5 flex items-center space-x-2">
                                     <button
                                         onClick={() => openEdit(notice)}
+                                        aria-label="Edit notice"
                                         className="p-1.5 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors text-xs"
                                     >
                                         <Edit2 size={14} />
                                     </button>
                                     <button
                                         onClick={() => setShowDeleteConfirm(notice.id)}
+                                        aria-label="Delete notice"
                                         className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors text-xs"
                                     >
                                         <Trash2 size={14} />

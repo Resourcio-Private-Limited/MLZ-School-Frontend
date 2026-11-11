@@ -8,6 +8,7 @@ import { useGetConversationsQuery, useGetConversationQuery, useGetUserByRoleQuer
 import MessagesCenter from "@/components/messages/MessagesCenter";
 import { useLazyGetClassStudentsQuery } from "@/redux/api/teacherApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 function formatTime(dateStr: string) {
     try {
         const date = new Date(dateStr);
@@ -301,8 +302,8 @@ export default function AccountantMessages() {
             toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
-        } catch {
-            toast.error("Failed to send message.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to send message."));
         }
     };
 
@@ -337,7 +338,7 @@ export default function AccountantMessages() {
                         <div className="p-4 border-b border-gray-200">
                             <h2 className="text-lg font-bold text-gray-800 mb-3">Conversations</h2>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={16} />
                                 <input
                                     type="text"
                                     placeholder="Search classes..."
@@ -371,7 +372,7 @@ export default function AccountantMessages() {
                                                 selectedUserId === 'PRINCIPAL' ? 'text-blue-500' : 'text-gray-800'
                                             }`}>Principal</h3>
                                             {principalConv?.lastMessageAt && (
-                                                <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                                <span className="text-xs text-gray-500 shrink-0 ml-2">
                                                     {formatTime(principalConv.lastMessageAt)}
                                                 </span>
                                             )}
@@ -393,7 +394,7 @@ export default function AccountantMessages() {
                                     <GraduationCap size={14} className="text-gray-500" />
                                 </div>
                                 {filteredClassItems.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-400 text-sm">No classes found</div>
+                                    <div className="text-center py-8 text-gray-500 text-sm">No classes found</div>
                                 ) : (
                                     filteredClassItems.map((classItem) => (
                                         <div key={classItem.id}>
@@ -414,7 +415,7 @@ export default function AccountantMessages() {
                                                 </div>
                                                 <ChevronDown
                                                     size={16}
-                                                    className={`text-gray-400 transition-transform ${classItem.isExpanded ? 'rotate-180' : ''}`}
+                                                    className={`text-gray-500 transition-transform ${classItem.isExpanded ? 'rotate-180' : ''}`}
                                                 />
                                             </div>
                                             {classItem.isExpanded && (
@@ -450,14 +451,14 @@ export default function AccountantMessages() {
                                                     {/* Loading State */}
                                                     {classItem.isLoadingStudents && (
                                                         <div className="p-4 flex items-center justify-center">
-                                                            <Loader2 size={16} className="animate-spin text-gray-400" />
-                                                            <span className="text-xs text-gray-400 ml-2">Loading students...</span>
+                                                            <Loader2 size={16} className="animate-spin text-gray-500" />
+                                                            <span className="text-xs text-gray-500 ml-2">Loading students...</span>
                                                         </div>
                                                     )}
 
                                                     {/* Students List */}
                                                     {!classItem.isLoadingStudents && classItem.students.length === 0 && classItem.studentCount > 0 && (
-                                                        <div className="p-4 text-center text-xs text-gray-400">
+                                                        <div className="p-4 text-center text-xs text-gray-500">
                                                             Click expand to load students
                                                         </div>
                                                     )}
@@ -485,7 +486,7 @@ export default function AccountantMessages() {
                                                     ))}
 
                                                     {classItem.studentCount === 0 && (
-                                                        <div className="p-4 text-center text-xs text-gray-400">
+                                                        <div className="p-4 text-center text-xs text-gray-500">
                                                             No students in this class
                                                         </div>
                                                     )}
@@ -500,7 +501,7 @@ export default function AccountantMessages() {
                             <div className="border-b border-gray-200">
                                 <div className="px-4 py-2 bg-gray-100 flex items-center justify-between">
                                     <span className="text-xs font-semibold text-gray-600 uppercase">Super Admin</span>
-                                    <Lock size={12} className="text-gray-400" />
+                                    <Lock size={12} className="text-gray-500" />
                                 </div>
                                 <div
                                     onClick={() => setSelectedUserId('SUPER_ADMIN')}
@@ -560,7 +561,7 @@ export default function AccountantMessages() {
                                 {/* Messages */}
                                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                                     {messages.length === 0 ? (
-                                        <div className="text-center text-gray-400 py-12">
+                                        <div className="text-center text-gray-500 py-12">
                                             <p className="text-sm">No messages yet. {canSendToSelected ? 'Start the conversation below.' : 'You can only receive messages here.'}</p>
                                         </div>
                                     ) : (
@@ -576,14 +577,14 @@ export default function AccountantMessages() {
                                                         }`}>
                                                             <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                                             <p className={`text-[10px] mt-1 ${
-                                                                isMine ? 'text-blue-200' : 'text-gray-400'
+                                                                isMine ? 'text-blue-200' : 'text-gray-500'
                                                             }`}>
                                                                 {formatTime(msg.createdAt)}
                                                             </p>
                                                         </div>
                                                     </div>
                                                     {!isMine && (
-                                                        <span className="text-[10px] text-gray-400 ml-1 mt-0.5">
+                                                        <span className="text-[10px] text-gray-500 ml-1 mt-0.5">
                                                             {getRoleLabel(msg.sender.role)}
                                                         </span>
                                                     )}
@@ -601,7 +602,7 @@ export default function AccountantMessages() {
                                                 <textarea
                                                     rows={3}
                                                     placeholder="Type your message here..."
-                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
+                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none resize-none"
                                                     value={messageText}
                                                     onChange={(e) => setMessageText(e.target.value)}
                                                     onKeyDown={(e) => {
@@ -618,7 +619,7 @@ export default function AccountantMessages() {
                                                 className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2 ${
                                                     messageText.trim() && !isSending
                                                         ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                                 }`}
                                             >
                                                 <Send size={16} />
@@ -626,7 +627,7 @@ export default function AccountantMessages() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-center text-gray-400 text-sm">
+                                        <div className="flex items-center justify-center text-gray-500 text-sm">
                                             <Lock size={16} className="mr-2" />
                                             Messaging is disabled for {getRoleLabel(selectedItem.role)}. Only receive mode available.
                                         </div>
@@ -634,7 +635,7 @@ export default function AccountantMessages() {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-300">
                                     <Search size={32} />
                                 </div>

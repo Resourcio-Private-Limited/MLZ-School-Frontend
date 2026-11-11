@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { useGetClassStudentsQuery, useGetTeacherProfileQuery, useMarkAttendanceMutation } from "@/redux/api/teacherApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 export default function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
     const { id: classroomId } = use(params);
     const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -66,8 +67,8 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
             setLocalAttendance({});
             toast.success("Attendance marked and saved successfully!");
             refetchStudents();
-        } catch {
-            toast.error("Failed to submit attendance. Please try again.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to submit attendance. Please try again."));
             setIsConfirming(false);
         }
     };
@@ -147,6 +148,10 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                                             {isPresent ? 'Present' : 'Absent'}
                                                         </span>
                                                         <button
+                                                            type="button"
+                                                            role="switch"
+                                                            aria-checked={isPresent}
+                                                            aria-label={`${student.fullName}: ${isPresent ? 'present' : 'absent'}`}
                                                             onClick={() => toggleAttendance(student.id)}
                                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                                                                 isPresent ? 'bg-green-500' : 'bg-gray-300'
@@ -170,7 +175,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                                 </span>
                                 <button
                                     onClick={handleInitialSubmit}
-                                    className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-600 transition-colors"
+                                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
                                 >
                                     Save Attendance
                                 </button>
@@ -252,7 +257,7 @@ export default function AttendancePage({ params }: { params: Promise<{ id: strin
                     {profileLoading ? null : isClassTeacher ? (
                         <button
                             onClick={() => setIsMarking(true)}
-                            className="px-5 py-2.5 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 bg-emerald-500 text-white shadow-emerald-200 hover:bg-emerald-600"
+                            className="px-5 py-2.5 rounded-lg font-semibold shadow-md transition-all flex items-center space-x-2 bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700"
                         >
                             <Plus size={20} />
                             <span>Mark Attendance</span>

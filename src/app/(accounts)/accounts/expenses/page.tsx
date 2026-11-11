@@ -13,6 +13,8 @@ import {
 } from "@/redux/api/accountsApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
+import { todayLocal } from "@/lib/dates";
 const UI_EXPENSE_CATEGORIES = ['Salaries', 'Utilities', 'Maintenance', 'Supplies', 'Other'] as const;
 const UI_PAYMENT_MODES = ['Cash', 'NEFT', 'Cheque', 'Online', 'Card'] as const;
 
@@ -83,7 +85,7 @@ export default function ExpensesPage() {
     const [saving, setSaving] = useState(false);
 
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         reason: "",
         amount: 0,
         category: "Salaries",
@@ -119,7 +121,7 @@ export default function ExpensesPage() {
         } else {
             setEditingExpense(null);
             setFormData({
-                date: new Date().toISOString().split('T')[0],
+                date: todayLocal(),
                 reason: "",
                 amount: 0,
                 category: "Salaries",
@@ -146,7 +148,7 @@ export default function ExpensesPage() {
                 category: toApiCategory(formData.category) as ExpenseCategory,
                 partyName: formData.partyName || undefined,
                 paymentMode: toApiPaymentMode(formData.paymentMode) as PaymentMode,
-                addedBy: "Mr. Rakesh Kapoor",
+                addedBy: "Accountant", // the server records the logged-in user
                 chequeNumber: formData.paymentMode === 'Cheque' ? formData.chequeNumber || undefined : undefined,
             };
             if (editingExpense) {
@@ -158,8 +160,8 @@ export default function ExpensesPage() {
             }
             refetch();
             handleCloseModal();
-        } catch {
-            toast.error("Failed to save expense.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to save expense."));
         } finally {
             setSaving(false);
         }
@@ -171,8 +173,8 @@ export default function ExpensesPage() {
                 await deleteExpense(id).unwrap();
                 toast.success("Expense deleted successfully!");
                 refetch();
-            } catch {
-                toast.error("Failed to delete expense.");
+            } catch (err) {
+                toast.error(apiErrorMessage(err, "Failed to delete expense."));
             }
         }
     };
@@ -205,7 +207,7 @@ export default function ExpensesPage() {
                 <div className="flex gap-3">
                     <Tooltip content="Export to Excel" side="left">
                     <button
-                        onClick={() => exportToExcel(filteredExpenses, `expenses-${new Date().toISOString().split('T')[0]}`)}
+                        onClick={() => exportToExcel(filteredExpenses, `expenses-${todayLocal()}`)}
                         className="flex items-center space-x-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
                     >
                         <Download size={18} />

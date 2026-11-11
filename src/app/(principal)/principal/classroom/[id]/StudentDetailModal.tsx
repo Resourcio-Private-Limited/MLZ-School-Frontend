@@ -5,6 +5,7 @@ import { useState } from "react";
 import toast from 'react-hot-toast';
 import { useGetStudentDetailQuery, useUpdateExamEligibilityMutation } from "@/redux/api/accountsApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 type Tab = 'personal' | 'academic' | 'attendance' | 'exams' | 'fees';
 
 export default function StudentDetailModal({
@@ -27,8 +28,8 @@ export default function StudentDetailModal({
             toast.success(`Exam eligibility ${!student.examEligibility ? 'enabled' : 'disabled'} successfully!`);
             refetch();
             if (onStudentUpdate) onStudentUpdate();
-        } catch {
-            toast.error("Failed to update exam eligibility");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update exam eligibility"));
         }
     };
 

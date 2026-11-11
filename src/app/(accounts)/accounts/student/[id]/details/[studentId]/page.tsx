@@ -18,6 +18,7 @@ import {
     MonthlyBreakdown,
 } from "@/redux/api/accountsApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 const MONTHS = [
     { value: 1, label: "Jan", full: "January" },
     { value: 2, label: "Feb", full: "February" },
@@ -110,8 +111,8 @@ export default function StudentDetailsPage() {
             setEditingMonth(null);
             setEditValues({});
             refetch();
-        } catch {
-            toast.error("Failed to save month.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to save month."));
         }
     };
 
@@ -128,8 +129,8 @@ export default function StudentDetailsPage() {
             }
             closeConfirm();
             refetch();
-        } catch {
-            toast.error("Failed to update status.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update status."));
             closeConfirm();
         }
     };
@@ -411,7 +412,7 @@ export default function StudentDetailsPage() {
                                                 }`} />
                                                 <div>
                                                     <div className="font-semibold text-gray-900 text-sm">{short}</div>
-                                                    <div className="text-[11px] text-gray-400">{full}</div>
+                                                    <div className="text-[11px] text-gray-500">{full}</div>
                                                 </div>
                                             </div>
                                         </td>

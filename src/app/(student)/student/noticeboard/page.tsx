@@ -68,7 +68,7 @@ export default function NoticeBoardPage() {
             case "image": return <ImageIcon className="text-emerald-500" size={20} />;
             case "link": return <Link2 className="text-blue-500" size={20} />;
             case "ppt": return <FileImage className="text-orange-500" size={20} />;
-            default: return <FileText className="text-slate-400" size={20} />;
+            default: return <FileText className="text-slate-500" size={20} />;
         }
     };
 
@@ -113,7 +113,7 @@ export default function NoticeBoardPage() {
                     </div>
                     <div className="flex items-center space-x-3">
                         <div className="relative">
-                            <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                             <select
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
@@ -155,7 +155,7 @@ export default function NoticeBoardPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs text-gray-500 font-medium">{formatDate(notice.createdAt)}</p>
-                                            <p className="text-xs text-gray-400">{formatTime(notice.createdAt)}</p>
+                                            <p className="text-xs text-gray-500">{formatTime(notice.createdAt)}</p>
                                         </div>
                                     </div>
                                     <p className="text-gray-600 text-sm leading-relaxed mb-4">{notice.content}</p>
@@ -173,9 +173,9 @@ export default function NoticeBoardPage() {
                                                     {getFileIcon(attachment.type)}
                                                     <span className="text-gray-600 font-medium group-hover/att:text-blue-700">{attachment.name}</span>
                                                     {attachment.type === "link" ? (
-                                                        <ExternalLink size={14} className="text-gray-400 group-hover/att:text-blue-500" />
+                                                        <ExternalLink size={14} className="text-gray-500 group-hover/att:text-blue-500" />
                                                     ) : (
-                                                        <Download size={14} className="text-gray-400 group-hover/att:text-blue-500" />
+                                                        <Download size={14} className="text-gray-500 group-hover/att:text-blue-500" />
                                                     )}
                                                 </a>
                                             ))}

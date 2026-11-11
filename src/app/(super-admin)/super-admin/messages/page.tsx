@@ -7,6 +7,7 @@ import { useGetConversationsQuery, useGetConversationQuery, useSendMessageMutati
 import MessagesCenter from "@/components/messages/MessagesCenter";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
 
+import { apiErrorMessage } from "@/lib/apiError";
 function formatTime(dateStr: string) {
     try {
         const date = new Date(dateStr);
@@ -200,8 +201,8 @@ export default function SuperAdminMessagesPage() {
             toast.success("Message sent!");
             refetchMessages();
             refetchConversations();
-        } catch {
-            toast.error("Failed to send message.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to send message."));
         }
     };
 

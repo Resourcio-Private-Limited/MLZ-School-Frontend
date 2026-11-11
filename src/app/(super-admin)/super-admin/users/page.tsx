@@ -15,6 +15,7 @@ import {
 } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
 
+import { apiErrorMessage } from "@/lib/apiError";
 type Role = 'TEACHER' | 'PRINCIPAL' | 'ACCOUNTANT' | 'STAFF';
 
 interface NewUserForm {
@@ -224,8 +225,8 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to delete user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to delete user."));
         }
     };
 
@@ -301,8 +302,8 @@ export default function UserManagementPage() {
             setSelectedUser(null);
             toast.success("User updated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update user."));
         }
     };
 
@@ -344,8 +345,8 @@ export default function UserManagementPage() {
             setPendingPrincipalActivation(null);
             toast.success(activate ? "User activated successfully!" : "User deactivated successfully!");
             refetch();
-        } catch {
-            toast.error("Failed to update user status.");
+        } catch (err) {
+            toast.error(apiErrorMessage(err, "Failed to update user status."));
         }
     };
 
@@ -509,17 +510,19 @@ export default function UserManagementPage() {
                                                 <Tooltip content="Edit User" side="top">
                                                 <button
                                                     onClick={() => openEditModal(user)}
-                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    aria-label="Edit user"
+                                                    className="inline-flex shrink-0 items-center justify-center p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 >
-                                                    <Edit2 size={16} />
+                                                    <Edit2 size={16} className="shrink-0" />
                                                 </button>
                                                 </Tooltip>
                                                 <Tooltip content="Change Password" side="top">
                                                 <button
                                                     onClick={() => openPasswordModal(user)}
-                                                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                                    aria-label="Change password"
+                                                    className="inline-flex shrink-0 items-center justify-center p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
                                                 >
-                                                    <Key size={16} />
+                                                    <Key size={16} className="shrink-0" />
                                                 </button>
                                                 </Tooltip>
                                                 <Tooltip content={user.isActive ? "Deactivate User" : "Activate User"} side="top">

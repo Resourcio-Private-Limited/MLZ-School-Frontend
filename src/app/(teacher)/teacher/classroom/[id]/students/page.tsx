@@ -114,7 +114,7 @@ export default function StudentListPage({ params }: { params: Promise<{ id: stri
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button className="text-gray-400 hover:text-emerald-500 transition-colors">
+                                            <button aria-label="More actions" className="text-gray-500 hover:text-emerald-600 transition-colors">
                                                 <MoreVertical size={18} />
                                             </button>
                                         </td>

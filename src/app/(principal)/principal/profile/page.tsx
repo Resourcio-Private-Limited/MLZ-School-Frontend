@@ -256,7 +256,7 @@ function InfoField({ label, value, icon, className = "" }: { label: string; valu
     return (
         <div className={`group ${className}`}>
             <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {icon} {label}
+                <span className="shrink-0">{icon}</span> {label}
             </label>
             <p className="text-gray-900 font-medium text-base truncate border-b border-transparent group-hover:border-gray-200 pb-1 transition-colors">
                 {value || "—"}
