@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useForgotPasswordMutation, useResetPasswordMutation } from "@/redux/api/authApi";
 import { setResetEmail } from "@/redux/slices/authSlice";
 import { store } from "@/redux";
+import { currentLoginPath } from "@/lib/roleLogin";
 
 export default function ChangePasswordPage() {
     const [email, setEmail] = useState("");
@@ -167,7 +168,7 @@ export default function ChangePasswordPage() {
                 <div className="text-center mt-4">
                     <button
                         type="button"
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push(currentLoginPath())}
                         className="text-sm text-gray-500 hover:text-gray-700"
                     >
                         Back to Login

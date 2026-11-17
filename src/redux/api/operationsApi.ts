@@ -49,10 +49,22 @@ export interface ClassroomTeacher {
   isClassTeacher: boolean;
 }
 
+/** A file attached to a message, as returned by POST /operations/message/attachment. */
+export interface MessageAttachment {
+  url: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
 export interface ConversationItem {
   otherUserId: string;
   otherUserRole: string;
+  /** Full name of the other person, when they have a profile. */
+  otherUserName?: string | null;
+  /** Text of the latest message, or "Attachment: <file name>" when it had no text. */
   lastMessage: string;
+  lastAttachmentName?: string | null;
   lastMessageAt: string;
   direction: 'sent' | 'received';
 }
@@ -63,6 +75,10 @@ export interface MessageItem {
   content: string;
   senderId: string;
   receiverId: string;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
+  attachmentSize?: number | null;
   sender: { id: string; email: string; role: string };
   receiver: { id: string; email: string; role: string };
 }
@@ -113,9 +129,18 @@ export const operationsApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, body) => [{ type: 'Announcements', id: body.classroomId }],
     }),
 
-    sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { receiverId: string; content: string }>({
+    sendMessage: builder.mutation<{ id: string; content: string; senderId: string; receiverId: string }, { receiverId: string; content: string; attachment?: MessageAttachment }>({
       query: (body) => ({ url: '/operations/message', method: 'POST', body }),
       invalidatesTags: ['Conversations', 'Messages'],
+    }),
+
+    // Upload one file (multipart) before sending; pass the result as `attachment`.
+    uploadMessageAttachment: builder.mutation<MessageAttachment, File>({
+      query: (file) => {
+        const body = new FormData();
+        body.append('file', file, file.name);
+        return { url: '/operations/message/attachment', method: 'POST', body };
+      },
     }),
 
     getConversations: builder.query<ConversationItem[], string>({
@@ -162,6 +187,7 @@ export const {
   useGetSectionsByGradeQuery,
   useCreateAnnouncementMutation,
   useSendMessageMutation,
+  useUploadMessageAttachmentMutation,
   useGetConversationsQuery,
   useGetConversationQuery,
   useGetUserByRoleQuery,

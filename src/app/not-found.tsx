@@ -20,13 +20,13 @@ const ROLE_HOME: Record<string, string> = {
     ACCOUNTANT: "/accounts",
 };
 
-/** Where "my dashboard" is for whoever is logged in right now; /login otherwise. */
+/** Where "my dashboard" is for whoever is logged in right now; the home page (role picker) otherwise. */
 function dashboardPath(): string {
     try {
         const role = localStorage.getItem("userRole") ?? (JSON.parse(localStorage.getItem("authUser") ?? "null")?.role as string | undefined);
-        return (role && ROLE_HOME[role]) || "/login";
+        return (role && ROLE_HOME[role]) || "/";
     } catch {
-        return "/login";
+        return "/";
     }
 }
 

@@ -205,6 +205,10 @@ export type SecondaryComponentKey = 'periodicTest' | 'multipleAssessment' | 'sub
 /** PRIMARY: Half Yearly → term1Grade + term2Grade, Final → term3Grade. */
 export type PrimaryGradeField = 'term1Grade' | 'term2Grade' | 'term3Grade';
 
+/** Co-scholastic areas on the secondary report card (Half Yearly = Term 1, Final = Term 2). */
+export type CoScholasticKey = 'music' | 'artCraft' | 'healthPhysical' | 'karate' | 'dance';
+export type CoScholasticGrades = Record<CoScholasticKey, string | null>;
+
 export interface SubjectAssessmentEntry {
   subjectId: string;
   term1Grade: PrimaryGradeCode | null;
@@ -224,6 +228,8 @@ export interface ClassAssessmentStudent {
   classRoll: number | null;
   /** Present only for the class teacher on the FINAL exam. */
   remarks?: string | null;
+  /** Present only for the class teacher of a secondary class. */
+  coScholastic?: CoScholasticGrades;
   assessments: SubjectAssessmentEntry[];
 }
 
@@ -236,6 +242,12 @@ export interface ClassAssessments {
   entryEnabled: boolean;
   isClassTeacher: boolean;
   showRemarks: boolean;
+  /** Set for the class teacher of a secondary class; null otherwise. */
+  coScholastic: {
+    term: string;
+    areas: Array<{ key: CoScholasticKey; label: string }>;
+    grades: Array<{ code: string; range: string; note?: string }>;
+  } | null;
   gradeOptions: Array<{ code: PrimaryGradeCode; label: string }>;
   /** Grade columns for this exam (PRIMARY only). */
   gradeFields: Array<{ key: PrimaryGradeField; label: string }>;
@@ -260,6 +272,7 @@ export interface SaveStudentAssessmentPayload {
     examMarks?: number | null;
   }>;
   remarks?: string | null;
+  coScholastic?: Partial<CoScholasticGrades>;
 }
 
 // ─── API ───────────────────────────────────────────────────────────

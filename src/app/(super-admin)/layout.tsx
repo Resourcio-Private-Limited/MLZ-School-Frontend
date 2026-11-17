@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare, PlusCircle, TrendingDown, Menu, X, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, Bell, BarChart3, LogOut, ChevronLeft, ChevronRight, Loader2, MessageSquare, Menu, X, type LucideIcon } from "lucide-react";
 import { logout } from "@/redux/slices/authSlice";
 import { useGetSuperAdminProfileQuery } from "@/redux/api/superAdminApi";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -28,8 +28,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         label: "Finance",
         items: [
             { href: "/super-admin/financial", label: "Financial overview", icon: BarChart3 },
-            { href: "/super-admin/income", label: "Income", icon: PlusCircle },
-            { href: "/super-admin/expenses", label: "Expenses", icon: TrendingDown },
         ],
     },
 ];

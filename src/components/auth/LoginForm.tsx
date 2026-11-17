@@ -196,7 +196,7 @@ export default function LoginForm({
                                     Password
                                 </label>
                                 <a
-                                    href="/change-password"
+                                    href={`/change-password?role=${expectedRole}`}
                                     className={`text-xs font-semibold text-${colorScheme.primary} hover:text-${colorScheme.primaryHover}`}
                                 >
                                     Forgot Password?
