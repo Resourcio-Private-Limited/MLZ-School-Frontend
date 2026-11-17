@@ -293,22 +293,19 @@ export default function SuperAdminDashboard() {
                                                 exit={{ opacity: 0 }}
                                                 transition={{ duration: 0.2, ease: EASE_OUT }}
                                             >
-                                                <Link
-                                                    href={t.kind === "income" ? "/super-admin/income" : "/super-admin/expenses"}
-                                                    className={`group flex items-center gap-4 px-6 py-3 hover:bg-gray-50 motion-safe:transition-colors ${focusRing} focus-visible:ring-inset`}
-                                                >
+                                                <div className="flex items-center gap-4 px-6 py-3">
                                                     <time dateTime={t.date.slice(0, 10)} className="w-14 shrink-0 text-sm text-gray-500 tabular-nums">
                                                         {new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                                     </time>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-sm font-medium text-gray-900 group-hover:text-rose-700 motion-safe:transition-colors">{t.label}</p>
+                                                        <p className="truncate text-sm font-medium text-gray-900 ">{t.label}</p>
                                                         <p className="truncate text-xs text-gray-500">{t.detail}</p>
                                                     </div>
                                                     <p className={`shrink-0 text-sm font-semibold tabular-nums ${t.kind === "income" ? "text-emerald-700" : "text-gray-900"}`}>
                                                         <span className="sr-only">{t.kind === "income" ? "Income" : "Expense"} </span>
                                                         {t.kind === "income" ? "+" : "−"}{inr(t.amount)}
                                                     </p>
-                                                </Link>
+                                                </div>
                                             </motion.li>
                                         ))}
                                     </AnimatePresence>
@@ -317,8 +314,7 @@ export default function SuperAdminDashboard() {
                         </div>
 
                         <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-100 bg-gray-50 px-6 py-3">
-                            <Link href="/super-admin/income" className={linkClass}>Record income</Link>
-                            <Link href="/super-admin/expenses" className={linkClass}>Record expense</Link>
+                            <Link href="/super-admin/financial" className={linkClass}>See all in financial overview</Link>
                         </div>
                     </Panel>
 

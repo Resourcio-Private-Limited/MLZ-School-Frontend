@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Lock, MessageSquare, Plus, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { AttachmentPicker, MessageAttachmentView, useSendMessageWithAttachment } from "@/components/messages/attachments";
 import { useGetClassStudentsQuery, useGetMessageRecipientsQuery, useGetTeacherClassesQuery, type TeacherClass } from "@/redux/api/teacherApi";
-import { useGetConversationQuery, useGetConversationsQuery, useSendMessageMutation, type ConversationItem } from "@/redux/api/operationsApi";
+import { useGetConversationQuery, useGetConversationsQuery, type ConversationItem } from "@/redux/api/operationsApi";
 import {
     EmptyState,
     FilterChips,
@@ -134,7 +135,9 @@ function MessagesContent() {
         { userId: currentUserId, otherUserId: threadId ?? "" },
         { skip: !currentUserId || !threadId, pollingInterval: 5000, skipPollingIfUnfocused: true }
     );
-    const [sendMessage, { isLoading: sending }] = useSendMessageMutation();
+    const { send: sendWithAttachment, busy: sending, uploading } = useSendMessageWithAttachment();
+    const [replyFile, setReplyFile] = useState<File | null>(null);
+    const [composeFile, setComposeFile] = useState<File | null>(null);
 
     const contacts = useMemo<Contact[]>(() => {
         const staff = (recipientsQ.data ?? []).map((r) => ({ id: r.id, name: r.name, role: r.role, group: groupOf(r.role), canSend: r.role === "PRINCIPAL" }));
@@ -146,8 +149,20 @@ function MessagesContent() {
             group: "STUDENTS" as const,
             canSend: true,
         }));
-        return [...pupils, ...staff];
-    }, [recipientsQ.data, studentsQ.data]);
+        // Anyone else who has written to you (a student in another class, another staff member) still gets a row.
+        const known = new Set([...pupils, ...staff].map((c) => c.id));
+        const others = conversations
+            .filter((c) => !known.has(c.otherUserId))
+            .map((c) => ({
+                id: c.otherUserId,
+                name: c.otherUserName || ROLE_LABEL[c.otherUserRole] || "Contact",
+                role: c.otherUserRole,
+                detail: c.otherUserRole === "STUDENT" ? "Another class" : undefined,
+                group: groupOf(c.otherUserRole),
+                canSend: c.otherUserRole === "STUDENT" || c.otherUserRole === "PRINCIPAL",
+            }));
+        return [...pupils, ...staff, ...others];
+    }, [recipientsQ.data, studentsQ.data, conversations]);
     const contactById = useMemo(() => new Map(contacts.map((c) => [c.id, c])), [contacts]);
     const convById = useMemo(() => new Map(conversations.map((c) => [c.otherUserId, c])), [conversations]);
 
@@ -187,6 +202,7 @@ function MessagesContent() {
     };
     const openThread = (id: string) => {
         setReply("");
+        setReplyFile(null);
         setThreadId(id);
     };
     const closeThread = () => {
@@ -196,10 +212,11 @@ function MessagesContent() {
 
     const sendReply = async () => {
         const text = reply.trim();
-        if (!text || !threadId || sending || !thread?.canSend) return;
+        if ((!text && !replyFile) || !threadId || sending || !thread?.canSend) return;
         try {
-            await sendMessage({ receiverId: threadId, content: text }).unwrap();
+            await sendWithAttachment(threadId, text, replyFile);
             setReply("");
+            setReplyFile(null);
         } catch (err) {
             toast.error(errorMessage(err, "Message not sent. Check your connection and try again."));
         }
@@ -209,14 +226,15 @@ function MessagesContent() {
     const openCompose = () => {
         setComposeTo(thread?.canSend ? thread.id : "");
         setComposeText("");
+        setComposeFile(null);
         setComposeOpen(true);
     };
     const sendCompose = async (e: React.FormEvent) => {
         e.preventDefault();
         const text = composeText.trim();
-        if (!composeTo || !text || sending) return;
+        if (!composeTo || (!text && !composeFile) || sending) return;
         try {
-            await sendMessage({ receiverId: composeTo, content: text }).unwrap();
+            await sendWithAttachment(composeTo, text, composeFile);
             const name = contactById.get(composeTo)?.name;
             setComposeOpen(false);
             toast.success(name ? `Message sent to ${name}.` : "Message sent.");
@@ -391,7 +409,8 @@ function MessagesContent() {
                                                 )}
                                                 <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                                                     <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${mine ? "rounded-br-md bg-emerald-600 text-white" : "rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200"}`}>
-                                                        <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
+                                                        <MessageAttachmentView message={m} onDark={mine} />
+                                                        {m.content && <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>}
                                                         <time dateTime={m.createdAt} className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-emerald-100" : "text-gray-400"}`}>
                                                             {clock(m.createdAt)}
                                                         </time>
@@ -428,10 +447,13 @@ function MessagesContent() {
                                     className={`${inputClass} resize-none`}
                                 />
                                 <div className="mt-3 flex items-center justify-between gap-3">
-                                    <p className="hidden text-xs text-gray-500 sm:block">Press Enter to send. Shift + Enter starts a new line.</p>
-                                    <button type="submit" disabled={!reply.trim() || sending} className={`${primaryBtn} ml-auto`}>
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <AttachmentPicker id="reply-attachment" accent="emerald" file={replyFile} onChange={setReplyFile} disabled={sending} />
+                                        {!replyFile && <p className="hidden text-xs text-gray-500 lg:block">Press Enter to send. Shift + Enter starts a new line.</p>}
+                                    </div>
+                                    <button type="submit" disabled={(!reply.trim() && !replyFile) || sending} className={`${primaryBtn} ml-auto`}>
                                         <Send size={16} aria-hidden="true" />
-                                        {sending ? "Sending…" : "Send"}
+                                        {uploading ? "Uploading…" : sending ? "Sending…" : "Send"}
                                     </button>
                                 </div>
                             </form>
@@ -474,13 +496,19 @@ function MessagesContent() {
                             Message
                             <textarea rows={6} value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Write your message" className={`${inputClass} mt-1.5 resize-none`} />
                         </label>
+                        <div>
+                            <p className="text-sm font-medium text-gray-700">Attachment <span className="font-normal text-gray-500">(optional, up to 10 MB)</span></p>
+                            <div className="mt-1.5">
+                                <AttachmentPicker id="compose-attachment" accent="emerald" file={composeFile} onChange={setComposeFile} disabled={sending} />
+                            </div>
+                        </div>
                         <p className="text-xs text-gray-500">Keep messages formal and to the point. For casual chat, speak to the student in class.</p>
                     </div>
                     <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
                         <button type="button" onClick={() => setComposeOpen(false)} className={`${secondaryBtn} h-10`}>Cancel</button>
-                        <button type="submit" disabled={!composeTo || !composeText.trim() || sending} className={primaryBtn}>
+                        <button type="submit" disabled={!composeTo || (!composeText.trim() && !composeFile) || sending} className={primaryBtn}>
                             <Send size={16} aria-hidden="true" />
-                            {sending ? "Sending…" : "Send message"}
+                            {uploading ? "Uploading…" : sending ? "Sending…" : "Send message"}
                         </button>
                     </div>
                 </form>

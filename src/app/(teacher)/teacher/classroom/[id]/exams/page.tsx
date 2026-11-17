@@ -9,6 +9,7 @@ import {
     useSaveStudentAssessmentMutation,
     type ClassAssessmentStudent,
     type ClassAssessments,
+    type CoScholasticGrades,
     type ExamTerm,
     type PrimaryGradeCode,
     type PrimaryGradeField,
@@ -63,6 +64,9 @@ function studentSummary(student: ClassAssessmentStudent, data: ClassAssessments)
     return { completed, state, obtained: totals.reduce((a, b) => a + b, 0), hasTotals: totals.length > 0 };
 }
 
+/** How many co-scholastic areas have a grade. */
+const coScholasticCount = (g: CoScholasticGrades | undefined) => (g ? Object.values(g).filter(Boolean).length : 0);
+
 const formatMarks = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ""));
 
 // Roll order: class roll first, then the roll number as text, then name.
@@ -83,7 +87,10 @@ export default function ClassExamMarksPage({ params }: { params: Promise<{ id: s
 
     const { data: myClasses = [] } = useGetTeacherClassesQuery();
     // Always refetch, so a marks-entry switch the principal just changed is picked up.
-    const { data, isLoading, isFetching, isError, refetch } = useGetClassAssessmentsQuery({ classroomId, examType }, { refetchOnMountOrArgChange: true });
+    // currentData, not data: after switching exams, `data` still holds the previous exam until the new one
+    // arrives, and a student opened in that moment would save Final marks into Half yearly (or the reverse).
+    const { currentData: data, isFetching, isError, refetch } = useGetClassAssessmentsQuery({ classroomId, examType }, { refetchOnMountOrArgChange: true });
+    const isLoading = !data && isFetching;
 
     const className = data?.classroomName ?? myClasses.find((c) => c.id === classroomId)?.name ?? "Classroom";
     const examLabel = EXAM_TERMS.find((t) => t.key === examType)?.label ?? "";
@@ -214,6 +221,11 @@ export default function ClassExamMarksPage({ params }: { params: Promise<{ id: s
                                                         <span className="font-semibold text-gray-900">{formatMarks(sum.obtained)}</span> of {maxTotal}
                                                     </span>
                                                 )}
+                                                {data.coScholastic && (
+                                                    <span className="tabular-nums">
+                                                        Co-scholastic <span className="font-semibold text-gray-900">{coScholasticCount(s.coScholastic)}</span> of {data.coScholastic.areas.length}
+                                                    </span>
+                                                )}
                                                 {data.showRemarks && s.remarks && (
                                                     <span className="inline-flex items-center gap-1 text-emerald-700">
                                                         <MessageSquareText size={14} aria-hidden="true" />
@@ -237,6 +249,7 @@ export default function ClassExamMarksPage({ params }: { params: Promise<{ id: s
                                         <th scope="col" className="px-3 py-3 font-medium">Student</th>
                                         <th scope="col" className="px-3 py-3 font-medium">Subjects done</th>
                                         {!isPrimary && <th scope="col" className="px-3 py-3 text-right font-medium">Total</th>}
+                                        {data.coScholastic && <th scope="col" className="px-3 py-3 font-medium">Co-scholastic</th>}
                                         {data.showRemarks && <th scope="col" className="px-3 py-3 font-medium">Remarks</th>}
                                         <th scope="col" className="px-3 py-3 font-medium">Status</th>
                                         <th scope="col" className="py-3 pl-3 pr-6 text-right font-medium"><span className="sr-only">Actions</span></th>
@@ -253,6 +266,11 @@ export default function ClassExamMarksPage({ params }: { params: Promise<{ id: s
                                                 {!isPrimary && (
                                                     <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-700">
                                                         {sum.hasTotals ? <><span className="font-semibold text-gray-900">{formatMarks(sum.obtained)}</span> / {maxTotal}</> : <span className="text-gray-400">None</span>}
+                                                    </td>
+                                                )}
+                                                {data.coScholastic && (
+                                                    <td className="whitespace-nowrap px-3 py-3 tabular-nums text-gray-600">
+                                                        {coScholasticCount(s.coScholastic)} of {data.coScholastic.areas.length}
                                                     </td>
                                                 )}
                                                 {data.showRemarks && (
@@ -337,10 +355,18 @@ function MarksForm({
     }, [data.subjects, student.assessments]);
     const [drafts, setDrafts] = useState(initial);
     const [remarks, setRemarks] = useState(student.remarks ?? "");
+    const initialCo = useMemo(
+        () => Object.fromEntries((data.coScholastic?.areas ?? []).map((a) => [a.key, student.coScholastic?.[a.key] ?? ""])) as Record<string, string>,
+        [data.coScholastic, student.coScholastic]
+    );
+    const [coDraft, setCoDraft] = useState(initialCo);
     const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [save, { isLoading: saving }] = useSaveStudentAssessmentMutation();
 
-    const dirty = JSON.stringify(drafts) !== JSON.stringify(initial) || (data.showRemarks && remarks !== (student.remarks ?? ""));
+    const dirty =
+        JSON.stringify(drafts) !== JSON.stringify(initial) ||
+        (data.showRemarks && remarks !== (student.remarks ?? "")) ||
+        (!!data.coScholastic && JSON.stringify(coDraft) !== JSON.stringify(initialCo));
     const invalid = !isPrimary && data.subjects.some((s) => data.components.some((c) => Number.isNaN(parseMarks(drafts[s.id][c.key], c.maxMarks))));
 
     const update = (subjectId: string, field: keyof DraftRow, value: string) => setDrafts((d) => ({ ...d, [subjectId]: { ...d[subjectId], [field]: value } }));
@@ -363,7 +389,14 @@ function MarksForm({
                     : { subjectId: s.id, ...Object.fromEntries(data.components.map((c) => [c.key, parseMarks(d[c.key], c.maxMarks)])) };
             });
         try {
-            await save({ classroomId: data.classroomId, examType: data.examType, studentId: student.studentId, subjects, ...(data.showRemarks ? { remarks: remarks.trim() || null } : {}) }).unwrap();
+            await save({
+                classroomId: data.classroomId,
+                examType: data.examType,
+                studentId: student.studentId,
+                subjects,
+                ...(data.showRemarks ? { remarks: remarks.trim() || null } : {}),
+                ...(data.coScholastic ? { coScholastic: Object.fromEntries(Object.entries(coDraft).map(([k, v]) => [k, v || null])) } : {}),
+            }).unwrap();
             toast.success(`Marks saved for ${student.fullName}.`);
             if (goNext && next) onNext(next.studentId);
             else onClose();
@@ -465,6 +498,36 @@ function MarksForm({
                             <span className="font-semibold">{formatMarks(grandTotal)}</span> of {(data.subjectMaxMarks ?? 0) * data.subjects.length}
                         </span>
                     </p>
+                )}
+
+                {data.coScholastic && (
+                    <fieldset className="rounded-lg border border-gray-200 px-4 py-3">
+                        <legend className="px-1 text-sm font-medium text-gray-900">
+                            Co-scholastic areas <span className="font-normal text-gray-500">({data.coScholastic.term} on the report card)</span>
+                        </legend>
+                        <div className="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {data.coScholastic.areas.map((a) => (
+                                <div key={a.key}>
+                                    <label htmlFor={`${uid}-co-${a.key}`} className="block text-sm text-gray-600">{a.label}</label>
+                                    <select
+                                        id={`${uid}-co-${a.key}`}
+                                        value={coDraft[a.key] ?? ""}
+                                        disabled={readOnly}
+                                        onChange={(e) => setCoDraft((d) => ({ ...d, [a.key]: e.target.value }))}
+                                        className={`${fieldClass} mt-1`}
+                                    >
+                                        <option value="">Not graded</option>
+                                        {data.coScholastic!.grades.map((g) => (
+                                            <option key={g.code} value={g.code}>
+                                                {g.code} ({g.range}){g.note ? `, ${g.note.toLowerCase()}` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="mt-3 text-xs text-gray-500">Graded on the 8-point scale printed on the report card: A1 is highest, E needs improvement.</p>
+                    </fieldset>
                 )}
 
                 {data.showRemarks && (

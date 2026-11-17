@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi';
-import type { ExpenseCategory, ExpenseRecord, IncomeCategory, IncomeRecord, PaymentMode } from './accountsApi';
+import type { ExpenseRecord, IncomeRecord } from './accountsApi';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -176,28 +176,14 @@ export const superAdminApi = baseApi.injectEndpoints({
             query: () => ({ url: '/super-admin/dashboard-kpis', method: 'GET' }),
         }),
 
-        // Financial records are shared with Accounts. Super Admin can create a
-        // record, but the API intentionally exposes no edit/delete mutations.
+        // Financial records are owned by Accounts. Super Admin can only view them
+        // (Financial overview); there are no create, edit or delete mutations.
         getSuperAdminIncomes: builder.query<IncomeRecord[], void>({
             query: () => ({ url: '/super-admin/incomes', method: 'GET' }),
         }),
 
-        createSuperAdminIncome: builder.mutation<IncomeRecord, {
-            date: string; source: string; category: IncomeCategory; categoryName?: string;
-            amount: number; paymentMode: PaymentMode; addedBy: string; chequeNumber?: string;
-        }>({
-            query: (body) => ({ url: '/super-admin/incomes', method: 'POST', body }),
-        }),
-
         getSuperAdminExpenses: builder.query<ExpenseRecord[], void>({
             query: () => ({ url: '/super-admin/expenses', method: 'GET' }),
-        }),
-
-        createSuperAdminExpense: builder.mutation<ExpenseRecord, {
-            date: string; reason: string; partyName?: string; category: ExpenseCategory; categoryName?: string;
-            amount: number; paymentMode: PaymentMode; addedBy: string; chequeNumber?: string;
-        }>({
-            query: (body) => ({ url: '/super-admin/expenses', method: 'POST', body }),
         }),
 
         // User Management
@@ -236,9 +222,7 @@ export const {
     useUpdateSuperAdminProfileMutation,
     useGetDashboardKpisQuery,
     useGetSuperAdminIncomesQuery,
-    useCreateSuperAdminIncomeMutation,
     useGetSuperAdminExpensesQuery,
-    useCreateSuperAdminExpenseMutation,
     useGetUserManagementKpisQuery,
     useGetAllUsersQuery,
     useAddUserMutation,

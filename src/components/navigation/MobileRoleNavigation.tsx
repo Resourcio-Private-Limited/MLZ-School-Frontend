@@ -14,7 +14,7 @@ function defaultLogout() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("authUser");
     localStorage.removeItem("userRole");
-    window.location.href = "/login";
+    window.location.href = "/";
 }
 
 export default function MobileRoleNavigation({ title, subtitle, items, accent = "indigo", onLogout = defaultLogout }: { title: string; subtitle: string; items: MobileNavItem[]; accent?: "indigo" | "emerald" | "rose" | "amber" | "sky"; onLogout?: () => void }) {

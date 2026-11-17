@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
@@ -17,7 +16,6 @@ const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 const PAGE_SIZE = 10;
 const CHART_MONTHS = 6;
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500";
-const linkClass = `text-sm font-medium text-rose-700 hover:text-rose-800 rounded-sm bg-[linear-gradient(currentColor,currentColor)] bg-no-repeat bg-[position:0_100%] bg-[length:0%_1px] hover:bg-[length:100%_1px] focus-visible:bg-[length:100%_1px] motion-safe:transition-[background-size,color] motion-safe:duration-200 ${focusRing} focus-visible:ring-offset-2`;
 const iconBtn = `inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900 active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`;
 const pageBtn = `h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:hover:bg-gray-50 disabled:hover:text-gray-400 disabled:active:scale-100 motion-safe:transition ${focusRing} focus-visible:ring-offset-1`;
 
@@ -541,16 +539,13 @@ export default function FinancialOverviewPage() {
                             <ul className="mt-3 divide-y divide-gray-100 border-t border-gray-100">
                                 {pageEntries.map((t) => (
                                     <li key={t.id}>
-                                        <Link
-                                            href={t.kind === "income" ? "/super-admin/income" : "/super-admin/expenses"}
-                                            className={`group flex items-center gap-4 px-6 py-3 hover:bg-gray-50 motion-safe:transition-colors ${focusRing} focus-visible:ring-inset`}
-                                        >
+                                        <div className="flex items-center gap-4 px-6 py-3">
                                             <time dateTime={t.date.slice(0, 10)} className="w-14 shrink-0 text-sm tabular-nums text-gray-500">
                                                 {new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                             </time>
                                             <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-sm ${t.kind === "income" ? INCOME_BAR : EXPENSE_BAR}`} />
                                             <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-medium text-gray-900 group-hover:text-rose-700 motion-safe:transition-colors">{t.label}</p>
+                                                <p className="truncate text-sm font-medium text-gray-900 ">{t.label}</p>
                                                 <p className="truncate text-xs text-gray-500">
                                                     {t.detail}, paid by {t.mode.toLowerCase() === "neft" ? "NEFT" : t.mode.toLowerCase()}
                                                 </p>
@@ -560,7 +555,7 @@ export default function FinancialOverviewPage() {
                                                 {t.kind === "income" ? "+" : "−"}
                                                 {inr(t.amount)}
                                             </p>
-                                        </Link>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -608,10 +603,6 @@ export default function FinancialOverviewPage() {
                             </div>
                         </>
                     )}
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-100 bg-gray-50 px-6 py-3">
-                        <Link href="/super-admin/income" className={linkClass}>Open income</Link>
-                        <Link href="/super-admin/expenses" className={linkClass}>Open expenses</Link>
-                    </div>
                 </Panel>
             </div>
         </MotionConfig>

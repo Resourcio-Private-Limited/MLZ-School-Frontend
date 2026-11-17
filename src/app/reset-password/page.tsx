@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import toast from 'react-hot-toast';
 import { useResetPasswordMutation } from "@/redux/api/authApi";
+import { currentLoginPath } from "@/lib/roleLogin";
 
 function ResetPasswordForm() {
     const router = useRouter();
@@ -65,14 +66,14 @@ function ResetPasswordForm() {
                         The link is incomplete or has expired. Request a new one and use the latest email we send you.
                     </p>
                     <button
-                        onClick={() => router.push("/change-password")}
+                        onClick={() => router.push(searchParams.get("role") ? `/change-password?role=${searchParams.get("role")}` : "/change-password")}
                         className="w-full bg-blue-900 text-white py-2.5 rounded-lg font-bold hover:bg-blue-800 transition-colors"
                     >
                         Request a new reset link
                     </button>
                     <button
                         type="button"
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push(currentLoginPath())}
                         className="mt-3 text-sm text-gray-500 hover:text-gray-700"
                     >
                         Back to Login
@@ -92,7 +93,7 @@ function ResetPasswordForm() {
                     <h1 className="text-2xl font-bold text-gray-800 mb-2">Password Reset Complete!</h1>
                     <p className="text-gray-500 mb-6">Your password has been successfully changed. You can now log in with your new password.</p>
                     <button
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push(currentLoginPath())}
                         className="w-full bg-blue-900 text-white py-2 rounded font-bold hover:bg-blue-800 transition-colors"
                     >
                         Go to Login
@@ -179,7 +180,7 @@ function ResetPasswordForm() {
                 <div className="text-center mt-4">
                     <button
                         type="button"
-                        onClick={() => router.push("/login")}
+                        onClick={() => router.push(currentLoginPath())}
                         className="text-sm text-gray-500 hover:text-gray-700"
                     >
                         Back to Login

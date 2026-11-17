@@ -6,11 +6,11 @@ import { ChevronRight, MessageSquare, Plus, Search, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiErrorMessage } from "@/lib/apiError";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
+import { AttachmentPicker, MessageAttachmentView, useSendMessageWithAttachment } from "@/components/messages/attachments";
 import { useGetAllUsersQuery } from "@/redux/api/superAdminApi";
 import {
     useGetConversationQuery,
     useGetConversationsQuery,
-    useSendMessageMutation,
     type ConversationItem,
 } from "@/redux/api/operationsApi";
 
@@ -180,7 +180,9 @@ export default function SuperAdminMessagesPage() {
         { userId: currentUserId, otherUserId: threadId ?? "" },
         { skip: !currentUserId || !threadId, pollingInterval: 5000, skipPollingIfUnfocused: true }
     );
-    const [sendMessage, { isLoading: sending }] = useSendMessageMutation();
+    const { send: sendWithAttachment, busy: sending, uploading } = useSendMessageWithAttachment();
+    const [replyFile, setReplyFile] = useState<File | null>(null);
+    const [composeFile, setComposeFile] = useState<File | null>(null);
 
     const contacts = useMemo<Contact[]>(() => {
         if (!allUsers) return [];
@@ -259,15 +261,17 @@ export default function SuperAdminMessagesPage() {
 
     const openThread = (id: string) => {
         setReply("");
+        setReplyFile(null);
         setThreadId(id);
     };
 
     const sendReply = async () => {
         const text = reply.trim();
-        if (!text || !threadId || sending) return;
+        if ((!text && !replyFile) || !threadId || sending) return;
         try {
-            await sendMessage({ receiverId: threadId, content: text }).unwrap();
+            await sendWithAttachment(threadId, text, replyFile);
             setReply("");
+            setReplyFile(null);
         } catch (err) {
             toast.error(apiErrorMessage(err, "Message not sent. Check your connection and try again."));
         }
@@ -278,6 +282,7 @@ export default function SuperAdminMessagesPage() {
         setComposeClass("");
         setComposeTo("");
         setComposeText("");
+        setComposeFile(null);
         setComposeOpen(true);
     };
 
@@ -294,9 +299,9 @@ export default function SuperAdminMessagesPage() {
     const sendCompose = async (e: React.FormEvent) => {
         e.preventDefault();
         const text = composeText.trim();
-        if (!composeTo || !text || sending) return;
+        if (!composeTo || (!text && !composeFile) || sending) return;
         try {
-            await sendMessage({ receiverId: composeTo, content: text }).unwrap();
+            await sendWithAttachment(composeTo, text, composeFile);
             const name = contactById.get(composeTo)?.name;
             setComposeOpen(false);
             toast.success(name ? `Message sent to ${name}.` : "Message sent.");
@@ -569,7 +574,8 @@ export default function SuperAdminMessagesPage() {
                                                     <div
                                                         className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${mine ? "rounded-br-md bg-rose-600 text-white" : "rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200"}`}
                                                     >
-                                                        <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>
+                                                        <MessageAttachmentView message={m} onDark={mine} />
+                                                        {m.content && <p className="whitespace-pre-wrap break-words leading-relaxed">{m.content}</p>}
                                                         <time
                                                             dateTime={m.createdAt}
                                                             className={`mt-1 block text-right text-[11px] tabular-nums ${mine ? "text-rose-100" : "text-gray-500"}`}
@@ -608,14 +614,17 @@ export default function SuperAdminMessagesPage() {
                                 className="block w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
                             />
                             <div className="mt-3 flex items-center justify-between gap-3">
-                                <p className="hidden text-xs text-gray-500 sm:block">Press Enter to send. Shift + Enter starts a new line.</p>
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <AttachmentPicker id="reply-attachment" accent="rose" file={replyFile} onChange={setReplyFile} disabled={sending} />
+                                    {!replyFile && <p className="hidden text-xs text-gray-500 lg:block">Press Enter to send. Shift + Enter starts a new line.</p>}
+                                </div>
                                 <button
                                     type="submit"
-                                    disabled={!reply.trim() || sending}
+                                    disabled={(!reply.trim() && !replyFile) || sending}
                                     className={`ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white hover:bg-rose-700 active:scale-[0.97] disabled:bg-gray-200 disabled:text-gray-500 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`}
                                 >
                                     <Send size={16} aria-hidden="true" />
-                                    {sending ? "Sending…" : "Send"}
+                                    {uploading ? "Uploading…" : sending ? "Sending…" : "Send"}
                                 </button>
                             </div>
                         </form>
@@ -695,6 +704,12 @@ export default function SuperAdminMessagesPage() {
                                 className={`${fieldClass} resize-none`}
                             />
                         </label>
+                        <div>
+                            <p className="text-sm font-medium text-gray-700">Attachment <span className="font-normal text-gray-500">(optional, up to 10 MB)</span></p>
+                            <div className="mt-1.5">
+                                <AttachmentPicker id="compose-attachment" accent="rose" file={composeFile} onChange={setComposeFile} disabled={sending} />
+                            </div>
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
                         <button
@@ -706,11 +721,11 @@ export default function SuperAdminMessagesPage() {
                         </button>
                         <button
                             type="submit"
-                            disabled={!composeTo || !composeText.trim() || sending}
+                            disabled={!composeTo || (!composeText.trim() && !composeFile) || sending}
                             className={`inline-flex h-10 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white hover:bg-rose-700 active:scale-[0.97] disabled:bg-gray-200 disabled:text-gray-500 motion-safe:transition ${focusRing} focus-visible:ring-offset-2`}
                         >
                             <Send size={16} aria-hidden="true" />
-                            {sending ? "Sending…" : "Send message"}
+                            {uploading ? "Uploading…" : sending ? "Sending…" : "Send message"}
                         </button>
                     </div>
                 </form>
