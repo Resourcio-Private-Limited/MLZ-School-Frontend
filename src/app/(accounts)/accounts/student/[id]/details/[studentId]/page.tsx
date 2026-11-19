@@ -22,7 +22,7 @@ import { EmptyState, Panel, Skeleton, errorMessage, focusRing, initials, inputCl
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-type MonthStatus = "paid" | "partial" | "unpaid" | "current" | "upcoming" | "unbilled";
+type MonthStatus = "paid" | "partial" | "unpaid" | "current" | "upcoming" | "before";
 
 export default function StudentFeesPage() {
     const params = useParams<{ id: string | string[]; studentId: string | string[] }>();
@@ -45,9 +45,9 @@ export default function StudentFeesPage() {
     const className = student?.classroom.name ?? classrooms.find((c) => c.classroomId === classroomId)?.className ?? "Class";
 
     const statusOf = (m: MonthlyBreakdown): MonthStatus => {
+        if (!m.billable) return "before";
         if (m.isPaid) return "paid";
         if (m.paidAmount > 0) return "partial";
-        if (!m.recordId) return "unbilled";
         if (year < thisYear || (year === thisYear && m.month < thisMonth)) return "unpaid";
         if (year === thisYear && m.month === thisMonth) return "current";
         return "upcoming";
@@ -71,8 +71,10 @@ export default function StudentFeesPage() {
     const setTransport = async (next: boolean) => {
         if (!student) return;
         try {
-            await updateTransport({ studentId, transportOpted: next }).unwrap();
-            toast.success(next ? "Transport turned on. You can now enter transport fees." : "Transport turned off.");
+            const res = await updateTransport({ studentId, transportOpted: next }).unwrap();
+            toast.success(next
+                ? "Transport turned on. You can now enter transport fees."
+                : `Transport turned off.${res.clearedMonths ? ` Transport fees removed from ${res.clearedMonths} unpaid ${res.clearedMonths === 1 ? "month" : "months"}.` : ""}`);
             setConfirm(null);
             refetch();
         } catch (err) {
@@ -189,7 +191,8 @@ export default function StudentFeesPage() {
     const k = student.kpis;
     const transportOn = student.transportOpted;
     const eligible = student.examEligibility;
-    const monthsBilled = student.monthlyBreakdown.length || 12;
+    const monthsBilled = k.billedMonths;
+    const earlierDues = student.earlierDues ?? [];
     const extras = k.totalOther + penaltyTotal - k.totalDiscount;
 
     return (
@@ -229,11 +232,30 @@ export default function StudentFeesPage() {
                 </p>
             </section>
 
+            {earlierDues.length > 0 && (
+                <p role="status" className="flex items-start gap-2 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-900 ring-1 ring-orange-100">
+                    <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                    <span>
+                        {inr(k.earlierDueTotal)} is still owed from earlier years ({earlierDues.map((d) => `${SHORT[d.month - 1]} ${d.year}`).join(", ")}). Months are paid in order, so collect those first.{" "}
+                        {earlierDues[0].year !== year && (
+                            <button type="button" onClick={() => setYear(earlierDues[0].year)} className={`font-semibold underline underline-offset-2 ${focusRing}`}>
+                                Show {earlierDues[0].year}
+                            </button>
+                        )}
+                    </span>
+                </p>
+            )}
+
             {/* The year's figures. Due is the headline, so it carries the portal gradient. */}
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                 <FigureTile label="Tuition" value={inr(k.totalTuition)} icon={<GraduationCap size={18} aria-hidden="true" />} />
                 <FigureTile label="Transport" value={inr(k.totalTransport)} icon={<Bus size={18} aria-hidden="true" />} />
-                <FigureTile label="Annual" value={inr(k.totalAnnual)} icon={<CalendarDays size={18} aria-hidden="true" />} />
+                <FigureTile
+                    label="Annual"
+                    value={inr(k.totalAnnual)}
+                    icon={<CalendarDays size={18} aria-hidden="true" />}
+                    note={k.totalAnnual > 0 ? `${inr(student.annualSummary.paid)} paid, ${inr(student.annualSummary.remaining)} left${student.annualSummary.isOverdue ? ", overdue" : ""}` : undefined}
+                />
                 <FigureTile label="Paid" value={inr(k.totalPaid)} icon={<CheckCircle2 size={18} aria-hidden="true" />} iconTone="bg-emerald-50 text-emerald-700" />
                 <FigureTile
                     label="Other + penalty − discount"
@@ -255,7 +277,7 @@ export default function StudentFeesPage() {
 
             <Panel
                 title="Monthly fee breakdown"
-                subtitle="Use the pencil to edit a month's transport, other fees, previous due, discount or annual charges."
+                subtitle="Use the pencil to edit an unpaid month's transport, other fees, previous due or discount. Paid months can't be changed."
                 action={<p className="text-sm text-gray-500">Year <span className="font-semibold tabular-nums text-gray-900">{year}</span></p>}
             >
                 {!transportOn && (
@@ -286,9 +308,9 @@ export default function StudentFeesPage() {
                                             <div className="flex items-start gap-3">
                                                 <div className="text-right">
                                                     <p className="text-lg font-semibold tabular-nums text-gray-900">{inr(m.totalAmount)}</p>
-                                                    {m.paidAmount > 0 && <p className="text-sm tabular-nums text-gray-500">{inr(m.paidAmount)} paid{m.paymentMode ? `, ${m.paymentMode.toLowerCase()}` : ""}</p>}
+                                                    {m.paidAmount > 0 && <p className="text-sm tabular-nums text-gray-500">{inr(m.paidAmount)} paid{m.paymentMode ? `, ${m.paymentMode.toLowerCase()}` : ""}{!m.isPaid && m.balance > 0 ? `, ${inr(m.balance)} left` : ""}</p>}
                                                 </div>
-                                                <EditButton month={m.month} onClick={() => setEditing(m)} />
+                                                {m.billable && !m.isPaid && <EditButton month={m.month} onClick={() => setEditing(m)} />}
                                             </div>
                                         </div>
                                         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-4">
@@ -351,13 +373,13 @@ export default function StudentFeesPage() {
                                                 <Cell value={m.discount} minus />
                                                 <td className="whitespace-nowrap px-2.5 py-3 text-right font-semibold tabular-nums text-gray-900">
                                                     {inr(m.totalAmount)}
-                                                    {m.paidAmount > 0 && <span className="block text-xs font-normal text-gray-500">{inr(m.paidAmount)} paid</span>}
+                                                    {m.paidAmount > 0 && <span className="block text-xs font-normal text-gray-500">{inr(m.paidAmount)} paid{!m.isPaid && m.balance > 0 ? `, ${inr(m.balance)} left` : ""}</span>}
                                                 </td>
                                                 <td className="px-2.5 py-3">
                                                     <MonthBadge status={status} />
                                                 </td>
                                                 <td className="py-3 pl-2.5 pr-5 text-right">
-                                                    <EditButton month={m.month} onClick={() => setEditing(m)} />
+                                                    {m.billable && !m.isPaid && <EditButton month={m.month} onClick={() => setEditing(m)} />}
                                                 </td>
                                             </tr>
                                         );
@@ -446,7 +468,7 @@ export default function StudentFeesPage() {
                                 <>
                                     <p className="flex items-start gap-2 rounded-lg bg-orange-50 px-3 py-2.5 text-orange-900 ring-1 ring-orange-100">
                                         <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-                                        Transport fees for every month of {year} will be set to ₹0.
+                                        Transport fees will be removed from this month and every later unpaid month. Paid months, and earlier months when the bus was used, keep theirs.
                                     </p>
                                     <p>Turn it back on if the student starts using school transport again, then enter the fees for those months.</p>
                                 </>
@@ -553,24 +575,8 @@ const STATUS_BAR: Record<MonthStatus, string> = {
     current: "bg-orange-400",
     unpaid: "bg-red-500",
     upcoming: "bg-gray-200",
-    unbilled: "bg-gray-200",
+    before: "bg-gray-100",
 };
-
-function Switch({ on, label, busy, onToggle }: { on: boolean; label: string; busy?: boolean; onToggle: () => void }) {
-    return (
-        <button
-            type="button"
-            role="switch"
-            aria-checked={on}
-            aria-label={label}
-            disabled={busy}
-            onClick={onToggle}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full motion-safe:transition-colors disabled:cursor-wait disabled:opacity-60 ${focusRing} focus-visible:ring-offset-2 ${on ? "bg-emerald-600" : "bg-gray-300"}`}
-        >
-            <span aria-hidden="true" className={`inline-block h-5 w-5 rounded-full bg-white shadow motion-safe:transition-transform ${on ? "translate-x-[1.375rem]" : "translate-x-0.5"}`} />
-        </button>
-    );
-}
 
 function Detail({ label, value, numeric, className = "" }: { label: string; value: string | null | undefined; numeric?: boolean; className?: string }) {
     return (
@@ -637,7 +643,7 @@ function MonthBadge({ status }: { status: MonthStatus }) {
         unpaid: { label: "Unpaid", cls: "bg-red-50 text-red-800 ring-red-100", Icon: XCircle },
         current: { label: "Due this month", cls: "bg-orange-50 text-orange-800 ring-orange-100", Icon: AlertTriangle },
         upcoming: { label: "Not due yet", cls: "bg-gray-100 text-gray-600 ring-gray-200", Icon: Clock },
-        unbilled: { label: "Not billed", cls: "bg-gray-100 text-gray-500 ring-gray-200", Icon: Clock },
+        before: { label: "Before admission", cls: "bg-gray-100 text-gray-500 ring-gray-200", Icon: Clock },
     };
     const { label, cls, Icon } = map[status];
     return (
@@ -678,7 +684,6 @@ function MonthDialog({
         otherFeesRemarks: month?.otherFeesRemarks ?? "",
         previousAmount: String(month?.previousAmount ?? 0),
         discount: String(month?.discount ?? 0),
-        annualChargesApplicable: month?.annualChargesApplicable ?? false,
     }));
     const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -687,9 +692,13 @@ function MonthDialog({
     const name = MONTHS[month.month - 1];
     const numbers = { transportFees: toNum(form.transportFees), otherFees: toNum(form.otherFees), previousAmount: toNum(form.previousAmount), discount: toNum(form.discount) };
     const invalid = Object.entries(numbers).filter(([, v]) => !Number.isFinite(v) || v < 0).map(([key]) => key);
-    const subtotal = month.tuitionFees + (transportOn ? numbers.transportFees : 0) + (form.annualChargesApplicable ? month.annualCharges : 0) + numbers.otherFees + month.penalty + numbers.previousAmount;
-    const total = subtotal - numbers.discount;
-    const discountTooBig = numbers.discount > subtotal;
+    // Same order as the server: the discount can't exceed tuition + transport + other + previous due.
+    const charges = month.tuitionFees + (transportOn ? numbers.transportFees : 0) + numbers.otherFees + numbers.previousAmount;
+    const discountTooBig = numbers.discount > charges;
+    const subtotal = charges;
+    // The month's bill after the change, and what will still be owed after any part payment.
+    const total = Math.max(0, charges - numbers.discount) + month.penalty + month.annualContributionRequired;
+    const stillOwed = Math.max(0, total - month.paidAmount);
 
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -706,7 +715,6 @@ function MonthDialog({
                 otherFeesRemarks: form.otherFeesRemarks.trim() || undefined,
                 discount: numbers.discount,
                 previousAmount: numbers.previousAmount,
-                annualChargesApplicable: form.annualChargesApplicable,
             }).unwrap();
             toast.success(`${name} fees saved.`);
             onSaved();
@@ -749,15 +757,15 @@ function MonthDialog({
             <DialogHeader id={`${uid}-title`} title={`Edit ${name} ${year}`} subtitle={`Tuition ${inr(month.tuitionFees)}${month.penalty ? `, penalty ${inr(month.penalty)}` : ""}`} onClose={onClose} accent="yellow" />
             <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
                 <div className="space-y-4 overflow-y-auto px-6 py-5">
-                    {month.isPaid && (
+                    {month.paidAmount > 0 && (
                         <p className="flex items-start gap-2 rounded-lg bg-orange-50 px-3 py-2.5 text-sm text-orange-900 ring-1 ring-orange-100">
                             <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-                            {name} is already paid ({inr(month.paidAmount)}). Saving changes the amounts on record, not the payment.
+                            {inr(month.paidAmount)} has already been received for {name}. It stays credited to the month.
                         </p>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2">
                         {money("transportFees", "Transport fees", transportOn ? undefined : "Transport is off for this student.", !transportOn)}
-                        {money("previousAmount", "Previous due", "Carried over from earlier months.")}
+                        {money("previousAmount", "Previous due", "Only dues from before this system, such as an old balance. Unpaid earlier months are collected on their own.")}
                         {money("otherFees", "Other fees")}
                         <div>
                             <label htmlFor={`${uid}-remarks`} className="block text-sm font-medium text-gray-700">
@@ -774,19 +782,18 @@ function MonthDialog({
                         </div>
                         {money("discount", "Discount")}
                     </div>
-                    <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3">
-                        <div>
-                            <p className="text-sm font-medium text-gray-900">Charge annual charges this month</p>
-                            <p className="text-sm text-gray-500">{inr(month.annualCharges)} for this class</p>
-                        </div>
-                        <Switch on={form.annualChargesApplicable} label="Charge annual charges this month" onToggle={() => set({ annualChargesApplicable: !form.annualChargesApplicable })} />
-                    </div>
+                    {month.annualContributionRequired > 0 && (
+                        <p className="rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700">
+                            {inr(month.annualContributionRequired)} of overdue annual fees is added to this month automatically, because the annual due date has passed.
+                        </p>
+                    )}
                     {discountTooBig && <p className="text-sm text-red-700">The discount is more than the month&apos;s fees. Lower it to {inr(subtotal)} or less.</p>}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-gray-600" aria-live="polite">
-                        New total <span className="text-lg font-semibold tabular-nums text-gray-900">{inr(Math.max(0, total))}</span>
+                        New total <span className="text-lg font-semibold tabular-nums text-gray-900">{inr(total)}</span>
                         {total !== month.totalAmount && <span className="ml-1 tabular-nums text-gray-500">(was {inr(month.totalAmount)})</span>}
+                        {month.paidAmount > 0 && <span className="block tabular-nums text-gray-500">{inr(stillOwed)} still owed after what was received</span>}
                     </p>
                     <div className="flex flex-col-reverse gap-3 sm:flex-row">
                         <button type="button" onClick={onClose} className={secondaryBtn}>

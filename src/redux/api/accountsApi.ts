@@ -16,18 +16,31 @@ export interface ClassroomWithFees {
     annualFeeExpiryDate: string | null;
 }
 
+/** One student's fees for one month. Every amount comes from the same calculation the student sees. */
 export interface StudentFeeRecord {
     studentId: string;
     rollNumber: string;
+    classRoll?: number | null;
     fullName: string;
+    /** False once the student has left (deactivated). Listed only while they still owe money. */
+    isActive?: boolean;
+    /** False for months before the student's admission. */
+    billable?: boolean;
     tuitionFees: number;
     transportFees: number;
     annualCharges: number;
+    /** Overdue annual balance that must be paid with this month. Included in totalAmount. */
+    annualContributionRequired?: number;
+    annualRemaining?: number;
+    annualOverdue?: boolean;
     otherFees: number;
     otherFeesRemarks: string | null;
     penalty: number;
     previousAmount: number;
     discount: number;
+    /** What is still owed on the month's own charges. */
+    monthlyDue?: number;
+    /** Outstanding balance to settle the month now (part payments deducted, overdue annual balance included). */
     totalAmount: number;
     isPaid: boolean;
     paidAmount: number;
@@ -61,16 +74,29 @@ export interface MonthlyBreakdown {
     month: number;
     year: number;
     recordId: string | null;
+    /** False for months before the student's admission: nothing is billed. */
+    billable: boolean;
+    /** The month has started. */
+    isDue: boolean;
     tuitionFees: number;
     transportFees: number;
+    /** Annual fee paid with, or owed on, this month. */
     annualCharges: number;
     annualChargesApplicable: boolean;
+    annualContributionRequired: number;
     otherFees: number;
     otherFeesRemarks: string | null;
     penalty: number;
+    /** Dues entered by hand (for example from before this system). Earlier unpaid months are never folded in. */
     previousAmount: number;
     discount: number;
+    /** The month's own charges. */
+    monthlyCharges: number;
+    monthlyDue: number;
+    /** The month's full bill: own charges plus the annual fee on it. */
     totalAmount: number;
+    /** What is still owed on it. */
+    balance: number;
     isPaid: boolean;
     paidAmount: number;
     paidAt: string | null;
@@ -82,13 +108,26 @@ export interface StudentKpis {
     totalTransport: number;
     totalAnnual: number;
     totalOther: number;
+    totalPenalty: number;
     totalDiscount: number;
     totalPrevDue: number;
     totalPaid: number;
     totalDue: number;
     totalOverall: number;
+    /** Still owed for earlier years. Collected before this year's months. */
+    earlierDueTotal: number;
     paidMonths: number;
     unpaidMonths: number;
+    billedMonths: number;
+}
+
+export interface AnnualFeeSummary {
+    total: number;
+    paid: number;
+    remaining: number;
+    expiryDate: string | null;
+    isOverdue: boolean;
+    isConfigured: boolean;
 }
 
 export interface StudentDetailResponse {
@@ -111,13 +150,18 @@ export interface StudentDetailResponse {
         grade: string;
         section: string;
     };
+    admissionDate: string;
+    isActive: boolean;
     examEligibility: boolean;
     transportOpted: boolean;
     feeStructure: {
         tuitionFees: number;
+        lateFees: number;
         annualCharges: number;
         transportOpted: boolean;
     };
+    annualSummary: AnnualFeeSummary;
+    earlierDues: Array<{ year: number; month: number; amount: number }>;
     kpis: StudentKpis;
     monthlyBreakdown: MonthlyBreakdown[];
 }
@@ -176,7 +220,7 @@ export const accountsApi = baseApi.injectEndpoints({
 
         applyClassroomOtherFees: builder.mutation<{
             classroomId: string; month: number; year: number; otherFees: number;
-            otherFeesRemarks: string | null; appliedCount: number; skippedPaidCount: number;
+            otherFeesRemarks: string | null; appliedCount: number; skippedPaidCount: number; skippedNotBilledCount: number;
         }, { classroomId: string; month: number; year: number; otherFees: number; otherFeesRemarks?: string }>({
             query: ({ classroomId, ...body }) => ({
                 url: `/accounts/classrooms/${classroomId}/other-fees`,
@@ -248,6 +292,8 @@ export const accountsApi = baseApi.injectEndpoints({
             year: number;
             paidAmount: number;
             paymentMode: PaymentMode;
+            /** Part of paidAmount to record as an annual fee instalment. */
+            annualInstalment?: number;
         }>({
             query: ({ studentId, ...body }) => ({
                 url: `/accounts/students/${studentId}/fees/payment`,
@@ -277,7 +323,7 @@ export const accountsApi = baseApi.injectEndpoints({
             }),
         }),
 
-        updateTransportOpted: builder.mutation<{ id: string; fullName: string; transportOpted: boolean }, { studentId: string; transportOpted: boolean }>({
+        updateTransportOpted: builder.mutation<{ id: string; fullName: string; transportOpted: boolean; clearedMonths: number }, { studentId: string; transportOpted: boolean }>({
             query: ({ studentId, transportOpted }) => ({
                 url: `/accounts/students/${studentId}/transport`,
                 method: 'PATCH',

@@ -125,7 +125,8 @@ export default function AdmitCardPage() {
     const [createAdmitCard] = useCreateAdmitCardMutation();
 
     const subjects = useMemo(() => (classroomId ? subjectsQ.data ?? [] : []), [classroomId, subjectsQ.data]);
-    const students = useMemo(() => (classroomId ? [...(studentsQ.data ?? [])].sort(byRoll) : []), [classroomId, studentsQ.data]);
+    // Students who have left the school (deactivated) don't sit exams.
+    const students = useMemo(() => (classroomId ? (studentsQ.data ?? []).filter((s) => s.isActive !== false).sort(byRoll) : []), [classroomId, studentsQ.data]);
     const classroom = classrooms.find((c) => c.id === classroomId);
     const groups = useMemo(() => groupClassrooms(classrooms), [classrooms]);
 

@@ -46,7 +46,7 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
     const handleInvalid = (e: FormEvent) => {
         const el = e.target as HTMLInputElement;
         const labels: Record<string, string> = {
-            email: "Email", password: "Password", fullName: "Full name", dob: "Date of birth",
+            email: "Email", password: "Password", fullName: "Full name", dob: "Date of birth", admissionDate: "Admission date",
             gender: "Gender", primaryContact: "Primary contact", residentialAddress: "Home address",
         };
         const label = labels[el.name] ?? el.name;
@@ -89,7 +89,9 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
                 userEmail: email,
                 password,
                 admissionNumber,
-                admissionYear: currentYear,
+                // Fees are billed from the admission month, so a student joining mid-year isn't charged for earlier months.
+                admissionDate: get("admissionDate") || todayLocal(),
+                admissionYear: Number((get("admissionDate") || todayLocal()).slice(0, 4)) || currentYear,
                 rollNumber: undefined,
                 fullName,
                 dob: get("dob"),
@@ -159,6 +161,7 @@ function AdmissionBody({ classroom, classroomId, onClose, onSuccess }: { classro
                     <FormSection title="Student">
                         <TextField name="fullName" label="Full name" required placeholder="As on the birth certificate" wide />
                         <TextField name="dob" label="Date of birth" type="date" max={todayLocal()} required />
+                        <TextField name="admissionDate" label="Admission date" type="date" defaultValue={todayLocal()} required hint="Fees are billed from this month onwards." />
                         <ChoiceChips
                             name="gender"
                             label="Gender"

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { AlertTriangle, Bus, CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, IndianRupee, RefreshCw, Users, XCircle } from "lucide-react";
+import { AlertTriangle, Bus, CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, IndianRupee, RefreshCw, Users, UserX, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import {
     useGetClassroomsWithFeesQuery,
@@ -79,7 +79,8 @@ export default function ClassFeesPage() {
     const classroom = classrooms.find((c) => c.classroomId === classroomId);
     const className = classroom?.className ?? records[0]?.classroomName ?? "Class";
 
-    const sorted = useMemo(() => [...records].sort((a, b) => compareRoll(a.rollNumber ?? "", b.rollNumber ?? "")), [records]);
+    // Students admitted after this month have nothing billed for it, so they aren't listed.
+    const sorted = useMemo(() => records.filter((r) => r.billable !== false).sort((a, b) => compareRoll(a.rollNumber ?? "", b.rollNumber ?? "")), [records]);
 
     const counts = useMemo(() => {
         const c = { all: sorted.length, paid: 0, partial: 0, unpaid: 0 };
@@ -87,7 +88,8 @@ export default function ClassFeesPage() {
         return c;
     }, [sorted]);
 
-    const billed = sorted.reduce((sum, s) => sum + (s.totalAmount ?? 0), 0);
+    // totalAmount is what is still owed, so the month's bill is that plus what was received.
+    const billed = sorted.reduce((sum, s) => sum + (s.totalAmount ?? 0) + (s.paidAmount ?? 0), 0);
     const collected = sorted.reduce((sum, s) => sum + (s.paidAmount ?? 0), 0);
     const share = billed > 0 ? Math.min(100, Math.round((collected / billed) * 100)) : 0;
 
@@ -288,6 +290,7 @@ export default function ClassFeesPage() {
                                             <div className="mt-2 flex flex-wrap items-center gap-2">
                                                 <StatusBadge status={statusOf(s)} past={isPastMonth} />
                                                 <TransportTag opted={s.transportOpted} />
+                                                {s.isActive === false && <LeftTag />}
                                             </div>
                                             <p className="mt-2 text-sm tabular-nums text-gray-700">
                                                 <Amount s={s} />
@@ -321,7 +324,7 @@ export default function ClassFeesPage() {
                                         <th scope="col" aria-sort="ascending" className="py-3 pl-6 pr-3 font-medium">Roll</th>
                                         <th scope="col" className="px-3 py-3 font-medium">Student</th>
                                         <th scope="col" className="px-3 py-3 font-medium">Transport</th>
-                                        <th scope="col" className="px-3 py-3 text-right font-medium">Billed</th>
+                                        <th scope="col" className="px-3 py-3 text-right font-medium">Still owed</th>
                                         <th scope="col" className="px-3 py-3 text-right font-medium">Paid</th>
                                         <th scope="col" className="px-3 py-3 font-medium">Status</th>
                                         <th scope="col" className="px-3 py-3 font-medium">Exams</th>
@@ -348,7 +351,10 @@ export default function ClassFeesPage() {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <TransportTag opted={s.transportOpted} />
+                                                <span className="flex flex-wrap gap-1">
+                                                    <TransportTag opted={s.transportOpted} />
+                                                    {s.isActive === false && <LeftTag />}
+                                                </span>
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-900">{inr(s.totalAmount)}</td>
                                             <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-700">{s.paidAmount > 0 ? inr(s.paidAmount) : <span className="text-gray-500">None</span>}</td>
@@ -418,8 +424,8 @@ function Avatar({ name }: { name: string }) {
 function Amount({ s }: { s: StudentFeeRecord }) {
     const status = statusOf(s);
     if (status === "paid") return <>{inr(s.paidAmount || s.totalAmount)} paid</>;
-    if (status === "partial") return <>{inr(s.paidAmount)} of {inr(s.totalAmount)} paid</>;
-    return <>{inr(s.totalAmount)} billed</>;
+    if (status === "partial") return <>{inr(s.paidAmount)} paid, {inr(s.totalAmount)} left</>;
+    return <>{inr(s.totalAmount)} due</>;
 }
 
 /** Paid, part paid or not paid, always with an icon and a word. */
@@ -447,6 +453,16 @@ function StatusBadge({ status, past }: { status: FeeStatus; past: boolean }) {
         <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-800 ring-1 ring-orange-100">
             <AlertTriangle size={13} aria-hidden="true" />
             Not paid yet
+        </span>
+    );
+}
+
+/** The student has left the school; listed only while they still owe money. */
+function LeftTag() {
+    return (
+        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 ring-1 ring-gray-200">
+            <UserX size={13} aria-hidden="true" />
+            Left school
         </span>
     );
 }

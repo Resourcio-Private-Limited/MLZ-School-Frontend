@@ -13,7 +13,7 @@ export default function MarksEntryPage() {
 
     return (
         <div className="max-w-7xl space-y-6">
-            <PageHeader title="Marks entry" subtitle="Pick a class to enter its half-yearly and final marks. You can enter marks for the subjects you teach there, or every subject in your own class." />
+            <PageHeader title="Marks entry" subtitle="Pick a class to enter its half-yearly and final marks. You enter marks for the subjects you teach. In your own class you also add remarks and co-scholastic grades." />
 
             {isLoading ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -41,7 +41,7 @@ export default function MarksEntryPage() {
                                 <span className="min-w-0 flex-1">
                                     <span className="block font-semibold text-gray-900">{c.name}</span>
                                     <span className="mt-0.5 block text-sm text-gray-500">
-                                        {c.isClassTeacher ? "Your class: every subject" : c.subjects.length ? `Your subjects: ${c.subjects.join(", ")}` : "No subjects assigned to you"}
+                                        {c.subjects.length ? `${c.isClassTeacher ? "Your class. " : ""}Your subjects: ${c.subjects.join(", ")}` : c.isClassTeacher ? "Your class: remarks and co-scholastic grades" : "No subjects assigned to you"}
                                     </span>
                                     <span className="mt-2 block text-sm tabular-nums text-gray-500">{c.studentCount.toLocaleString("en-IN")} {c.studentCount === 1 ? "student" : "students"}</span>
                                 </span>
