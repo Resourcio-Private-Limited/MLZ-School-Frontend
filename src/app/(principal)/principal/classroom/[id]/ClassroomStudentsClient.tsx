@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import toast from "react-hot-toast";
-import { AlertCircle, ArrowUpRight, CheckCircle2, ListOrdered, Plus, RefreshCw, UserCheck, Users, XCircle } from "lucide-react";
+import { AlertCircle, ArrowUpRight, CheckCircle2, Eye, EyeOff, ListOrdered, Plus, RefreshCw, UserCheck, Users, XCircle } from "lucide-react";
 import { useGetClassroomQuery, useGetClassroomStudentsQuery, useRollArrangeByNameMutation, type ClassroomStudent } from "@/redux/api/principalApi";
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { heroGradient } from "@/components/principal/brand";
@@ -370,6 +370,9 @@ export default function ClassroomStudentsClient({ classroomId }: { classroomId: 
                                         </span>
                                         <ArrowUpRight size={16} aria-hidden="true" className="mt-1 shrink-0 text-gray-400" />
                                     </button>
+                                    <div className="-mt-2 pb-3 pl-16 pr-4 sm:pl-[4.5rem] sm:pr-6">
+                                        <PasswordReveal student={s} />
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -405,6 +408,7 @@ export default function ClassroomStudentsClient({ classroomId }: { classroomId: 
                                                             {!s.isActive && <InactiveBadge />}
                                                         </p>
                                                         <p className="truncate text-gray-500">{s.email}</p>
+                                                        <PasswordReveal student={s} />
                                                     </div>
                                                 </div>
                                             </td>
@@ -532,4 +536,25 @@ function FeeBadge({ status }: { status: NonNullable<ClassroomStudent["feeStatus"
 
 function InactiveBadge() {
     return <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Inactive</span>;
+}
+
+/** The student's login password, hidden until the principal chooses to show it. */
+function PasswordReveal({ student }: { student: ClassroomStudent }) {
+    const [shown, setShown] = useState(false);
+    if (!student.password) return null;
+    return (
+        <span className="mt-0.5 flex items-center gap-1 text-sm text-gray-500">
+            <span className="shrink-0">Password</span>
+            <span className={`min-w-0 truncate tabular-nums ${shown ? "text-gray-900" : "tracking-widest"}`}>{shown ? student.password : "••••••••"}</span>
+            <button
+                type="button"
+                onClick={() => setShown((v) => !v)}
+                aria-label={`${shown ? "Hide" : "Show"} password for ${student.fullName}`}
+                aria-pressed={shown}
+                className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 motion-safe:transition-colors ${focusRing}`}
+            >
+                {shown ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+            </button>
+        </span>
+    );
 }
