@@ -352,7 +352,8 @@ function OtherFeesForm({ classroom, titleId, onClose }: { classroom: ClassroomWi
             const res = await apply({ classroomId: classroom.classroomId, month, year, otherFees: n, otherFeesRemarks: remarks.trim() || undefined }).unwrap();
             const applied = `${inr(n)} other fees added for ${res.appliedCount} ${res.appliedCount === 1 ? "student" : "students"}.`;
             const skipped = res.skippedPaidCount ? ` ${res.skippedPaidCount} had already paid, so they were skipped.` : "";
-            toast.success(applied + skipped);
+            const notYet = res.skippedNotBilledCount ? ` ${res.skippedNotBilledCount} joined after this month, so they were skipped.` : "";
+            toast.success(applied + skipped + notYet);
             onClose();
         } catch (err) {
             toast.error(errorMessage(err, "The other fees weren't added. Check your connection and try again."));

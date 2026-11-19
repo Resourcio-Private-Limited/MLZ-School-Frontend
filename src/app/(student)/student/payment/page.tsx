@@ -33,7 +33,9 @@ const FILTERS: { value: Filter; label: string }[] = [
 
 export default function PaymentPage() {
     const reduceMotion = useReducedMotion();
-    const year = new Date().getFullYear();
+    const thisYear = new Date().getFullYear();
+    // Months are paid in order across years, so an earlier year with dues can be opened here.
+    const [year, setYear] = useState(thisYear);
     const { data, isLoading, isError, refetch } = useGetMonthlyFeesQuery(year);
     const [createOrder, { isLoading: creatingOrder }] = useCreateRazorpayOrderMutation();
     const [confirmPayment] = useConfirmStudentPaymentMutation();
@@ -45,9 +47,12 @@ export default function PaymentPage() {
 
     useEffect(() => { void loadRazorpayScript(); }, []);
 
+    // Months before the student's admission have nothing to pay and aren't shown.
+    const billableFees = useMemo(() => data?.fees.filter((fee) => fee.billable !== false) ?? [], [data]);
+    const earlierDues = data?.earlierDues ?? [];
     const selectedFees = useMemo(
-        () => data?.fees.filter((fee) => selected.includes(fee.month)) ?? [],
-        [data, selected],
+        () => billableFees.filter((fee) => selected.includes(fee.month)),
+        [billableFees, selected],
     );
     const flexibleAnnual = selectedFees.reduce(
         (sum, fee) => sum + (fee.annualContributionRequired ? 0 : Number(annualContributions[fee.month] ?? 0)),
@@ -60,10 +65,17 @@ export default function PaymentPage() {
     );
     const remainingAfterSelection = Math.max(0, (data?.annualSummary.remaining ?? 0) - flexibleAnnual);
     // Unpaid months with a balance, in the order they must be paid. The server refuses a selection that skips one.
+    // While an earlier year still owes money, nothing here can be chosen: that year comes first.
     const payableMonths = useMemo(
-        () => data?.fees.filter((fee) => !fee.isPaid && fee.totalAmount > 0).map((fee) => fee.month) ?? [],
-        [data],
+        () => (earlierDues.length ? [] : billableFees.filter((fee) => !fee.isPaid && fee.totalAmount > 0).map((fee) => fee.month)),
+        [billableFees, earlierDues.length],
     );
+    const switchYear = (next: number) => {
+        setYear(next);
+        setSelected([]);
+        setAnnualContributions({});
+        setFilter(null);
+    };
     // The selection is always a gap-free run from the earliest unpaid month: choosing a month also
     // chooses every unpaid month before it, and clearing a month also clears every month after it.
     const toggleMonth = (month: number) => {
@@ -111,8 +123,14 @@ export default function PaymentPage() {
                         setAnnualContributions({});
                         toast.success(`${inr(paidReceipt.total)} paid. Your receipt is ready.`);
                         refetch();
-                    } catch {
-                        toast.error("Your payment went through but couldn't be confirmed yet. Don't pay again; reload this page in a few minutes or contact the accounts office.");
+                    } catch (error) {
+                        // 409: the months were already paid (for example in another tab), so this payment was refunded.
+                        const status = (error as { status?: number })?.status;
+                        toast.error(status === 409
+                            ? apiErrorMessage(error, "These months were already paid, so this payment is being refunded.")
+                            : "Your payment went through but couldn't be confirmed yet. Don't pay again; reload this page in a few minutes or contact the accounts office.", { duration: 10000 });
+                        setSelected([]);
+                        setAnnualContributions({});
                         refetch();
                     }
                 },
@@ -125,7 +143,7 @@ export default function PaymentPage() {
     };
 
     const annual = data?.annualSummary;
-    const fees = data?.fees ?? [];
+    const fees = billableFees;
     const dueCount = fees.filter((f) => !f.isPaid && f.totalAmount > 0).length;
     const paidCount = fees.filter((f) => f.isPaid).length;
     const filter: Filter = pickedFilter ?? (dueCount > 0 ? "due" : "all");
@@ -137,6 +155,28 @@ export default function PaymentPage() {
     return (
         <div className="max-w-7xl space-y-6 pb-24 lg:pb-0">
             <PageHeader title="Fee payment" subtitle="Fees are paid month by month, in order. Choosing a later month also chooses the unpaid months before it." />
+
+            {earlierDues.length > 0 && (
+                <div role="status" className="flex flex-col gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <p className="flex items-start gap-2">
+                        <AlertCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                        <span>
+                            {inr(data?.earlierDueTotal ?? 0)} is still due from {[...new Set(earlierDues.map((d) => d.year))].join(" and ")}. Pay those months first; {year}&apos;s months open after that.
+                        </span>
+                    </p>
+                    <button type="button" onClick={() => switchYear(earlierDues[0].year)} className={`${secondaryBtn} shrink-0`}>
+                        Pay {earlierDues[0].year} fees
+                    </button>
+                </div>
+            )}
+            {year !== thisYear && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 sm:px-6">
+                    <p>You&apos;re looking at <span className="font-semibold tabular-nums text-gray-900">{year}</span>.</p>
+                    <button type="button" onClick={() => switchYear(thisYear)} className={secondaryBtn}>
+                        Back to {thisYear}
+                    </button>
+                </div>
+            )}
 
             {/* Annual fees summary */}
             <section aria-labelledby="annual-fees" className={`overflow-hidden rounded-xl shadow-sm ${heroGradient}`}>

@@ -294,10 +294,8 @@ function SettingsBody({ classroom, teachers, onClose }: { classroom: ClassroomSu
     const [confirmDelete, setConfirmDelete] = useState<SubjectSummary | null>(null);
 
     const activeTeachers = teachers.filter((t) => t.isActive).sort((a, b) => a.fullName.localeCompare(b.fullName, "en-IN"));
-    // A teacher already teaching a subject here isn't offered again (the old behaviour), except for the subject being edited.
-    const assignedIds = new Set(subjects.flatMap((s) => s.teachers.map((t) => t.id)));
-    const freeTeachers = activeTeachers.filter((t) => !assignedIds.has(t.id));
-    const editTeachers = (subject: SubjectSummary) => activeTeachers.filter((t) => !assignedIds.has(t.id) || subject.teachers.some((st) => st.id === t.id));
+    // One teacher can teach several subjects in a class (a primary class teacher often teaches most of them).
+    const editTeachers = (subject: SubjectSummary) => activeTeachers.concat(teachers.filter((t) => !t.isActive && subject.teachers.some((st) => st.id === t.id)));
 
     const saveClassTeacher = async () => {
         if (!classTeacherId) return;
@@ -479,7 +477,7 @@ function SettingsBody({ classroom, teachers, onClose }: { classroom: ClassroomSu
                                 Teacher
                                 <select value={newTeacherId} onChange={(e) => setNewTeacherId(e.target.value)} className={`${inputClass} mt-1.5`}>
                                     <option value="">Choose a teacher</option>
-                                    {freeTeachers.map((t) => (
+                                    {activeTeachers.map((t) => (
                                         <option key={t.id} value={t.id}>{teacherLabel(t)}</option>
                                     ))}
                                 </select>
@@ -489,9 +487,6 @@ function SettingsBody({ classroom, teachers, onClose }: { classroom: ClassroomSu
                                 {adding ? "Adding…" : "Add subject"}
                             </button>
                         </div>
-                        {!loadingSubjects && freeTeachers.length === 0 && activeTeachers.length > 0 && (
-                            <p className="mt-2 text-sm text-gray-500">Every active teacher already teaches a subject in this class.</p>
-                        )}
                     </form>
                 </section>
             </div>

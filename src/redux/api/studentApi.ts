@@ -138,6 +138,10 @@ export interface MonthlyFeeRecord {
   id: string;
   month: number;
   year: number;
+  /** False for months before the student's admission: nothing to pay. */
+  billable: boolean;
+  /** What is still owed on the month's own charges (totalAmount adds any overdue annual balance). */
+  monthlyDue: number;
   tuitionFees: number;
   annualCharges: number;
   annualContributionRequired: number;
@@ -166,6 +170,9 @@ export interface StudentMonthlyFeesResponse {
   year: number;
   annualSummary: AnnualFeeSummary;
   fees: MonthlyFeeRecord[];
+  /** Unpaid months of earlier years. They have to be paid before this year's months. */
+  earlierDues: Array<{ year: number; month: number; amount: number }>;
+  earlierDueTotal: number;
 }
 
 export interface RazorpayOrderResponse {
@@ -222,6 +229,18 @@ export interface StudentReportCard {
   svg: string | null;
 }
 
+/** One entry of GET /student/report-cards: a session and class the student has results in. */
+export interface StudentReportCardEntry {
+  session: string;
+  classroomId: string;
+  classroomName: string;
+  classType: 'PRIMARY' | 'SECONDARY';
+  /** The current session and the student's current class. */
+  isCurrent: boolean;
+  exams: { HALF_YEARLY: ReportCardExamStatus; FINAL: ReportCardExamStatus };
+  available: boolean;
+}
+
 export const studentApi = baseApi.injectEndpoints({
   // Dev hot reload can evaluate this module twice; re-injecting the same endpoints is expected there.
   overrideExisting: process.env.NODE_ENV === "development",
@@ -241,6 +260,16 @@ export const studentApi = baseApi.injectEndpoints({
 
     // Report card for the current session; refetched on every visit so newly released results appear.
     getReportCard: builder.query<StudentReportCard, void>({ query: () => ({ url: '/student/report-card', method: 'GET' }) }),
+
+    // Every session and class the student has results in (newest first), plus the current one.
+    listReportCards: builder.query<StudentReportCardEntry[], void>({ query: () => ({ url: '/student/report-cards', method: 'GET' }) }),
+    // A past (or current) report card by session and class; same shape as getReportCard.
+    getReportCardFor: builder.query<StudentReportCard, { session: string; classroomId: string }>({
+      query: ({ session, classroomId }) => ({
+        url: `/student/report-cards/${encodeURIComponent(session)}/${encodeURIComponent(classroomId)}`,
+        method: 'GET',
+      }),
+    }),
 
     updateProfile: builder.mutation<StudentProfileResponse, UpdateProfilePayload>({
       query: (body) => ({ url: '/student/update-profile', method: 'PATCH', body }),
@@ -285,6 +314,8 @@ export const {
   useGetExamsQuery,
   useGetAdmitCardsQuery,
   useGetReportCardQuery,
+  useListReportCardsQuery,
+  useGetReportCardForQuery,
   useUpdateProfileMutation,
   useGetMessageRecipientsQuery,
   useGetMonthlyFeesQuery,

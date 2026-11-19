@@ -250,6 +250,7 @@ export const principalApi = baseApi.injectEndpoints({
         }),
 
         addStudent: builder.mutation<unknown, {
+            admissionDate?: string;
             userEmail: string;
             password: string;
             admissionNumber: string;

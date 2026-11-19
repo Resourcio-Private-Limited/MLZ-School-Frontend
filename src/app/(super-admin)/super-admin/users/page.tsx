@@ -112,9 +112,7 @@ export default function UserManagementPage() {
     const [newUser, setNewUser] = useState<NewUserForm>(emptyForm);
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
-    const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const reduceMotion = useReducedMotion();
     const [editForm, setEditForm] = useState({
@@ -352,7 +350,7 @@ export default function UserManagementPage() {
 
     const handleChangePassword = async () => {
         if (!selectedUser) return;
-        if (!passwordForm.currentPassword || !passwordForm.newPassword) return;
+        if (!passwordForm.newPassword) return;
         const pwIssue = passwordIssue(passwordForm.newPassword);
         if (pwIssue) {
             toast.error(`New password: ${pwIssue}`);
@@ -361,16 +359,15 @@ export default function UserManagementPage() {
         try {
             await changePassword({
                 userId: selectedUser.userId,
-                currentPassword: passwordForm.currentPassword,
                 newPassword: passwordForm.newPassword,
             }).unwrap();
             setShowPasswordModal(false);
             setSelectedUser(null);
             setPasswordForm({ currentPassword: '', newPassword: '' });
-            toast.success("Password changed successfully!");
+            toast.success(`New password set for ${selectedUser.fullName}.`);
             refetch();
         } catch (err) {
-            toast.error(apiErrorMessage(err, "Password not changed. Check the current password and try again."));
+            toast.error(apiErrorMessage(err, "The new password wasn't set. Check your connection and try again."));
         }
     };
 
@@ -421,13 +418,6 @@ export default function UserManagementPage() {
         window.history.replaceState(null, "", `?tab=${tab.toLowerCase()}`);
     };
 
-    const toggleReveal = (id: string) =>
-        setRevealedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
-        });
-
     const handleStatusSwitch = async (user: UserSummary) => {
         if (!user.isActive) {
             handleToggleUserStatus(user);
@@ -472,30 +462,6 @@ export default function UserManagementPage() {
     const initials = (name: string) =>
         name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
-    const passwordControl = (user: UserSummary) => {
-        const revealed = revealedIds.has(user.id);
-        return user.password ? (
-            <div className="flex items-center gap-1">
-                <span className={`min-w-[7.5rem] text-sm tabular-nums ${revealed ? "text-gray-900" : "text-gray-500 tracking-widest"}`}>
-                    {revealed ? user.password : "••••••••"}
-                </span>
-                <Tooltip content={revealed ? "Hide password" : "Show password"} side="top">
-                    <button
-                        type="button"
-                        onClick={() => toggleReveal(user.id)}
-                        aria-label={`${revealed ? "Hide" : "Show"} password for ${user.fullName}`}
-                        aria-pressed={revealed}
-                        className={iconBtn}
-                    >
-                        {revealed ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
-                    </button>
-                </Tooltip>
-            </div>
-        ) : (
-            <span className="text-sm text-gray-500">—</span>
-        )
-    };
-
     const statusSwitch = (user: UserSummary) => (
         <button
             type="button"
@@ -522,8 +488,8 @@ export default function UserManagementPage() {
                     <Edit2 size={15} aria-hidden="true" />
                 </button>
             </Tooltip>
-            <Tooltip content="Change password" side="top">
-                <button type="button" onClick={() => openPasswordModal(user)} aria-label={`Change password for ${user.fullName}`} className={iconBtn}>
+            <Tooltip content="Set a new password" side="top">
+                <button type="button" onClick={() => openPasswordModal(user)} aria-label={`Set a new password for ${user.fullName}`} className={iconBtn}>
                     <Key size={15} aria-hidden="true" />
                 </button>
             </Tooltip>
@@ -678,7 +644,6 @@ export default function UserManagementPage() {
                                 </div>
                                 <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pl-12">
                                     {statusSwitch(user)}
-                                    {passwordControl(user)}
                                 </div>
                             </li>
                         ))
@@ -695,7 +660,6 @@ export default function UserManagementPage() {
                                 {isStaff && <th scope="col" className={th}>Role</th>}
                                 <th scope="col" className={th}>{isStudents ? "Admission no." : "Employee ID"}</th>
                                 {isStudents && <th scope="col" className={th}>Class</th>}
-                                <th scope="col" className={th}>Password</th>
                                 <th scope="col" className={th}>Status</th>
                                 <th scope="col" className={th}><span className="sr-only">Actions</span></th>
                             </tr>
@@ -748,9 +712,6 @@ export default function UserManagementPage() {
                                             {isStudents && (
                                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">{user.classroom || <span className="text-gray-500">—</span>}</td>
                                             )}
-                                            <td className="px-6 py-3 whitespace-nowrap">
-                                                {passwordControl(user)}
-                                            </td>
                                             <td className="px-6 py-3 whitespace-nowrap">
                                                 {statusSwitch(user)}
                                             </td>
@@ -1310,7 +1271,7 @@ export default function UserManagementPage() {
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                                     <Key size={20} className="text-amber-600" />
-                                    Change Password
+                                    Set a new password
                                 </h2>
                                 <button type="button" aria-label="Close" onClick={() => { setShowPasswordModal(false); setSelectedUser(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -1319,22 +1280,10 @@ export default function UserManagementPage() {
                             </div>
 
                             <p className="text-sm text-gray-600 mb-4">
-                                Changing password for <strong>{selectedUser.fullName}</strong>
+                                Set a new password for <strong>{selectedUser.fullName}</strong> and share it with them. Passwords are stored encrypted, so nobody can look up the current one.
                             </p>
 
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Current Password <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <input type={showCurrentPassword ? "text" : "password"} value={passwordForm.currentPassword}
-                                            onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                            className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:outline-none text-gray-900 bg-white" />
-                                        <button type="button" aria-label={showCurrentPassword ? "Hide current password" : "Show current password"} onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 transition-colors">
-                                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
-                                    </div>
-                                </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1">New Password <span className="text-red-500">*</span></label>
                                     <div className="relative">
@@ -1356,11 +1305,11 @@ export default function UserManagementPage() {
                                 </button>
                                 <button
                                     onClick={handleChangePassword}
-                                    disabled={isChangingPassword || !passwordForm.currentPassword || !passwordForm.newPassword}
+                                    disabled={isChangingPassword || !passwordForm.newPassword}
                                     className="flex items-center space-x-2 px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors font-medium"
                                 >
                                     <Key size={16} />
-                                    {isChangingPassword ? "Changing..." : "Change Password"}
+                                    {isChangingPassword ? "Saving…" : "Set password"}
                                 </button>
                             </div>
                         </div>

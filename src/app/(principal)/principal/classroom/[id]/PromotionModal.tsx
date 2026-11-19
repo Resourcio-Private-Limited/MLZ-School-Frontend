@@ -42,6 +42,13 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
     const target = classrooms.find((c) => c.id === targetId);
     const seatsLeft = target ? target.capacity - target.total : 0;
     const overCapacity = !!target && selected.size > seatsLeft;
+    // Promotion normally goes up a grade. Same grade is a section change; a lower grade is almost always a slip.
+    const direction = target ? Math.sign(gradeRank(target.grade) - gradeRank(classroom.grade)) : 1;
+    const gradeWarning = !target || direction > 0
+        ? null
+        : direction === 0
+            ? `${target.name} is the same grade as ${classroom.name}, so this moves students to another section rather than promoting them.`
+            : `${target.name} is a lower grade than ${classroom.name}. Check that this is the class you meant.`;
 
     const byGrade = useMemo(() => {
         const groups = new Map<string, ClassroomSummary[]>();
@@ -49,8 +56,9 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
         return [...groups.entries()].sort(([a], [b]) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b));
     }, [classrooms]);
 
+    // Students who have left the school (deactivated) are not promoted.
     const sorted = useMemo(
-        () => [...students].sort((a, b) => (a.classRoll ?? Infinity) - (b.classRoll ?? Infinity) || a.fullName.localeCompare(b.fullName)),
+        () => students.filter((s) => s.isActive !== false).sort((a, b) => (a.classRoll ?? Infinity) - (b.classRoll ?? Infinity) || a.fullName.localeCompare(b.fullName)),
         [students]
     );
     const visible = useMemo(() => {
@@ -145,7 +153,7 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
                                 </button>
                             </div>
                             <p className="mt-2 text-sm tabular-nums text-gray-500" aria-live="polite">
-                                {plural(selected.size)} selected of {students.length}
+                                {plural(selected.size)} selected of {sorted.length}
                             </p>
                             {visible.length === 0 ? (
                                 <p className="mt-2 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">No students match that search.</p>
@@ -177,6 +185,12 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
                             )}
                         </fieldset>
                     </div>
+                    {gradeWarning && (
+                        <p role="status" className="flex items-center gap-1.5 border-t border-gray-200 bg-amber-50 px-6 py-2.5 text-sm text-amber-900">
+                            <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
+                            {gradeWarning}
+                        </p>
+                    )}
                     {overCapacity && (
                         <p className="flex items-center gap-1.5 border-t border-gray-200 bg-amber-50 px-6 py-2.5 text-sm text-amber-900">
                             <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
@@ -210,6 +224,12 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
                             <span className="font-medium tabular-nums text-gray-900">{plural(selected.size)}</span> will leave {classroom.name} and join {target?.name}. They&apos;ll
                             show up in the new class list straight away.
                         </p>
+                        {gradeWarning && (
+                            <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
+                                <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                                {gradeWarning}
+                            </p>
+                        )}
                         {overCapacity && (
                             <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-100">
                                 <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
@@ -240,4 +260,13 @@ function PromotionBody({ classroom, students, onClose, onSuccess }: { classroom:
             )}
         </>
     );
+}
+
+/** Orders grades: Nursery, LKG/KG, UKG, then 1 to 12. Unknown names sort last. */
+function gradeRank(grade: string) {
+    const g = grade.trim().toUpperCase().replace(/^(GRADE|CLASS)\s*/, "");
+    const named: Record<string, number> = { NURSERY: -3, LKG: -2, KG: -2, UKG: -1 };
+    if (g in named) return named[g];
+    const n = Number.parseInt(g, 10);
+    return Number.isFinite(n) ? n : 99;
 }

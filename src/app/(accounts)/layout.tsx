@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Loader2, LogOut, Menu, MessageSquare, TrendingDown, TrendingUp, Wallet, X, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, ChevronLeft, ChevronRight, CreditCard, Loader2, LogOut, Menu, MessageSquare, TrendingDown, TrendingUp, Wallet, X, type LucideIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { heroGradient, sidebarGradient } from "@/components/accounts/brand";
 
@@ -27,7 +27,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
             { href: "/accounts/analysis", label: "Analysis", icon: BarChart3 },
         ],
     },
-    { label: "Communication", items: [{ href: "/accounts/messages", label: "Messages", icon: MessageSquare }] },
+    {
+        label: "Communication",
+        items: [
+            { href: "/accounts/messages", label: "Messages", icon: MessageSquare },
+            { href: "/accounts/noticeboard", label: "Notice board", icon: Bell },
+        ],
+    },
 ];
 
 const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);

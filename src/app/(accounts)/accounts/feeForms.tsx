@@ -134,37 +134,43 @@ export function RecordPaymentDialog({
 function PaymentForm({ titleId, classroomId, student, month, year, onClose, onDone }: { titleId: string; classroomId: string; student: StudentFeeRecord; month: number; year: number; onClose: () => void; onDone: () => void }) {
     const id = useId();
     const [amount, setAmount] = useState(String(student.totalAmount));
+    const [instalment, setInstalment] = useState("");
     const [mode, setMode] = useState<PaymentMode>("CASH");
     const [touched, setTouched] = useState(false);
     const [recordPayment, { isLoading }] = useRecordStudentPaymentMutation();
 
+    // An annual instalment can be collected on top of the month while the annual fee isn't overdue.
+    // After its due date the overdue balance is already part of the month's balance.
+    const annualRemaining = student.annualRemaining ?? 0;
+    const canTakeInstalment = !student.annualOverdue && annualRemaining > 0;
     const parsed = parseMoney(amount);
+    const parsedInstalment = canTakeInstalment ? parseMoney(instalment) : 0;
     const over = parsed !== null && parsed > student.totalAmount;
     const error = parsed === null
         ? "Enter an amount in rupees."
-        : parsed <= 0
+        : parsed + (parsedInstalment ?? 0) <= 0
             ? "Enter an amount above ₹0."
             : over
-                ? `That's more than this month's total of ${inr(student.totalAmount)}.`
+                ? `That's more than the ${inr(student.totalAmount)} still owed for this month.`
                 : null;
+    const instalmentError = parsedInstalment === null
+        ? "Enter an amount in rupees."
+        : parsedInstalment > annualRemaining
+            ? `Only ${inr(annualRemaining)} of annual fees is still due.`
+            : null;
+    const total = (parsed ?? 0) + (parsedInstalment ?? 0);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setTouched(true);
-        if (error || parsed === null) return;
+        if (error || instalmentError || parsed === null || parsedInstalment === null) return;
         try {
-            await recordPayment({ studentId: student.studentId, classroomId, month, year, paidAmount: parsed, paymentMode: mode }).unwrap();
-            toast.success(`${inr(parsed)} payment recorded for ${student.fullName}.`);
+            await recordPayment({ studentId: student.studentId, classroomId, month, year, paidAmount: total, paymentMode: mode, annualInstalment: parsedInstalment }).unwrap();
+            toast.success(`${inr(total)} payment recorded for ${student.fullName}.`);
             onDone();
         } catch (err) {
-            // The backend only accepts payments for months that already have a fee
-            // record; that row is created by saving the month on the student's fee page.
-            const status = (err as { status?: number })?.status;
-            if (status === 404) {
-                toast.error(`${monthLabel(month, year)} hasn't been billed yet. Open ${student.fullName}'s fee page and save the month first, then record the payment.`);
-            } else {
-                toast.error(errorMessage(err, "The payment wasn't recorded. Check your connection and try again."));
-            }
+            // The server explains refusals, for example "Collect October 2026 before November 2026."
+            toast.error(errorMessage(err, "The payment wasn't recorded. Check your connection and try again."));
         }
     };
 
@@ -174,27 +180,44 @@ function PaymentForm({ titleId, classroomId, student, month, year, onClose, onDo
             <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
                 <dl className="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
                     <div>
-                        <dt className="text-gray-500">This month&apos;s total</dt>
+                        <dt className="text-gray-500">Still owed this month</dt>
                         <dd className="mt-0.5 text-base font-semibold tabular-nums text-gray-900">{inr(student.totalAmount)}</dd>
                     </div>
                     <div>
                         <dt className="text-gray-500">Already received</dt>
                         <dd className="mt-0.5 text-base font-semibold tabular-nums text-gray-900">{inr(student.paidAmount)}</dd>
                     </div>
+                    {(student.annualContributionRequired ?? 0) > 0 && (
+                        <p className="col-span-2 flex items-start gap-1.5 text-orange-800">
+                            <AlertTriangle size={15} aria-hidden="true" className="mt-0.5 shrink-0" />
+                            Includes {inr(student.annualContributionRequired ?? 0)} of overdue annual fees.
+                        </p>
+                    )}
                 </dl>
                 <div>
-                    <label htmlFor={`${id}-amount`} className={labelClass}>Amount received</label>
+                    <label htmlFor={`${id}-amount`} className={labelClass}>Amount for {monthLabel(month, year)}</label>
                     <MoneyInput id={`${id}-amount`} value={amount} onChange={setAmount} invalid={touched && !!error} describedBy={`${id}-amount-hint`} autoFocus />
                     <p id={`${id}-amount-hint`} className={touched && error ? errorClass : over ? "mt-1.5 flex items-center gap-1 text-xs font-medium text-orange-700" : hintClass}>
-                        {touched && error ? error : over ? <><AlertTriangle size={13} aria-hidden="true" />That&apos;s more than this month&apos;s total of {inr(student.totalAmount)}.</> : "Filled in with the month's total. Change it for a part payment."}
+                        {touched && error ? error : over ? <><AlertTriangle size={13} aria-hidden="true" />That&apos;s more than the {inr(student.totalAmount)} still owed for this month.</> : "Filled in with what is still owed. Change it for a part payment."}
                     </p>
                 </div>
+                {canTakeInstalment && (
+                    <div>
+                        <label htmlFor={`${id}-annual`} className={labelClass}>
+                            Annual fee instalment <span className="font-normal text-gray-500">(optional)</span>
+                        </label>
+                        <MoneyInput id={`${id}-annual`} value={instalment} onChange={setInstalment} invalid={touched && !!instalmentError} describedBy={`${id}-annual-hint`} />
+                        <p id={`${id}-annual-hint`} className={touched && instalmentError ? errorClass : hintClass}>
+                            {touched && instalmentError ? instalmentError : `${inr(annualRemaining)} of annual fees still due. Counts towards the annual fee, not the month.`}
+                        </p>
+                    </div>
+                )}
                 <ChoiceChips legend="Paid by" name={`${id}-mode`} options={PAYMENT_MODES} value={mode} onChange={setMode} />
             </div>
             <div className="flex flex-col-reverse gap-2 border-t border-gray-200 bg-gray-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button type="button" onClick={onClose} className={secondaryLg}>Cancel</button>
-                <button type="submit" disabled={isLoading || !!error} className={primaryBtn}>
-                    {isLoading ? "Recording…" : parsed && !error ? `Record ${inr(parsed)}` : "Record payment"}
+                <button type="submit" disabled={isLoading || !!error || !!instalmentError} className={primaryBtn}>
+                    {isLoading ? "Recording…" : total > 0 && !error && !instalmentError ? `Record ${inr(total)}` : "Record payment"}
                 </button>
             </div>
         </form>
